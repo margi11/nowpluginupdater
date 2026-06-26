@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Environment and credentials
+.env
+.env.*
+credentials.*
+*.key
+*.pem
+secrets.*
+
+# Editors
+.vscode/
+.idea/
+
+# Logs and temp files
+*.log
+*.tmp
+*.bak
+
+# Node.js
+node_modules/
