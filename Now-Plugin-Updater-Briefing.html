@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Now Plugin Updater — Build Briefing</title>
+<style>
+:root{--bg:#f5f5f7;--surface:#fff;--border:#e8e8ed;--text:#1d1d1f;--text-2:#6e6e73;--text-3:#a1a1a6;--accent:#0071e3;--success:#34c759;--warning:#ff9f0a;--danger:#ff3b30;--font:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Helvetica,Arial,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto;padding:48px 28px 80px}
+.hero{background:linear-gradient(135deg,#1d1d1f,#3a3a3c);color:#fff;border-radius:18px;padding:36px 40px;margin-bottom:32px}
+.hero h1{font-size:32px;font-weight:700;letter-spacing:-.02em}
+.hero .sub{opacity:.7;margin-top:8px;font-size:14px}
+.hero .meta{margin-top:18px;display:flex;gap:24px;flex-wrap:wrap;font-size:13px;opacity:.85}
+h2{font-size:21px;font-weight:700;letter-spacing:-.01em;margin:36px 0 14px}
+h3{font-size:15px;font-weight:600;margin:20px 0 8px}
+p,li{font-size:14px;color:var(--text-2)}
+ul,ol{padding-left:22px;margin:8px 0}
+li{margin-bottom:6px}
+.card{background:var(--surface);border-radius:16px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 4px 14px rgba(0,0,0,.05);padding:24px 28px;margin-bottom:18px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);padding:10px 12px;border-bottom:1px solid var(--border)}
+td{padding:11px 12px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text)}
+tr:last-child td{border-bottom:none}
+code{font-family:ui-monospace,'SF Mono',monospace;font-size:12px;background:var(--bg);border-radius:5px;padding:2px 6px}
+.pill{display:inline-block;padding:2px 10px;border-radius:980px;font-size:11px;font-weight:600}
+.ok{background:rgba(52,199,89,.15);color:#1a8c37}
+.warn{background:rgba(255,159,10,.16);color:#bf7e00}
+a{color:var(--accent);text-decoration:none}
+.lead{font-size:16px;color:var(--text);margin-bottom:4px}
+.tag{display:inline-block;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.2);border-radius:980px;padding:5px 13px;font-size:12px;font-weight:600}
+.kgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0 4px}
+.k{background:var(--bg);border-radius:12px;padding:14px 16px}
+.k .n{font-size:24px;font-weight:700;letter-spacing:-.02em}
+.k .l{font-size:11px;color:var(--text-2);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.note{font-size:12px;color:var(--text-3);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <span class="tag">ServiceNow · Global scope · Australia · Patch 2</span>
+    <h1 style="margin-top:14px">Now Plugin Updater</h1>
+    <div class="sub">A clean admin console to discover, batch-install and monitor Store-app updates — replacing the per-app Application Manager flow.</div>
+    <div class="meta">
+      <div><strong>Author</strong><br/>Gianmario Marongiu</div>
+      <div><strong>Instance</strong><br/>democrmfalectriae152010</div>
+      <div><strong>Delivery</strong><br/>No-build UI Page · vanilla JS</div>
+      <div><strong>Update Set</strong><br/>Now Plugin Updater (43 entries)</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="lead">What it does</p>
+    <p>A single admin screen that lists the Store applications with an available update, lets the admin select any number of them, launches the installs, and tracks them to completion — including <strong>unattended</strong> runs where the browser is closed. Installs use the logged-in admin's session (no stored credentials); a server-side job monitors and finalises each install.</p>
+    <div class="kgrid">
+      <div class="k"><div class="n">231</div><div class="l">Updatable apps (= App Manager)</div></div>
+      <div class="k"><div class="n">1,400</div><div class="l">Active plugins</div></div>
+      <div class="k"><div class="n">8&times;</div><div class="l">Batch concurrency</div></div>
+      <div class="k"><div class="n">0</div><div class="l">Stored credentials</div></div>
+    </div>
+  </div>
+
+  <h2>Architecture</h2>
+  <div class="card">
+    <ul>
+      <li><strong>UI Page <code>pgi_plugin_updater</code></strong> — a Jelly <em>body fragment</em> (no <code>&lt;!DOCTYPE&gt;/&lt;html&gt;</code>) with design-token CSS scoped under <code>#app</code> and a vanilla-JS IIFE. Views: Home · Wizard 1–3 · Monitor · Guide. No framework, no bundler.</li>
+      <li><strong>Script Include <code>PluginUpdaterAjax</code></strong> (<code>client_callable</code>, extends <code>AbstractAjaxProcessor</code>, ES5). Methods return JSON strings consumed via <code>GlideAjax.getXMLAnswer</code>: <code>getInstanceInfo</code>, <code>getUpdatableApps</code>, <code>createBatch</code>, <code>attachWorker</code>, <code>failRow</code>, <code>getBatchStatus</code>, <code>getMyLatestBatch</code>, <code>listBatches</code>, <code>monitorBatches</code>, <code>getProgress</code>, <code>verifyVersion</code>, <code>logInstall</code>.</li>
+      <li><strong>Table <code>u_plugin_updater_install_log</code></strong> — install history; a batch is a group of rows sharing <code>u_session_id</code>. CRUD restricted to <code>admin</code>.</li>
+      <li><strong>Scheduled Job <code>Plugin Updater - Monitor Batches</code></strong> (every 1 min) — polls <code>sys_progress_worker</code>, verifies the installed version, and finalises rows. Runs server-side, so installs complete and are tracked with the browser closed. Credential-free.</li>
+    </ul>
+    <h3>Install trigger (credential-free)</h3>
+    <p>Each install is a client-side <code>fetch</code> to <code>/api/sn_cicd/app_repo/install</code> with <code>X-UserToken: window.g_ck</code> (the admin's own session). 400 “offering required” errors are retried automatically with the parsed offering id. No service account, no Base64, no loopback.</p>
+    <p>The CICD App Repo install API is <strong>single-flight</strong> (guarded by a “CICD Operation” mutex): concurrent enqueues return <code>Error enqueueing app_install</code>. The launcher therefore enqueues installs <strong>sequentially</strong> and retries transient enqueue/mutex collisions with backoff — the installs themselves still run concurrently server-side once enqueued.</p>
+    <h3>Unattended batch &amp; monitoring</h3>
+    <p>On launch the client creates the batch (one queued row per app) and fires all triggers in waves of 6 within seconds; then it can be closed. The Monitor page reads batch state from the server, polls every 15s, and on reopen reloads the user's most recent batch automatically (a batch selector lists recent ones). Columns are sortable.</p>
+  </div>
+
+  <h2>Artifacts</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Artifact</th><th>Type</th><th>sys_id</th></tr></thead>
+      <tbody>
+        <tr><td>pgi_plugin_updater</td><td>UI Page</td><td><code>c14be11ceb310310a9e2f5b9bad0cde1</code></td></tr>
+        <tr><td>PluginUpdaterAjax</td><td>Script Include</td><td><code>37d62d14877103103ad5851d8bbb3547</code></td></tr>
+        <tr><td>u_plugin_updater_install_log</td><td>Table (+ ACLs)</td><td><code>f6f7a598877103103ad5851d8bbb3506</code></td></tr>
+        <tr><td>Plugin Updater - Monitor Batches</td><td>Scheduled Job</td><td><code>4b2edfa0eb358710a9e2f5b9bad0cd39</code></td></tr>
+        <tr><td>Now Plugin Updater</td><td>Application Menu</td><td><code>4deba150eb710310a9e2f5b9bad0cd65</code></td></tr>
+        <tr><td>Plugin Updater</td><td>Module</td><td><code>5bebe5d4877503103ad5851d8bbb355e</code></td></tr>
+      </tbody>
+    </table>
+    <p class="note">Access: open <code>pgi_plugin_updater.do</code> or the menu <strong>Now Plugin Updater → Plugin Updater</strong>. Page, data and log restricted to the <code>admin</code> role.</p>
+  </div>
+
+  <h2>Constraints honoured</h2>
+  <div class="card">
+    <ul>
+      <li><span class="pill ok">OK</span> No React, no bundler, no Fluent — single no-build UI Page rendered as a Jelly fragment.</li>
+      <li><span class="pill ok">OK</span> No stored credentials, no Base64 — installs use the admin session token.</li>
+      <li><span class="pill ok">OK</span> One data path — all reads via a single client-callable Script Include (GlideAjax). No REST Table API fallback for reads.</li>
+      <li><span class="pill ok">OK</span> ES5 server-side; version label from <code>glide.buildtag</code>/<code>glide.buildname</code> (not <code>glide.war</code>).</li>
+      <li><span class="pill ok">OK</span> All user-facing text in English; global scope; one portable Update Set.</li>
+    </ul>
+  </div>
+
+  <h2>Key decisions &amp; lessons learned</h2>
+  <div class="card">
+    <ul>
+      <li><strong>UI Page must be a Jelly body fragment.</strong> Emitting a full <code>&lt;!DOCTYPE html&gt;</code> document inside Jelly collides with this instance's Next Experience shell (module-redefinition errors → blank page). The fragment renders correctly inside the platform frame.</li>
+      <li><strong>No CDATA / no reserved words.</strong> ServiceNow's Jelly tolerates raw <code>&lt;</code>/<code>&amp;&amp;</code> in <code>&lt;script&gt;</code>; a CDATA wrapper broke parsing. (Also: <code>if</code> is a reserved word — never a variable name.)</li>
+      <li><strong>GlideAjax response pattern.</strong> Methods must <code>return JSON.stringify(...)</code> (read by <code>getXMLAnswer</code>), not <code>newItem().setAttribute('answer',…)</code>. Client params are passed with the <code>sysparm_</code> prefix.</li>
+      <li><strong>No duplicate Script Includes.</strong> A second class with the same name shadows yours and returns empty — keep exactly one.</li>
+      <li><strong>Count aligned to Application Manager (231)</strong> via <code>update_available ^ active ^ hide_on_ui=false ^ install_date≠empty</code>.</li>
+      <li><strong>Unattended = client-fires-all + server-monitors</strong> (credential-free), chosen over a server-side trigger that would have required a stored service-account credential.</li>
+    </ul>
+  </div>
+
+  <h2>Caveats</h2>
+  <div class="card">
+    <ul>
+      <li><span class="pill warn">Note</span> The 231 list matches the native Application Manager and therefore includes some platform-bundled apps that cannot install via the Store REST API — these are marked <strong>Failed</strong> with a message (same behaviour as the native flow).</li>
+      <li><span class="pill warn">Note</span> The browser tab must stay open during <em>launch</em> (sequential enqueue, a few seconds for small batches, longer for large ones or under CICD contention). After launch, installs and monitoring continue server-side; closing/reopening is safe.</li>
+      <li><span class="pill warn">Note</span> JARVIS/AI-generated output — review before use beyond a dev instance.</li>
+    </ul>
+  </div>
+
+  <h2>Deployment</h2>
+  <div class="card">
+    <ol>
+      <li>Open the completed Update Set record and use <strong>Related Links → Export to XML</strong> to download <code>Now Plugin Updater.xml</code> (see <code>Update-Sets/README.md</code>; the <code>export_update_set.do</code> endpoint is not available on these instances).</li>
+      <li>On the target: <strong>Retrieved Update Sets → Import Update Set from XML</strong> → Preview → Commit.</li>
+      <li>Open <code>pgi_plugin_updater.do</code> as an admin.</li>
+    </ol>
+  </div>
+
+  <p class="note" style="text-align:center;margin-top:32px">Now Plugin Updater v1.1.0 · by Gianmario Marongiu · built on democrmfalectriae152010</p>
+
+</div>
+</body>
+</html>
