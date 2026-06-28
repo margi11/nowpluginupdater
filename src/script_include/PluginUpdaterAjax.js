@@ -439,16 +439,34 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         gr.addNotNullQuery('u_progress_id');
         gr.setLimit(2000);
         gr.query();
-        var checked = 0, finalized = 0, nowMs = new GlideDateTime().getNumericValue();
+        var checked = 0, finalized = 0, nowMs = new GlideDateTime().getNumericValue(), batchLast = {};
         while (gr.next()) {
             checked++;
             var w = this._findWorker(gr.getValue('u_progress_id'));
             if (!w) {
-                // Worker not found: usually transient. Fail only if very stale (>60 min).
-                var st = gr.getValue('u_started_at');
-                if (st && (nowMs - new GlideDateTime(st).getNumericValue()) > 3600000) {
+                // Worker not found. Under the single-flight CICD install queue the
+                // worker is created only when this app's turn comes, so a missing
+                // worker usually means "not started yet", not a failure.
+                // 1) Source of truth: if the app already reached the target version,
+                //    the install succeeded and the worker simply rotated away.
+                var ver = this._verify(gr.getValue('u_store_app_id'), gr.getValue('u_target_version'));
+                if (ver.matches) {
+                    gr.setValue('u_status', 'complete');
+                    gr.setValue('u_percent_complete', 100);
+                    gr.setValue('u_completed_at', new GlideDateTime());
+                    gr.update();
+                    finalized++;
+                    continue;
+                }
+                // 2) Not installed yet: fail only if the whole batch has stalled
+                //    (no install in it has completed for >60 min). While the queue
+                //    keeps draining, waiting rows stay queued regardless of batch size.
+                var batch = gr.getValue('u_session_id');
+                if (batchLast[batch] === undefined) { batchLast[batch] = this._batchLastActivityMs(batch); }
+                var refMs = batchLast[batch] || new GlideDateTime(gr.getValue('u_started_at')).getNumericValue();
+                if (refMs && (nowMs - refMs) > 3600000) {
                     gr.setValue('u_status', 'failed');
-                    gr.setValue('u_error_message', 'Timed out: install worker not found after 60 minutes');
+                    gr.setValue('u_error_message', 'Timed out: install did not start (no queue progress for 60 minutes)');
                     gr.setValue('u_percent_complete', 100);
                     gr.setValue('u_completed_at', new GlideDateTime());
                     gr.update();
@@ -518,6 +536,19 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         if (!appSysId || !gr.get(appSysId)) { return { matches: false, current: '' }; }
         var cur = gr.getValue('version') || '';
         return { matches: (cur === target), current: cur };
+    },
+
+    // Most recent completion time (ms) across a batch — used to detect a stalled queue.
+    _batchLastActivityMs: function(batch) {
+        if (!batch) { return 0; }
+        var gr = new GlideRecord('u_plugin_updater_install_log');
+        gr.addQuery('u_session_id', batch);
+        gr.addNotNullQuery('u_completed_at');
+        gr.orderByDesc('u_completed_at');
+        gr.setLimit(1);
+        gr.query();
+        if (gr.next()) { return new GlideDateTime(gr.getValue('u_completed_at')).getNumericValue(); }
+        return 0;
     },
 
     type: 'PluginUpdaterAjax'
