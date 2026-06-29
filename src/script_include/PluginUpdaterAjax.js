@@ -358,6 +358,15 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         gr.setLimit(2000);
         gr.query();
         var checked = 0, finalized = 0, nowMs = new GlideDateTime().getNumericValue(), batchLast = {};
+        // Is the platform install queue still active? While any CICD install worker
+        // is pending/running, the single-flight queue is draining — never time out
+        // waiting rows (avoids false "did not start" on large/slow batches).
+        var qa = new GlideAggregate('sys_progress_worker');
+        qa.addQuery('name', 'CICDAppRepoService$CICDInstallWorker');
+        qa.addQuery('state', 'IN', 'pending,running');
+        qa.addAggregate('COUNT');
+        qa.query();
+        var queueActive = qa.next() ? ((parseInt(qa.getAggregate('COUNT'), 10) || 0) > 0) : false;
         while (gr.next()) {
             checked++;
             var w = this._findWorker(gr.getValue('u_progress_id'));
@@ -376,15 +385,17 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                     finalized++;
                     continue;
                 }
-                // 2) Not installed yet: fail only if the whole batch has stalled
-                //    (no install in it has completed for >60 min). While the queue
-                //    keeps draining, waiting rows stay queued regardless of batch size.
+                // 2) Not installed yet. While the install queue is still active
+                //    (any CICD worker pending/running), keep waiting — never fail.
+                if (queueActive) { continue; }
+                // 3) Queue is idle: fail only if the batch has made no progress for
+                //    >60 min (genuinely stalled / install never enqueued).
                 var batch = gr.getValue('u_session_id');
                 if (batchLast[batch] === undefined) { batchLast[batch] = this._batchLastActivityMs(batch); }
                 var refMs = batchLast[batch] || new GlideDateTime(gr.getValue('u_started_at')).getNumericValue();
                 if (refMs && (nowMs - refMs) > 3600000) {
                     gr.setValue('u_status', 'failed');
-                    gr.setValue('u_error_message', 'Timed out: install did not start (no queue progress for 60 minutes)');
+                    gr.setValue('u_error_message', 'Timed out: install did not start (install queue idle, no progress for 60 minutes)');
                     gr.setValue('u_percent_complete', 100);
                     gr.setValue('u_completed_at', new GlideDateTime());
                     gr.update();
