@@ -57,9 +57,17 @@
 #app .kpi.accent .kpi-value{color:var(--accent)}
 #app .kpi.success .kpi-value{color:var(--success)}
 #app .kpi.warning .kpi-value{color:var(--warning)}
-#app .version-banner{background:linear-gradient(135deg,#1d1d1f 0%,#3a3a3c 100%);border-radius:var(--r-lg);padding:24px 28px;color:#fff;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--sh-sm)}
+#app .version-banner{background:linear-gradient(135deg,#1d1d1f 0%,#3a3a3c 100%);border-radius:var(--r-lg);padding:24px 28px;color:#fff;margin-bottom:24px;box-shadow:var(--sh-sm)}
 #app .version-label{font-size:26px;font-weight:700;letter-spacing:-.02em}
-#app .version-meta{font-size:13px;opacity:.72;margin-top:7px;line-height:1.5}
+#app .meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px 28px;margin-top:18px}
+#app .meta-k{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;opacity:.55;margin-bottom:3px}
+#app .meta-v{font-size:14px;font-weight:500;word-break:break-word}
+#app .sync-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#app .sync-msg{font-size:13px;color:var(--text-2)}
+#app .sync-bar{position:relative;flex:1;min-width:160px;max-width:300px;height:6px;background:rgba(0,0,0,.08);border-radius:3px;overflow:hidden}
+#app .sync-bar-fill{position:absolute;top:0;height:100%;width:40%;background:var(--accent);border-radius:3px;animation:npu-indet 1.1s ease-in-out infinite}
+@keyframes npu-indet{0%{left:-40%}100%{left:100%}}
+#app .sync-note{font-size:13px;color:var(--text-3)}
 #app .tbl-wrap{overflow-x:auto}
 #app table{width:100%;border-collapse:collapse;font-size:13px}
 #app th{padding:12px 16px;text-align:left;font-weight:600;font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -270,7 +278,7 @@
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.3.4',
+    version:'1.3.5',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -327,21 +335,15 @@
     var avail=(a.apps?a.apps.length:0);
     var utd=parseInt(a.appsUpToDate,10); if(isNaN(utd)){ utd=0; }
     var storeTotal=utd+avail;
-    var meta1=[];
-    if(info.versionLabel){ meta1.push(esc(info.versionLabel)); }
-    if(info.dataCenter){ meta1.push('Data center '+esc(info.dataCenter)); }
-    if(info.dbType){ meta1.push('DB '+esc(info.dbType)); }
-    var meta2=[];
     var who=(window.g_user&&g_user.getFullName)?g_user.getFullName():'';
-    if(who){ meta2.push('Signed in as '+esc(who)); }
-    if(info.lastUpgraded){ meta2.push('Last upgraded '+esc(info.lastUpgraded)); }
-    if(info.lastStoreSync){ meta2.push('Store synced '+esc(info.lastStoreSync)); }
+    function mrow(k,v){ return v?('<div class="meta-item"><div class="meta-k">'+k+'</div><div class="meta-v">'+esc(v)+'</div></div>'):''; }
+    var grid=mrow('Release',info.versionLabel)+mrow('Data Center',info.dataCenter)+mrow('Database',info.dbType)
+      + mrow('Signed in',who)+mrow('Last Upgraded',info.lastUpgraded)+mrow('Store Synced',info.lastStoreSync);
     var h=''
-      + '<div class="version-banner"><div>'
+      + '<div class="version-banner">'
       +   '<div class="version-label">'+esc(info.instanceName||info.versionLabel||'ServiceNow')+'</div>'
-      +   (meta1.length?'<div class="version-meta">'+meta1.join(' &#183; ')+'</div>':'')
-      +   (meta2.length?'<div class="version-meta">'+meta2.join(' &#183; ')+'</div>':'')
-      + '</div></div>'
+      +   '<div class="meta-grid">'+grid+'</div>'
+      + '</div>'
       + '<div class="kpi-grid">'
       +   kpi('Apps', storeTotal, 'managed (active &amp; visible)','')
       +   kpi('Up to Date', num(a.appsUpToDate), 'no update available','success')
@@ -355,6 +357,7 @@
       +   '<button class="btn btn-secondary" id="home-sync">Sync with Store</button>'
       +   '<button class="btn btn-secondary" id="home-monitor">Monitor installs</button>'
       + '</div>'
+      + '<div id="sync-status" style="margin-top:14px"></div>'
       + (err?'<div class="alert alert-danger mt16">'+esc(err)+'</div>':'')
       + '<div style="margin-top:28px;font-size:11px;color:var(--text-3)">Now Plugin Updater v'+S.version+' &#183; by Gianmario Marongiu</div>';
     $('home-body').innerHTML=h;
@@ -372,19 +375,23 @@
 
   function refresh(){ S.loadedHome=true; loadHome(); }
   function syncStore(){
-    var btn=$('home-sync'); if(!btn){ return; }
+    var btn=$('home-sync'), box=$('sync-status');
+    if(!btn){ return; }
     var prev=(S.info&&S.info.lastStoreSync)||'';
-    btn.disabled=true; btn.textContent='Syncing...';
+    btn.disabled=true;
+    if(box){ box.innerHTML='<div class="sync-row"><span class="sync-msg">Syncing with Store...</span><div class="sync-bar"><div class="sync-bar-fill"></div></div></div>'; }
     ajax('syncStore',{},function(e){
-      if(e){ btn.disabled=false; btn.textContent='Sync with Store'; alert('Store sync error: '+e); return; }
-      var tries=0;
-      var iv=setInterval(function(){
+      if(e){ btn.disabled=false; if(box){ box.innerHTML='<div class="sync-note">Store sync error: '+esc(e)+'</div>'; } return; }
+      var tries=0, max=60;
+      function poll(){
         tries++;
         ajax('getInstanceInfo',{},function(e2,info2){
-          if(!e2 && info2 && info2.lastStoreSync && info2.lastStoreSync!==prev){ clearInterval(iv); refresh(); }
-          else if(tries>=18){ clearInterval(iv); btn.disabled=false; btn.textContent='Sync with Store'; alert('Store sync is still running on the server. Give it a moment, then press Refresh Data.'); }
+          if(!e2 && info2 && info2.lastStoreSync && info2.lastStoreSync!==prev){ refresh(); return; }
+          if(tries>=max){ btn.disabled=false; if(box){ box.innerHTML='<div class="sync-note">Sync is still running on the server &#8212; press Refresh Data shortly.</div>'; } return; }
+          setTimeout(poll, 5000);
         });
-      }, 5000);
+      }
+      setTimeout(poll, 5000);
     });
   }
 
@@ -621,8 +628,8 @@
     ajax('getBatchStatus',{ batch:S.currentBatch }, function(e,d){
       if(!e && d && !d.error){ renderMonitor(d); }
       var act = d && d.counts && (((d.counts.running||0)>0) || ((d.counts.queued||0)>0));
-      if(S.monTimer){ clearTimeout(S.monTimer); }
-      S.monTimer=setTimeout(pollMonitor, act?15000:60000);
+      if(S.monTimer){ clearTimeout(S.monTimer); S.monTimer=null; }
+      if(act){ S.monTimer=setTimeout(pollMonitor, 15000); }
     });
   }
   function monSortRows(list){
@@ -659,7 +666,8 @@
       + kpi('Complete', c.complete||0, 'installed','success')
       + kpi('Failed', c.failed||0, 'see message', (c.failed>0)?'warning':'')
       + '</div>'
-      + '<div class="actions-bar"><div style="font-size:13px;color:var(--text-2)">Batch status: <span class="pill pill-'+badgeCls+'">'+esc(bs)+'</span></div></div>'
+      + '<div class="actions-bar"><div style="font-size:13px;color:var(--text-2)">Batch status: <span class="pill pill-'+badgeCls+'">'+esc(bs)+'</span></div>'
+      +   '<div style="font-size:12px;color:var(--text-3)">Last refreshed '+esc(new Date().toLocaleString())+'</div></div>'
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')+th('message','Message')
       + '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
