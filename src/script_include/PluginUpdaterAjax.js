@@ -153,27 +153,13 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         gr.query();
 
         var apps = [];
-        var categoryMap = {
-            'sn_csm':'CSM','sn_customerservice':'CSM','sn_hr':'HRSD','sn_itsm':'ITSM','com_snc_itsm':'ITSM',
-            'sn_itom':'ITOM','sn_em':'ITOM','sn_disco':'ITOM','sn_iam':'IRM','sn_risk':'IRM','sn_grc':'IRM',
-            'sn_sec':'SecOps','sn_si':'SecOps','sn_fsm':'FSM','sn_field_service':'FSM','sn_spm':'SPM',
-            'sn_itbm':'SPM','sn_project':'SPM','sn_cmdb':'CMDB','sn_creatorworkflow':'App Engine',
-            'sn_flow':'App Engine','sn_nowassist':'Now Assist','sn_gen_ai':'Now Assist','sn_va':'Now Assist'
-        };
-
         while (gr.next()) {
-            var scope = gr.getValue('scope') || '';
-            var cat = 'Other', keys = Object.keys(categoryMap);
-            for (var k = 0; k < keys.length; k++) {
-                if (scope.indexOf(keys[k]) === 0) { cat = categoryMap[keys[k]]; break; }
-            }
             apps.push({
                 sysId:    gr.getUniqueValue(),
                 name:     gr.getValue('name') || '',
-                scope:    scope,
+                scope:    gr.getValue('scope') || '',
                 current:  gr.getValue('version') || '',
-                latest:   gr.getValue('latest_version') || '',
-                category: cat
+                latest:   gr.getValue('latest_version') || ''
             });
         }
 
@@ -218,7 +204,6 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             gr.setValue('u_store_app_id',     this._sysId(a.sysId));
             gr.setValue('u_previous_version', ('' + (a.current || '')).substring(0, 40));
             gr.setValue('u_target_version',   ('' + (a.latest || '')).substring(0, 40));
-            gr.setValue('u_product_category', ('' + (a.category || '')).substring(0, 100));
             gr.setValue('u_status',           'queued');
             gr.setValue('u_session_id',       batchKey);
             gr.setValue('u_triggered_by',     gs.getUserID());
@@ -302,7 +287,6 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 scope:    gr.getValue('u_app_scope'),
                 current:  gr.getValue('u_previous_version'),
                 latest:   gr.getValue('u_target_version'),
-                category: gr.getValue('u_product_category'),
                 status:   st,
                 pct:      parseInt(gr.getValue('u_percent_complete'), 10) || 0,
                 message:  gr.getValue('u_error_message') || '',
