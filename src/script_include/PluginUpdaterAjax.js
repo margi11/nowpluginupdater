@@ -107,6 +107,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             info.lastUpgraded = when ? when.split(' ')[0] : '';
         }
 
+        // Last successful sync with the ServiceNow Store (App Manager parity).
+        info.lastStoreSync = gs.getProperty('sn_appclient.apps_last_sync_time', '');
+
         return JSON.stringify(info);
     },
 
@@ -122,7 +125,6 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         utd.addQuery('active', true);
         utd.addQuery('update_available', false);
         utd.addQuery('hide_on_ui', false);
-        utd.addQuery('install_date', '!=', '');
         utd.addAggregate('COUNT');
         utd.query();
         result.appsUpToDate = utd.next() ? (parseInt(utd.getAggregate('COUNT'), 10) || 0) : 0;
@@ -147,7 +149,6 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         gr.addQuery('update_available', true);
         gr.addQuery('active', true);
         gr.addQuery('hide_on_ui', false);
-        gr.addQuery('install_date', '!=', '');
         gr.orderBy('name');
         gr.query();
 
@@ -178,6 +179,18 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
         result.apps = apps;
         return JSON.stringify(result);
+    },
+
+    // -----------------------------------------------------------------------
+    // syncStore — trigger the platform Store update check (App Manager "Sync now").
+    // Fires the same event the daily "Check Scoped App Updates" job uses; the
+    // sn_appclient handler runs UpdateChecker.checkAvailableUpdates(forceUpdate).
+    // Asynchronous: the client polls getInstanceInfo.lastStoreSync for completion.
+    // -----------------------------------------------------------------------
+    syncStore: function() {
+        if (!this._guard()) { return this._forbidden(); }
+        gs.eventQueue('sn_appclient.check.for.update', null, '', '');
+        return JSON.stringify({ queued: true, lastSync: gs.getProperty('sn_appclient.apps_last_sync_time', '') });
     },
 
     // =======================================================================
