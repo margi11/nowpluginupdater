@@ -56,19 +56,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             info.versionLabel = uh.next() ? (uh.getValue('to_version') || 'Unknown') : 'Unknown';
         }
 
-        var ag = new GlideAggregate('v_plugin');
-        ag.addAggregate('COUNT');
-        ag.addQuery('state', 'active');
-        ag.query();
-        var activeCount = ag.next() ? (parseInt(ag.getAggregate('COUNT'), 10) || 0) : 0;
-
-        var ag2 = new GlideAggregate('v_plugin');
-        ag2.addAggregate('COUNT');
-        ag2.addQuery('state', 'published');
-        ag2.query();
-        var publishedCount = ag2.next() ? (parseInt(ag2.getAggregate('COUNT'), 10) || 0) : 0;
-
-        info.pluginCount = activeCount + publishedCount;
+        // NOTE: the platform-plugin count (two COUNT aggregates over the v_plugin
+        // view) was removed in v1.3.2. The first v_plugin hit cost 10-40s on Home
+        // load (cold view), and the value is no longer shown anywhere in the UI.
 
         // Installs actually running NOW (CICD worker state = running) — Home "In Progress" KPI.
         var rw = new GlideAggregate('sys_progress_worker');
@@ -188,91 +178,6 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
         result.apps = apps;
         return JSON.stringify(result);
-    },
-
-    // -----------------------------------------------------------------------
-    // getProgress — Param: progress_id (validated sys_id)
-    // -----------------------------------------------------------------------
-    getProgress: function() {
-        if (!this._guard()) { return this._forbidden(); }
-        var progressId = this._sysId(this.getParameter('sysparm_progress_id') || this.getParameter('progress_id'));
-        if (!progressId) { return JSON.stringify({ error: 'valid progress_id required' }); }
-
-        var gr = new GlideRecord('sys_progress_worker');
-        var found = gr.get(progressId);
-        if (!found) {
-            gr = new GlideRecord('sys_progress_worker');
-            gr.setWorkflow(false);
-            gr.addQuery('sys_id', progressId);
-            gr.setLimit(1);
-            gr.query();
-            found = gr.next();
-        }
-        if (!found) { return JSON.stringify({ error: 'progress worker not found' }); }
-
-        return JSON.stringify({
-            state:            gr.getValue('state') || '',
-            completion_code:  gr.getValue('completion_code') || '',
-            message:          gr.getValue('message') || '',
-            error_message:    gr.getValue('error_message') || '',
-            percent_complete: parseInt(gr.getValue('percent_complete'), 10) || 0
-        });
-    },
-
-    // -----------------------------------------------------------------------
-    // verifyVersion — params: store_app_sys_id (validated), target_version
-    // -----------------------------------------------------------------------
-    verifyVersion: function() {
-        if (!this._guard()) { return this._forbidden(); }
-        var sysId = this._sysId(this.getParameter('sysparm_store_app_sys_id') || this.getParameter('store_app_sys_id'));
-        var targetVersion = this.getParameter('sysparm_target_version') || this.getParameter('target_version');
-        if (!sysId) { return JSON.stringify({ error: 'valid store_app_sys_id required', matches: false, current: '' }); }
-
-        var gr = new GlideRecord('sys_store_app');
-        if (!gr.get(sysId)) { return JSON.stringify({ error: 'app not found', matches: false, current: '' }); }
-        var current = gr.getValue('version') || '';
-        return JSON.stringify({ matches: (current === targetVersion), current: current });
-    },
-
-    // -----------------------------------------------------------------------
-    // logInstall — insert/update one install-log row (legacy / general use)
-    // -----------------------------------------------------------------------
-    logInstall: function() {
-        if (!this._guard()) { return this._forbidden(); }
-        var self = this;
-        function p(name) { return self.getParameter('sysparm_' + name) || self.getParameter(name) || ''; }
-
-        var logSysId = this._sysId(p('log_sys_id'));
-        var gr;
-        if (logSysId) {
-            gr = new GlideRecord('u_plugin_updater_install_log');
-            if (!gr.get(logSysId)) { gr = new GlideRecord('u_plugin_updater_install_log'); logSysId = ''; }
-        } else {
-            gr = new GlideRecord('u_plugin_updater_install_log');
-        }
-
-        var status = p('status') || 'queued';
-        gr.setValue('u_app_name',          p('app_name'));
-        gr.setValue('u_app_scope',         p('app_scope'));
-        gr.setValue('u_store_app_id',      this._sysId(p('store_app_id')));
-        gr.setValue('u_previous_version',  p('previous_version'));
-        gr.setValue('u_target_version',    p('target_version'));
-        gr.setValue('u_status',            status);
-        gr.setValue('u_progress_id',       this._sysId(p('progress_id')));
-        gr.setValue('u_error_message',     p('error_message'));
-        gr.setValue('u_session_id',        p('session_id'));
-        gr.setValue('u_product_category',  p('product_category'));
-
-        var pct = parseInt(p('percent_complete'), 10);
-        if (!isNaN(pct)) { gr.setValue('u_percent_complete', pct); }
-        gr.setValue('u_triggered_by', gs.getUserID());
-
-        var now = new GlideDateTime();
-        if (!logSysId || status === 'queued') { gr.setValue('u_started_at', now); }
-        if (status === 'complete' || status === 'failed') { gr.setValue('u_completed_at', now); }
-
-        var savedId = logSysId ? (gr.update(), logSysId) : gr.insert();
-        return JSON.stringify({ log_sys_id: savedId });
     },
 
     // =======================================================================

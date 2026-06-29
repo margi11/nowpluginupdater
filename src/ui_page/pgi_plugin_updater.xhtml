@@ -28,7 +28,6 @@
 @keyframes npu-fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 #app .nav{background:rgba(251,251,253,.8);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--border);padding:0 28px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:100}
 #app .nav-brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:-.01em;color:var(--text)}
-#app .nav-brand svg{width:22px;height:22px;color:var(--accent)}
 #app .brand-icon{width:42px;height:42px;border-radius:10px;display:block;object-fit:contain;box-shadow:0 1px 3px rgba(0,0,0,.14)}
 #app .nav-tabs{display:flex;gap:2px;background:rgba(0,0,0,.045);padding:3px;border-radius:var(--r-pill)}
 #app .nav-tab{padding:6px 16px;border-radius:var(--r-pill);border:none;background:transparent;font:inherit;font-size:13px;font-weight:500;color:var(--text-2);cursor:pointer;transition:color .2s,background .2s,box-shadow .2s}
@@ -60,9 +59,7 @@
 #app .kpi.warning .kpi-value{color:var(--warning)}
 #app .version-banner{background:linear-gradient(135deg,#1d1d1f 0%,#3a3a3c 100%);border-radius:var(--r-lg);padding:24px 28px;color:#fff;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--sh-sm)}
 #app .version-label{font-size:26px;font-weight:700;letter-spacing:-.02em}
-#app .version-raw{font-size:12px;opacity:.55;margin-top:4px;font-family:ui-monospace,'SF Mono',monospace}
 #app .version-meta{font-size:13px;opacity:.72;margin-top:7px;line-height:1.5}
-#app .version-badge{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);border-radius:var(--r-pill);padding:7px 16px;font-size:12px;font-weight:600}
 #app .tbl-wrap{overflow-x:auto}
 #app table{width:100%;border-collapse:collapse;font-size:13px}
 #app th{padding:12px 16px;text-align:left;font-weight:600;font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -77,8 +74,6 @@
 #app .col-ver{font-family:ui-monospace,'SF Mono',monospace;font-size:12px;white-space:nowrap}
 #app .col-ver .arrow{color:var(--text-3);margin:0 5px}
 #app .col-ver .latest{color:var(--accent);font-weight:600}
-#app .cat{display:inline-block;padding:3px 10px;border-radius:var(--r-pill);font-size:11px;font-weight:500;background:var(--accent-soft);color:var(--accent)}
-#app tr.cat-header td{padding:18px 16px 8px;font-size:11px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:.06em;background:var(--bg)}
 #app .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:var(--r-pill);font-size:11px;font-weight:600;text-transform:capitalize}
 #app .pill::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor}
 #app .pill-pending{background:rgba(110,110,115,.1);color:var(--text-2)}
@@ -275,7 +270,7 @@
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.3.1',
+    version:'1.3.2',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -383,13 +378,6 @@
       S.appData=normalizeApps(d);
       renderWizard1();
     });
-  }
-
-  function groupByCat(apps){
-    var g={}, order=[];
-    for(var i=0;i<apps.length;i++){ var c=apps[i].category||'Other'; if(!g[c]){g[c]=[];order.push(c);} g[c].push(apps[i]); }
-    order.sort();
-    return {groups:g, order:order};
   }
 
   function verCell(cur,latest){
