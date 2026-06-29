@@ -2,7 +2,7 @@
 
 A ServiceNow administration application that lets an administrator discover, select, and batch-install the available updates for Store applications on an instance — replacing the per-app flow in the native Application Manager.
 
-**Version 1.3.2 · by Gianmario Marongiu · Global scope · no build, no external dependencies.**
+**Version 1.3.7 · by Gianmario Marongiu · Global scope · no build, no external dependencies.**
 
 ## What it does
 
@@ -16,7 +16,7 @@ The native Application Manager updates one application at a time. Now Plugin Upd
 ## Get started
 
 ### 1. Download
-Download the update set — a single portable XML file (`NowPluginUpdater132.xml`) containing the full app (UI Page, server logic, table, ACLs, scheduled job).
+Download the update set — a single portable XML file (`NowPluginUpdater137.xml`) containing the full app (UI Page, server logic, table, ACLs, scheduled job).
 
 A self-contained landing page, [`Now-Plugin-Updater-Landing.html`](Now-Plugin-Updater-Landing.html), embeds the same XML and offers it as a download, with screenshots and these instructions. Open it in a browser (desktop or mobile).
 
@@ -49,11 +49,15 @@ Because the application list mirrors the Application Manager, a few platform-bun
 |------|-------------|
 | `src/ui_page/pgi_plugin_updater.xhtml` | UI Page — Jelly body fragment, CSS scoped under `#app`, vanilla-JS IIFE (Home, Wizard, Monitor, Guide) |
 | `src/script_include/PluginUpdaterAjax.js` | Client-callable GlideAjax (`AbstractAjaxProcessor`), admin role-guarded, `sys_id`-sanitized |
-| `NowPluginUpdater132.xml` | Exported update set (v1.3.2) — portable install file |
+| `NowPluginUpdater137.xml` | Exported update set (v1.3.7) — portable install file |
 | `Now-Plugin-Updater-Landing.html` | Self-contained distribution page (screens, download, install/use guide) |
 | `Now-Plugin-Updater-Briefing.html` | Build briefing |
 | `Update-Sets/README.md` | Update-set export/import notes |
 | `plugin_updater_spec.md` | Full application specification |
+
+## Troubleshooting
+
+**"Empty response from server" on Home (empty header, all counters 0):** the instance has a *duplicate* `PluginUpdaterAjax` Script Include shadowing the app's one — this happens when a `PluginUpdaterAjax` already existed before importing the update set. Delete the copy that does **not** contain the app's methods (`getInstanceInfo`, `monitorBatches`, `syncStore`); keep the one from this update set, then reload the page.
 
 ## Notes
 
