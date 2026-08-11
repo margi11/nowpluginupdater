@@ -2,7 +2,7 @@
 
 A ServiceNow administration application that lets an administrator discover, select, and batch-install the available updates for Store applications on an instance — replacing the per-app flow in the native Application Manager.
 
-**Version 1.3.7 · by Gianmario Marongiu · Global scope · no build, no external dependencies.**
+**Version 1.4.0 · by Gianmario Marongiu · Global scope · no build, no external dependencies.**
 
 ## What it does
 
@@ -10,13 +10,43 @@ The native Application Manager updates one application at a time. Now Plugin Upd
 
 - **Batch install** — filter, select multiple applications, and launch the batch in one action.
 - **Server-side monitoring** — close the page after launch; a scheduled job tracks every install, verifies the installed version, and marks each Complete or Failed.
+- **Verified outcomes** — a run counts as Complete only if the application actually reaches the target version.
 - **No stored credentials** — installs are triggered with the admin's own session; no passwords or tokens are stored.
 - **Built on the platform** — a single UI Page using vanilla JavaScript (no React, no bundler, no external libraries).
+
+## What's new in 1.4.0
+
+**Correctness**
+- **Failed installs are no longer reported as Complete.** The monitor read `completion_code` on `sys_progress_worker` — a field that does not exist on that table (the real one is `state_code`), so the error branch never ran. The installed version is now the final arbiter: if it does not match the target, the row is Failed.
+- Launch queue no longer stalls silently when a callback is lost — each step advances once, with a per-app watchdog.
+- Monitor polling no longer freezes near the end of a batch (it checked a counter the server never returned).
+- The monitor Scheduled Job logs an explicit error if it runs without the admin role, instead of stopping silently.
+
+**Store sync**
+- **Real progress instead of a blind wait.** Reads the platform's own `sn_appclient.apps_sync_progress`, updated at every phase by `UpdateChecker`, and shows a live progress bar. The button is disabled while a sync is running.
+
+**Wizard UX (long lists)**
+- **Action bar pinned to the bottom** in both wizard steps — no more scrolling hundreds of rows to reach *Next* or *Install*.
+- Selection count and the number of already-installing apps stay visible while selecting; the install button names what it will do (`Install 47 updates`).
+- **Confirmation dialog** before launching, naming the instance and the number of applications.
+- **Scope filter** and debounced text filter; the first 150 rows render for speed, with *show all* — *Select All* still applies to everything matching the filter.
+- Ticking a checkbox no longer re-renders the whole table (event delegation), so long lists stay responsive.
+
+**Monitor**
+- **End-of-batch summary** with a shortcut to list only the failures.
+- **Cancel queued** drops applications still waiting; running installs finish.
+- Batch selector shows app count and outcome, not just a timestamp.
+- Status icons alongside colours, `aria-sort` on sortable headers, keyboard sorting, and a live region announcing progress.
+
+**Performance**
+- Home loads through a single call (`getHomeData`) instead of two.
+- `listBatches` uses aggregates instead of scanning up to 3000 rows.
+- Version verification is cached per monitor run.
 
 ## Get started
 
 ### 1. Download
-Download the update set — a single portable XML file (`NowPluginUpdater137.xml`) containing the full app (UI Page, server logic, table, ACLs, scheduled job).
+Download the update set — a single portable XML file (`NowPluginUpdater140.xml`) containing the full app (UI Page, server logic, table, ACLs, scheduled job).
 
 A self-contained landing page, [`Now-Plugin-Updater-Landing.html`](Now-Plugin-Updater-Landing.html), embeds the same XML and offers it as a download, with screenshots and these instructions. Open it in a browser (desktop or mobile).
 
@@ -49,11 +79,18 @@ Because the application list mirrors the Application Manager, a few platform-bun
 |------|-------------|
 | `src/ui_page/pgi_plugin_updater.xhtml` | UI Page — Jelly body fragment, CSS scoped under `#app`, vanilla-JS IIFE (Home, Wizard, Monitor, Guide) |
 | `src/script_include/PluginUpdaterAjax.js` | Client-callable GlideAjax (`AbstractAjaxProcessor`), admin role-guarded, `sys_id`-sanitized |
-| `NowPluginUpdater137.xml` | Exported update set (v1.3.7) — portable install file |
+| `src/fix_scripts/repair_install_log_140.js` | One-off background script — reclassifies historical rows wrongly marked Complete (dry-run by default) |
+| `NowPluginUpdater140.xml` | Exported update set (v1.4.0) — portable install file |
 | `Now-Plugin-Updater-Landing.html` | Self-contained distribution page (screens, download, install/use guide) |
 | `Now-Plugin-Updater-Briefing.html` | Build briefing |
 | `Update-Sets/README.md` | Update-set export/import notes |
 | `plugin_updater_spec.md` | Full application specification |
+
+## Upgrading from 1.3.x
+
+After committing the update set, run `src/fix_scripts/repair_install_log_140.js` once in **Scripts - Background**. Because of the bug fixed in 1.4.0, existing rows may claim *Complete* for installs that never applied; the script reclassifies them against the version actually installed.
+
+It runs as a **dry run by default** — it prints what it would change without writing. Review the output, then set `DRY_RUN = false` and run it again to apply. Rows whose application is no longer present are left untouched.
 
 ## Troubleshooting
 

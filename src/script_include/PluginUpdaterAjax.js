@@ -11,6 +11,17 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     _forbidden: function() { return JSON.stringify({ error: 'forbidden: admin role required' }); },
     _sysId: function(v) { v = ('' + (v || '')).trim(); return /^[0-9a-f]{32}$/i.test(v) ? v : ''; },
 
+    // Guard per i metodi eseguiti dallo Scheduled Job (contesto server, non client).
+    // A differenza di _guard() logga a gs.error(): se il job venisse riconfigurato con
+    // un "Run as" senza privilegi il monitoraggio si fermerebbe altrimenti in silenzio,
+    // lasciando i batch appesi per sempre.
+    _guardServer: function(who) {
+        if (gs.hasRole('admin')) { return true; }
+        gs.error('[PluginUpdater] ' + who + ' aborted: caller "' + gs.getUserName() +
+                 '" lacks the admin role. Check the "Run as" user on the monitor Scheduled Job.');
+        return false;
+    },
+
     // -----------------------------------------------------------------------
     // getInstanceInfo
     // Returns { versionLabel, rawBuild, pluginCount, installsRunning,
@@ -176,7 +187,37 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     syncStore: function() {
         if (!this._guard()) { return this._forbidden(); }
         gs.eventQueue('sn_appclient.check.for.update', null, '', '');
-        return JSON.stringify({ queued: true, lastSync: gs.getProperty('sn_appclient.apps_last_sync_time', '') });
+        // startedAt è il riferimento con cui il client distingue "sync finita" da
+        // "sync mai partita": apps_sync_progress vale 0.00 in entrambi i casi, quindi
+        // da solo è ambiguo. Il completamento si riconosce da lastSync > startedAt.
+        return JSON.stringify({
+            queued:    true,
+            startedAt: '' + new GlideDateTime(),
+            lastSync:  gs.getProperty('sn_appclient.apps_last_sync_time', '')
+        });
+    },
+
+    // -----------------------------------------------------------------------
+    // getSyncProgress — avanzamento reale della sincronizzazione con lo Store.
+    // La piattaforma (sn_appclient.UpdateChecker._setAppsSyncProgress) scrive
+    // sn_appclient.apps_sync_progress a ogni fase: 0.01 fixUpdateAvailableField,
+    // 0.03 fetchAppUpdates, 0.20-0.70 updateAppRecords (incrementale), 0.85
+    // refreshStoreResponseCache, 0.96 syncGoldenConfigs, poi 0.00 = 'finished'.
+    // Restituisce { pct, running, lastSync } — pct 0 con lastSync aggiornato = finita.
+    // -----------------------------------------------------------------------
+    getSyncProgress: function() {
+        if (!this._guard()) { return this._forbidden(); }
+        var raw = gs.getProperty('sn_appclient.apps_sync_progress', '');
+        var frac = parseFloat(raw);
+        if (isNaN(frac)) { frac = 0; }
+        var pct = Math.round(frac * 100);
+        if (pct < 0) { pct = 0; }
+        if (pct > 100) { pct = 100; }
+        return JSON.stringify({
+            pct:      pct,
+            running:  pct > 0,
+            lastSync: gs.getProperty('sn_appclient.apps_last_sync_time', '')
+        });
     },
 
     // =======================================================================
@@ -192,7 +233,13 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         if (!apps || !apps.length) { return JSON.stringify({ error: 'no apps', batch: '', rows: [] }); }
         if (apps.length > 1000) { apps = apps.slice(0, 1000); } // safety cap
 
-        var batchKey = 'batch_' + new GlideDateTime().getNumericValue() + '_' + gs.getUserID().substring(0, 8);
+        // u_session_id è un campo da 32 char: la chiave va tenuta corta con margine.
+        // Timestamp in base36 (~8 char per i prossimi secoli) + 8 char di user id
+        // => 'b_' + 8 + '_' + 8 = 19 char, contro i 28 della v1.3.7.
+        // Number(...) forza il long Java di getNumericValue() a un numero JS prima
+        // di toString(36) — su Rhino il metodo nativo del long non è affidabile.
+        var batchKey = 'b_' + Number(new GlideDateTime().getNumericValue()).toString(36) +
+                       '_' + ('' + gs.getUserID()).substring(0, 8);
         var now = new GlideDateTime();
         var rows = [];
         for (var i = 0; i < apps.length; i++) {
@@ -239,24 +286,113 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         return JSON.stringify({ batch: gr.next() ? gr.getValue('u_session_id') : '' });
     },
 
-    // listBatches — recent distinct batches for the current user (most recent 20)
+    // listBatches — recent distinct batches for the current user (most recent 20),
+    // each with app count and outcome so the selector is readable at a glance.
+    // v1.4.0: una GlideAggregate raggruppata al posto della scansione di 3000 righe.
     listBatches: function() {
         if (!this._guard()) { return this._forbidden(); }
-        var seen = {}, out = [];
-        var gr = new GlideRecord('u_plugin_updater_install_log');
-        gr.addQuery('u_triggered_by', gs.getUserID());
-        gr.addNotNullQuery('u_session_id');
-        gr.orderByDesc('sys_created_on');
-        gr.setLimit(3000);
-        gr.query();
-        while (gr.next()) {
-            var b = gr.getValue('u_session_id');
-            if (seen[b]) { continue; }
-            seen[b] = true;
-            out.push({ batch: b, started: gr.getDisplayValue('u_started_at') || gr.getDisplayValue('sys_created_on') });
-            if (out.length >= 20) { break; }
+        var order = [], meta = {};
+
+        var ag = new GlideAggregate('u_plugin_updater_install_log');
+        ag.addQuery('u_triggered_by', gs.getUserID());
+        ag.addNotNullQuery('u_session_id');
+        ag.groupBy('u_session_id');
+        ag.addAggregate('COUNT');
+        ag.addAggregate('MAX', 'sys_created_on');
+        ag.orderByAggregate('MAX', 'sys_created_on');
+        ag.query();
+        while (ag.next()) {
+            var b = ag.getValue('u_session_id');
+            if (!b) { continue; }
+            order.push({ batch: b, when: ag.getAggregate('MAX', 'sys_created_on') });
+            meta[b] = { total: parseInt(ag.getAggregate('COUNT'), 10) || 0, failed: 0, active: 0 };
+        }
+        // orderByAggregate è ascendente: i più recenti sono in coda.
+        order.reverse();
+        order = order.slice(0, 20);
+
+        // Un solo passaggio aggregato per stato, ristretto ai batch mostrati.
+        if (order.length) {
+            var keys = [];
+            for (var i = 0; i < order.length; i++) { keys.push(order[i].batch); }
+            var st = new GlideAggregate('u_plugin_updater_install_log');
+            st.addQuery('u_session_id', 'IN', keys.join(','));
+            st.groupBy('u_session_id');
+            st.groupBy('u_status');
+            st.addAggregate('COUNT');
+            st.query();
+            while (st.next()) {
+                var k = st.getValue('u_session_id'), s = st.getValue('u_status');
+                var n = parseInt(st.getAggregate('COUNT'), 10) || 0;
+                if (!meta[k]) { continue; }
+                if (s === 'failed') { meta[k].failed += n; }
+                else if (s !== 'complete' && s !== 'cancelled') { meta[k].active += n; }
+            }
+        }
+
+        var out = [];
+        for (var j = 0; j < order.length; j++) {
+            var key = order[j].batch, m = meta[key] || { total: 0, failed: 0, active: 0 };
+            out.push({
+                batch:   key,
+                started: this._fmtDateTime(order[j].when),
+                total:   m.total,
+                failed:  m.failed,
+                active:  m.active
+            });
         }
         return JSON.stringify({ batches: out });
+    },
+
+    // GlideAggregate restituisce le date in formato interno (UTC): la converto nel
+    // fuso e formato dell'utente, come farebbe getDisplayValue su un GlideRecord.
+    _fmtDateTime: function(raw) {
+        if (!raw) { return ''; }
+        try {
+            var gdt = new GlideDateTime(raw);
+            return gdt.getDisplayValue();
+        } catch (e) { return '' + raw; }
+    },
+
+    // -----------------------------------------------------------------------
+    // getHomeData — getInstanceInfo + getUpdatableApps in una sola chiamata.
+    // Dimezza i round-trip al caricamento della Home e permette al client di
+    // gestire un solo esito d'errore invece di due parziali.
+    // -----------------------------------------------------------------------
+    getHomeData: function() {
+        if (!this._guard()) { return this._forbidden(); }
+        var out = {};
+        try { out.info = JSON.parse(this.getInstanceInfo()); }
+        catch (e) { out.info = {}; out.infoError = '' + e; }
+        try { out.appData = JSON.parse(this.getUpdatableApps()); }
+        catch (e2) { out.appData = { apps: [], inFlight: [], appsUpToDate: 0 }; out.appsError = '' + e2; }
+        return JSON.stringify(out);
+    },
+
+    // -----------------------------------------------------------------------
+    // cancelRemaining — param: batch. Annulla le sole righe ancora in coda
+    // ('queued'): le installazioni già avviate non sono interrompibili, quindi
+    // le lascia proseguire. Restituisce quante righe sono state annullate.
+    // -----------------------------------------------------------------------
+    cancelRemaining: function() {
+        if (!this._guard()) { return this._forbidden(); }
+        var batch = ('' + (this.getParameter('sysparm_batch') || this.getParameter('batch') || '')).trim();
+        if (!batch) { return JSON.stringify({ ok: false, error: 'batch required', cancelled: 0 }); }
+        var gr = new GlideRecord('u_plugin_updater_install_log');
+        gr.addQuery('u_session_id', batch);
+        gr.addQuery('u_status', 'queued');
+        gr.query();
+        var n = 0;
+        while (gr.next()) {
+            gr.setValue('u_status', 'cancelled');
+            gr.setValue('u_error_message', 'Cancelled by ' + gs.getUserName() + ' before the install started');
+            gr.setValue('u_percent_complete', 100);
+            gr.setValue('u_completed_at', new GlideDateTime());
+            gr.update();
+            n++;
+        }
+        gs.info('[PluginUpdater] cancelRemaining batch=' + batch + ' cancelled=' + n);
+        return JSON.stringify({ ok: true, cancelled: n });
     },
 
     // getBatchStatus — param: batch. Returns rows + counts (installing/queued/complete/failed).
@@ -265,7 +401,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         var batch = ('' + (this.getParameter('sysparm_batch') || this.getParameter('batch') || '')).trim();
         if (!batch) { return JSON.stringify({ error: 'batch required', rows: [], counts: {} }); }
 
-        var counts = { total: 0, complete: 0, failed: 0, installing: 0, queued: 0 };
+        var counts = { total: 0, complete: 0, failed: 0, installing: 0, queued: 0, cancelled: 0 };
         var rows = [];
         var gr = new GlideRecord('u_plugin_updater_install_log');
         gr.addQuery('u_session_id', batch);
@@ -273,13 +409,14 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         gr.query();
         while (gr.next()) {
             var raw = gr.getValue('u_status') || 'queued';
-            // Normalise to the two active buckets the UI shows.
+            // Normalise to the buckets the UI shows.
             var st = raw;
             if (raw === 'in_progress') { st = 'installing'; } // legacy rows
             counts.total++;
             if (st === 'complete') { counts.complete++; }
             else if (st === 'failed') { counts.failed++; }
             else if (st === 'installing') { counts.installing++; }
+            else if (st === 'cancelled') { counts.cancelled++; }
             else { counts.queued++; st = 'queued'; }
             rows.push({
                 logSysId: gr.getUniqueValue(),
@@ -295,7 +432,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         }
         var bStatus = 'running';
         if (counts.total > 0 && counts.installing === 0 && counts.queued === 0) {
-            bStatus = (counts.failed > 0) ? (counts.complete > 0 ? 'partial' : 'failed') : 'complete';
+            if (counts.failed > 0) { bStatus = (counts.complete > 0) ? 'partial' : 'failed'; }
+            else if (counts.complete === 0 && counts.cancelled > 0) { bStatus = 'cancelled'; }
+            else { bStatus = 'complete'; }
         }
         return JSON.stringify({ batch: batch, status: bStatus, counts: counts, rows: rows });
     },
@@ -334,14 +473,20 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // monitorBatches — Scheduled Job (server-side, no params). Distinguishes
     // running (=installing) from pending (=queued), verifies version, finalises,
     // handles cancelled/failed, and times out workers that never materialise.
+    //
+    // v1.4.0 — la versione installata è l'arbitro finale dello stato: un worker
+    // può riportare state='complete' con state_code='error' (installazione non
+    // applicata). Prima del fix quelle righe venivano marcate 'complete', quindi
+    // un batch fallito appariva riuscito.
     monitorBatches: function() {
-        if (!this._guard()) { return this._forbidden(); }
+        if (!this._guardServer('monitorBatches')) { return '0:0'; }
         var gr = new GlideRecord('u_plugin_updater_install_log');
         gr.addQuery('u_status', 'IN', 'queued,installing,in_progress');
         gr.addNotNullQuery('u_progress_id');
         gr.setLimit(2000);
         gr.query();
         var checked = 0, finalized = 0, nowMs = new GlideDateTime().getNumericValue(), batchLast = {};
+        var verifyCache = {};
         // Is the platform install queue still active? While any CICD install worker
         // is pending/running, the single-flight queue is draining — never time out
         // waiting rows (avoids false "did not start" on large/slow batches).
@@ -360,7 +505,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 // worker usually means "not started yet", not a failure.
                 // 1) Source of truth: if the app already reached the target version,
                 //    the install succeeded and the worker simply rotated away.
-                var ver = this._verify(gr.getValue('u_store_app_id'), gr.getValue('u_target_version'));
+                var ver = this._verify(gr.getValue('u_store_app_id'), gr.getValue('u_target_version'), verifyCache);
                 if (ver.matches) {
                     gr.setValue('u_status', 'complete');
                     gr.setValue('u_percent_complete', 100);
@@ -392,13 +537,17 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             if (w.pct) { gr.setValue('u_percent_complete', w.pct); }
 
             if (state === 'complete' || state === 'success') {
-                if (code === 'error' || code === 'failed' || code === 'cancelled') {
+                // La versione effettivamente installata decide: un worker "complete"
+                // con state_code='error' — o che ha lasciato l'app alla versione
+                // precedente — è un fallimento, non un successo.
+                var v = this._verify(gr.getValue('u_store_app_id'), gr.getValue('u_target_version'), verifyCache);
+                var codeFailed = (code === 'error' || code === 'failed' || code === 'cancelled');
+                if (codeFailed || !v.matches) {
                     gr.setValue('u_status', 'failed');
-                    gr.setValue('u_error_message', w.error || w.message || 'Install failed');
+                    gr.setValue('u_error_message', this._failMessage(w, v, gr.getValue('u_target_version')));
                 } else {
-                    var v = this._verify(gr.getValue('u_store_app_id'), gr.getValue('u_target_version'));
                     gr.setValue('u_status', 'complete');
-                    if (!v.matches) { gr.setValue('u_error_message', 'Completed (version: ' + v.current + ')'); }
+                    gr.setValue('u_error_message', '');
                 }
                 gr.setValue('u_percent_complete', 100);
                 gr.setValue('u_completed_at', new GlideDateTime());
@@ -436,19 +585,48 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         if (!found) { return null; }
         return {
             state:   gr.getValue('state'),
-            code:    gr.getValue('completion_code'),
+            // NB: il campo di esito su sys_progress_worker è 'state_code', non
+            // 'completion_code' (che non esiste sulla tabella). Fino alla v1.3.7 si
+            // leggeva il nome sbagliato, quindi il ramo di errore non scattava mai.
+            code:    gr.getValue('state_code'),
             message: gr.getValue('message'),
             error:   gr.getValue('error_message'),
             pct:     parseInt(gr.getValue('percent_complete'), 10) || 0
         };
     },
 
-    _verify: function(appSysId, target) {
+    // _verify — confronta la versione installata con il target. `cache` è opzionale:
+    // monitorBatches lo passa per non ripetere la stessa lettura su sys_store_app
+    // a ogni giro del job (le righe di un batch puntano spesso alla stessa app).
+    _verify: function(appSysId, target, cache) {
         appSysId = this._sysId(appSysId);
-        var gr = new GlideRecord('sys_store_app');
-        if (!appSysId || !gr.get(appSysId)) { return { matches: false, current: '' }; }
-        var cur = gr.getValue('version') || '';
+        if (!appSysId) { return { matches: false, current: '' }; }
+        var cur;
+        if (cache && cache.hasOwnProperty(appSysId)) {
+            cur = cache[appSysId];
+        } else {
+            var gr = new GlideRecord('sys_store_app');
+            cur = gr.get(appSysId) ? (gr.getValue('version') || '') : null;
+            if (cache) { cache[appSysId] = cur; }
+        }
+        if (cur === null) { return { matches: false, current: '' }; }
         return { matches: (cur === target), current: cur };
+    },
+
+    // Messaggio d'errore leggibile: preferisce quello del worker, altrimenti spiega
+    // il mismatch di versione (il caso "installazione non applicata").
+    _failMessage: function(w, v, target) {
+        var m = (w && (w.error || w.message)) || '';
+        // "Executing queued operation" è il messaggio residuo del worker: non informa.
+        if (m && m.toLowerCase().indexOf('executing queued operation') === -1) {
+            return ('' + m).substring(0, 1000);
+        }
+        if (v && !v.matches) {
+            return v.current
+                ? ('Install did not apply: still at ' + v.current + ' (expected ' + target + ')')
+                : 'Install did not apply: application record not found';
+        }
+        return 'Install failed';
     },
 
     // Most recent completion time (ms) across a batch — used to detect a stalled queue.

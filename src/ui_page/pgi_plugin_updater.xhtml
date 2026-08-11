@@ -123,6 +123,62 @@
 #app .alert-danger{background:rgba(255,59,48,.08);color:#a51200}
 #app .mt16{margin-top:16px}
 #app .row-gap{display:flex;gap:12px;flex-wrap:wrap}
+
+/* --- Sticky wizard action bar (v1.4.0) -------------------------------------
+   Con centinaia di app la tabella supera i 10.000px: i pulsanti in fondo al DOM
+   costringevano a scorrere tutta la lista per procedere. Una barra sticky in
+   basso resta sempre raggiungibile senza togliere larghezza alla tabella (una
+   sidebar destra comprimerebbe la colonna monospace delle versioni).
+   Il margine negativo la fa arrivare a filo dei bordi di .content. */
+#app .wizard-actions{
+  position:sticky;bottom:0;z-index:60;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  margin:18px -28px -36px;padding:14px 28px;
+  background:rgba(251,251,253,.88);
+  backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-top:1px solid var(--border);
+}
+#app .wizard-actions .wa-info{font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+#app .wizard-actions .wa-btns{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+#app .wa-strong{font-weight:600;color:var(--text)}
+/* Su viewport basse la barra non deve mangiare troppo spazio verticale. */
+@media (max-height:560px){ #app .wizard-actions{position:static;margin:18px 0 0;padding:14px 0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none} }
+
+/* --- Rendering cap notice --- */
+#app .cap-note{display:flex;align-items:center;gap:10px;justify-content:center;padding:14px;font-size:13px;color:var(--text-2);background:var(--surface-2);border-top:1px solid var(--border)}
+#app .link-btn{background:none;border:none;font:inherit;font-size:13px;font-weight:500;color:var(--accent);cursor:pointer;padding:0;text-decoration:underline}
+#app .link-btn:hover{color:var(--accent-h)}
+
+/* --- Status pill: icona oltre al colore (leggibilità senza distinguere i colori) --- */
+#app .pill-cancelled{background:rgba(110,110,115,.12);color:var(--text-2)}
+#app .pill-partial{background:rgba(255,159,10,.16);color:#bf7e00}
+#app .pill .pico{font-size:10px;font-weight:700;line-height:1}
+#app .pill.has-ico::before{display:none}
+
+/* --- Modal di conferma --- */
+#app .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;animation:npu-fade .18s ease}
+#app .modal{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--sh-md);max-width:460px;width:100%;padding:26px 28px}
+#app .modal h3{font-size:18px;font-weight:600;letter-spacing:-.01em;margin-bottom:10px}
+#app .modal p{font-size:14px;color:var(--text-2);line-height:1.55;margin-bottom:8px}
+#app .modal .modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
+#app .btn-danger{background:var(--danger);color:#fff}
+#app .btn-danger:hover{background:#e0281e}
+
+/* --- Riepilogo di fine batch --- */
+#app .summary{display:flex;align-items:flex-start;gap:14px;padding:18px 22px;border-radius:var(--r-lg);margin-bottom:20px;box-shadow:var(--sh-sm)}
+#app .summary-ok{background:rgba(52,199,89,.10)}
+#app .summary-warn{background:rgba(255,159,10,.12)}
+#app .summary-bad{background:rgba(255,59,48,.09)}
+#app .summary-ico{font-size:22px;line-height:1;flex-shrink:0}
+#app .summary-title{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
+#app .summary-text{font-size:13px;color:var(--text-2);line-height:1.5}
+
+/* --- Progress bar dello store sync --- */
+#app .sync-prog{max-width:660px;margin-top:10px}
+#app .sync-phase{font-size:12px;color:var(--text-3);margin-top:6px}
+
+/* Screen-reader only: annunci di stato senza impatto visivo. */
+#app .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 </style>
 <div id="app">
 
@@ -163,6 +219,13 @@
       </div>
       <div class="section-title">Updatable Applications</div>
       <div id="wizard1-body"></div>
+      <div class="wizard-actions" id="w1-actions" style="display:none">
+        <div class="wa-info" id="w1-info"></div>
+        <div class="wa-btns">
+          <button class="btn btn-ghost" id="w1-cancel">Cancel</button>
+          <button class="btn btn-primary" id="w1-next">Next: Select &#8594;</button>
+        </div>
+      </div>
     </div>
 
     <!-- WIZARD 2 — Select -->
@@ -176,20 +239,22 @@
       </div>
       <div class="section-title">Select Applications to Update</div>
       <div class="filter-bar">
-        <input class="search" type="text" placeholder="Filter by name or scope..." id="sel-filter" />
-        <span class="count-badge" id="sel-count">0 selected</span>
-      </div>
-      <div class="actions-bar">
-        <div class="row-gap">
-          <button class="btn btn-secondary btn-sm" id="sel-all">Select All</button>
-          <button class="btn btn-ghost btn-sm" id="sel-none">Clear</button>
-        </div>
+        <input class="search" type="text" placeholder="Filter by name or scope..." id="sel-filter" aria-label="Filter applications by name or scope" />
+        <select class="search" id="sel-scope" aria-label="Filter by scope"></select>
+        <button class="btn btn-secondary btn-sm" id="sel-all">Select All</button>
+        <button class="btn btn-ghost btn-sm" id="sel-none">Clear</button>
       </div>
       <div id="sel-table"></div>
-      <div class="mt16 row-gap">
-        <button class="btn btn-primary" id="sel-install">Install Update(s) &#8594;</button>
-        <button class="btn btn-secondary" id="sel-back">&#8592; Back</button>
-        <button class="btn btn-ghost" id="sel-cancel">Cancel</button>
+      <div class="wizard-actions">
+        <div class="wa-info">
+          <span class="count-badge" id="sel-count">0 selected</span>
+          <span id="sel-hint"></span>
+        </div>
+        <div class="wa-btns">
+          <button class="btn btn-ghost" id="sel-cancel">Cancel</button>
+          <button class="btn btn-secondary" id="sel-back">&#8592; Back</button>
+          <button class="btn btn-primary" id="sel-install">Install Updates</button>
+        </div>
       </div>
     </div>
 
@@ -215,10 +280,12 @@
       <div class="section-title">Installation Monitor</div>
       <div class="info-box">Installs run on the server. You can close this page and reopen it later &#8212; this monitor reloads your most recent batch automatically.</div>
       <div class="filter-bar">
-        <label style="font-size:12px;color:var(--text-2);font-weight:500">Batch</label>
-        <select class="search" id="mon-batch"></select>
+        <label style="font-size:12px;color:var(--text-2);font-weight:500" for="mon-batch">Batch</label>
+        <select class="search" id="mon-batch" aria-label="Select install batch"></select>
         <button class="btn btn-ghost btn-sm" id="mon-refresh">Refresh now</button>
+        <button class="btn btn-secondary btn-sm" id="mon-cancel" style="display:none">Cancel queued</button>
       </div>
+      <div id="mon-live" class="sr-only" role="status" aria-live="polite"></div>
       <div id="mon-body"></div>
     </div>
 
@@ -240,7 +307,8 @@
         </div>
         <div class="guide-section mt16">
           <h3>3 &#183; Wizard &#8212; Select</h3>
-          <p>Filter by name or scope, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>. The selected apps become an install&#160;<em>batch</em>. Apps already being installed are shown as&#160;<em>In Progress</em>&#160;and cannot be re-selected.</p>
+          <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The action bar stays pinned to the bottom of the screen, so you never have to scroll a long list to continue. Apps already being installed are shown as&#160;<em>installing</em>&#160;and cannot be re-selected.</p>
+          <p>Very long lists render the first 150 rows for speed &#8212; use&#160;<strong>show all</strong>&#160;or the filters to reach the rest.&#160;<strong>Select All</strong>&#160;always applies to everything matching the current filter, not just the visible rows.</p>
         </div>
         <div class="guide-section mt16">
           <h3>4 &#183; Launch &amp; Monitor</h3>
@@ -248,7 +316,10 @@
             <li>Installs are triggered with&#160;<strong>your own admin session</strong>&#160;&#8212; no credentials are stored.</li>
             <li>They are enqueued&#160;<strong>one at a time</strong>&#160;(the platform's CICD install API is single-flight); a busy queue is retried automatically, and a 400 &#8220;offering required&#8221; error is retried with the offering id.</li>
             <li>Once launching finishes you can&#160;<strong>close the page</strong>: a scheduled job on the server tracks every install, verifies the installed version, and marks each&#160;<em>Complete</em>&#160;or&#160;<em>Failed</em>.</li>
-            <li>The&#160;<strong>Monitor</strong>&#160;tab shows the batch with five counters &#8212; Total,&#160;<strong>Installing</strong>&#160;(running right now),&#160;<strong>Queued</strong>&#160;(waiting in the server queue), Complete, Failed &#8212; and a sortable per-app table. Reopening the page reloads your most recent batch automatically; the batch selector lets you review earlier ones.</li>
+            <li>An install counts as&#160;<strong>Complete</strong>&#160;only if the application actually reaches the target version. If the platform reports success but the version did not change, the row is marked&#160;<strong>Failed</strong>&#160;with the version it stayed on.</li>
+            <li>The&#160;<strong>Monitor</strong>&#160;tab shows the batch with five counters &#8212; Total,&#160;<strong>Installing</strong>&#160;(running right now),&#160;<strong>Queued</strong>&#160;(waiting in the server queue), Complete, Failed &#8212; and a sortable per-app table. When the batch ends a summary appears, with a shortcut to list only the failures.</li>
+            <li><strong>Cancel queued</strong>&#160;drops the applications still waiting in the queue. Installs already running cannot be interrupted and will finish.</li>
+            <li>Reopening the page reloads your most recent batch automatically; the batch selector lets you review earlier ones.</li>
           </ul>
         </div>
         <div class="guide-section mt16">
@@ -256,6 +327,7 @@
           <ul>
             <li>Because the list mirrors the Application Manager, a few platform-bundled apps that cannot be updated via the Store API will end as&#160;<strong>Failed</strong>&#160;&#8212; this is expected.</li>
             <li>Keep the page open only for the few seconds of launching; installs and monitoring then continue on the server.</li>
+            <li><strong>Sync with Store</strong>&#160;shows the platform's real sync progress and refreshes the page when it finishes.</li>
           </ul>
         </div>
         <div class="guide-section mt16">
@@ -267,6 +339,7 @@
     </div>
 
   </div>
+  <div id="modal-host"></div>
 </div>
 
 <script>
@@ -276,16 +349,68 @@
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.3.7',
+    version:'1.4.0',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
-    loadedHome:false
+    // Numero massimo di righe rese in una volta. Oltre questa soglia il resto è
+    // disponibile con "show all": il paging classico è stato scartato perché
+    // spezzerebbe la selezione multipla su più pagine.
+    RENDER_CAP:150, showAllSel:false, showAllW1:false,
+    loadedHome:false, appsFetchedAt:0
   };
 
   function $(id){ return document.getElementById(id); }
   function esc(s){ s=(s==null?'':''+s); return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function num(v){ return (v==null||v==='')?'—':v; }
+  function plural(n,one,many){ return n+' '+(n===1?one:many); }
+
+  // Garantisce che un callback venga eseguito una volta sola. Serve nel launch:
+  // se un done() non venisse mai invocato la coda si fermerebbe in silenzio, se
+  // venisse invocato due volte il contatore avanzerebbe di troppo.
+  function once(fn){ var called=false; return function(){ if(called) return; called=true; fn(); }; }
+
+  function debounce(fn, ms){
+    var t=null;
+    return function(){ if(t) clearTimeout(t); t=setTimeout(function(){ t=null; fn(); }, ms); };
+  }
+
+  // Pill di stato con icona oltre al colore: il colore da solo non è distinguibile
+  // per chi ha una deficienza nella visione dei colori.
+  var STATUS_ICO = { complete:'✓', failed:'✕', installing:'⟳', queued:'•', cancelled:'⊘', running:'⟳', partial:'!' };
+  function statusPill(st){
+    st=(st||'queued');
+    var ico=STATUS_ICO[st]||'•';
+    return '<span class="pill pill-'+esc(st)+' has-ico"><span class="pico" aria-hidden="true">'+ico+'</span>'+esc(st)+'</span>';
+  }
+
+  // ---- Modal di conferma (nessuna dipendenza esterna) ----
+  function closeModal(){ var h=$('modal-host'); if(h){ h.innerHTML=''; } }
+  function confirmModal(opts){
+    var host=$('modal-host'); if(!host){ if(opts.onConfirm) opts.onConfirm(); return; }
+    var danger = !!opts.danger;
+    host.innerHTML=''
+      + '<div class="modal-back" id="modal-back">'
+      +   '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">'
+      +     '<h3 id="modal-title">'+esc(opts.title||'Confirm')+'</h3>'
+      +     '<p>'+(opts.bodyHtml||esc(opts.body||''))+'</p>'
+      +     '<div class="modal-btns">'
+      +       '<button class="btn btn-secondary" id="modal-no">'+esc(opts.cancelLabel||'Cancel')+'</button>'
+      +       '<button class="btn '+(danger?'btn-danger':'btn-primary')+'" id="modal-yes">'+esc(opts.confirmLabel||'Confirm')+'</button>'
+      +     '</div>'
+      +   '</div>'
+      + '</div>';
+    var yes=$('modal-yes'), no=$('modal-no'), back=$('modal-back');
+    function bail(){ closeModal(); if(opts.onCancel) opts.onCancel(); }
+    yes.onclick=function(){ closeModal(); if(opts.onConfirm) opts.onConfirm(); };
+    no.onclick=bail;
+    // Click sullo sfondo = annulla; Esc idem.
+    back.onclick=function(e){ if(e.target===back) bail(); };
+    host.onkeydown=function(e){ if(e.key==='Escape'||e.keyCode===27) bail(); };
+    yes.focus();
+  }
+
+  function announce(msg){ var el=$('mon-live'); if(el){ el.textContent=msg; } }
 
   function ajax(method, params, cb){
     try {
@@ -312,12 +437,17 @@
 
 
   // ---- HOME ----
+  // Una sola chiamata (getHomeData) invece di due: meno round-trip e un solo
+  // esito d'errore da gestire, invece di due parziali con il secondo scartato.
   function loadHome(){
     $('home-body').innerHTML='<div class="loading"><div class="spinner"></div> Loading instance data&#8230;</div>';
-    var gotInfo=false, gotApps=false, err='';
-    function done(){ if(gotInfo&&gotApps){ renderHome(err); } }
-    ajax('getInstanceInfo',{},function(e,d){ if(!e&&d){S.info=d;} else {err=err||e;} gotInfo=true; done(); });
-    ajax('getUpdatableApps',{},function(e,d){ if(!e&&d){S.appData=normalizeApps(d);} else {err=err||e;} gotApps=true; done(); });
+    ajax('getHomeData',{},function(e,d){
+      if(e || !d){ S.info={}; S.appData=normalizeApps(null); renderHome(e||'No data returned'); return; }
+      S.info=d.info||{};
+      S.appData=normalizeApps(d.appData);
+      S.appsFetchedAt=new Date().getTime();
+      renderHome(d.infoError||d.appsError||'');
+    });
   }
 
   function normalizeApps(d){
@@ -365,39 +495,84 @@
     var ip=$('kpi-inprogress');
     if(ip && inProg>0){ ip.onclick=function(){ ajax('getActiveBatch',{},function(e,d){ openMonitor((d&&d.batch)||''); }); }; }
   }
+  // `sub` arriva con entità HTML già pronte, quindi non va escapato; `label` sì,
+  // per coerenza con `val` — così un domani un'etichetta dinamica resta sicura.
   function kpi(label,val,sub,cls){
-    return '<div class="kpi '+cls+'"><div class="kpi-label">'+label+'</div>'
-      + '<div class="kpi-value">'+esc(val)+'</div><div class="kpi-sub">'+sub+'</div></div>';
+    return '<div class="kpi '+cls+'"><div class="kpi-label">'+esc(label)+'</div>'
+      + '<div class="kpi-value">'+esc(val)+'</div><div class="kpi-sub">'+(sub||'')+'</div></div>';
   }
 
   function refresh(){ S.loadedHome=true; loadHome(); }
+
+  // ---- STORE SYNC (progresso reale) ----
+  // La piattaforma pubblica l'avanzamento in sn_appclient.apps_sync_progress
+  // (0.01 -> 0.96, poi 0.00 = finished). Leggiamo quello invece di limitarci ad
+  // attendere il cambio del timestamp: barra reale al posto di un'attesa cieca.
   function syncStore(){
     var btn=$('home-sync'), box=$('sync-status');
-    if(!btn){ return; }
+    if(!btn || S.syncing){ return; }
     var prev=(S.info&&S.info.lastStoreSync)||'';
-    ajax('syncStore',{},function(e){
-      if(e){ if(box){ box.innerHTML='<div class="sync-note">Store sync error: '+esc(e)+'</div>'; } return; }
-      if(box){ box.innerHTML='<div class="sync-row"><span class="sync-dot"></span><span class="sync-msg">Store sync started in the background &#8212; it can take a few minutes. Use <strong>Refresh Data</strong> when ready; this page updates automatically when it finishes.</span></div>'; }
-      // Light background watch: auto-refresh when the store sync timestamp changes. No blocking, no alert.
-      var tries=0, max=45;
+    S.syncing=true; btn.disabled=true; btn.textContent='Syncing…';
+    renderSync(0,'Starting…');
+    ajax('syncStore',{},function(e,d){
+      if(e){ finishSync('Store sync error: '+esc(e), false); return; }
+      var startedAt=(d&&d.startedAt)||'';
+      var tries=0, MAX=200, sawRunning=false;
       function poll(){
         tries++;
-        ajax('getInstanceInfo',{},function(e2,info2){
-          if(!e2 && info2 && info2.lastStoreSync && info2.lastStoreSync!==prev){ refresh(); return; }
-          if(tries<max){ setTimeout(poll, 20000); }
+        ajax('getSyncProgress',{},function(e2,p){
+          if(!S.syncing){ return; }
+          if(e2 || !p){ if(tries<MAX){ setTimeout(poll, 5000); } return; }
+          if(p.running){
+            sawRunning=true;
+            renderSync(p.pct, 'Updating application catalog…');
+            if(tries<MAX){ setTimeout(poll, 3000); }   // sync attiva: la barra si muove
+            return;
+          }
+          // pct 0 = idle. È "finita" solo se il timestamp è avanzato rispetto a
+          // prima del lancio (o rispetto al valore precedente).
+          var done = (p.lastSync && p.lastSync!==prev) || (startedAt && p.lastSync && p.lastSync>=startedAt);
+          if(done || (sawRunning && tries>2)){
+            renderSync(100,'Finished');
+            S.syncing=false;
+            setTimeout(function(){ refresh(); }, 600);
+            return;
+          }
+          if(tries<MAX){ setTimeout(poll, sawRunning?3000:8000); }  // in attesa dell'avvio
+          else { finishSync('Store sync is taking longer than expected — use <strong>Refresh Data</strong> to check.', true); }
         });
       }
-      setTimeout(poll, 20000);
+      setTimeout(poll, 2500);
     });
+  }
+  function renderSync(pct,phase){
+    var box=$('sync-status'); if(!box) return;
+    box.innerHTML='<div class="sync-prog">'
+      + '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%"></div></div>'
+      + '<div class="sync-phase">'+esc(phase)+' '+(pct>0?('· '+pct+'%'):'')+'</div></div>';
+  }
+  function finishSync(msgHtml, keepValue){
+    S.syncing=false;
+    var btn=$('home-sync'); if(btn){ btn.disabled=false; btn.textContent='Sync with Store'; }
+    var box=$('sync-status'); if(box){ box.innerHTML='<div class="sync-note">'+msgHtml+'</div>'; }
   }
 
   // ---- WIZARD 1 ----
   function startWizard(){
     showView('wizard1');
+    // La Home ha già letto le stesse 1.200+ righe pochi secondi prima: se il dato
+    // è fresco lo riuso invece di rifare la query.
+    // Confronto invertito di proposito: nel sorgente Jelly evitiamo l'operatore
+    // minore seguito da spazio, che il parser puo' leggere come apertura di tag.
+    var age = S.appsFetchedAt ? (new Date().getTime()-S.appsFetchedAt) : 999999;
+    var fresh = S.appsFetchedAt && (30000 > age);
+    if(fresh && S.appData && S.appData.apps){ renderWizard1(); return; }
+    $('w1-actions').style.display='none';
     $('wizard1-body').innerHTML='<div class="loading"><div class="spinner"></div> Scanning store applications&#8230;</div>';
     ajax('getUpdatableApps',{},function(e,d){
       if(e){ $('wizard1-body').innerHTML='<div class="alert alert-danger">'+esc(e)+'</div>'; return; }
       S.appData=normalizeApps(d);
+      S.appsFetchedAt=new Date().getTime();
       renderWizard1();
     });
   }
@@ -408,7 +583,10 @@
 
   // ---- shared wizard column sorting (step 1 & 2) ----
   function wizSortInd(k){ var s=S.wizSort; if(!s||s.k!==k) return ''; return s.dir===-1?' ▾':' ▴'; }
-  function wth(k,label,extra){ return '<th class="sortable" data-k="'+k+'"'+(extra||'')+'>'+label+wizSortInd(k)+'</th>'; }
+  function ariaSort(cur,k){ if(!cur||cur.k!==k) return ' aria-sort="none"'; return ' aria-sort="'+(cur.dir===-1?'descending':'ascending')+'"'; }
+  function wth(k,label,extra){
+    return '<th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.wizSort,k)+(extra||'')+'>'+label+wizSortInd(k)+'</th>';
+  }
   function appSortRows(list){
     var s=S.wizSort; if(!s||!s.k) return list;
     var k=s.k, dir=(s.dir===-1)?-1:1, iff=null, out=list.slice();
@@ -421,36 +599,56 @@
   }
   function wireWizSort(containerId, rerender){
     var ths=$(containerId).querySelectorAll('th.sortable');
-    for(var j=0;j<ths.length;j++){
-      ths[j].onclick=function(){
-        var k=this.getAttribute('data-k');
-        if(S.wizSort && S.wizSort.k===k){ S.wizSort.dir=(S.wizSort.dir===1?-1:1); }
-        else { S.wizSort={k:k,dir:1}; }
-        rerender();
-      };
+    function apply(th){
+      var k=th.getAttribute('data-k');
+      if(S.wizSort && S.wizSort.k===k){ S.wizSort.dir=(S.wizSort.dir===1?-1:1); }
+      else { S.wizSort={k:k,dir:1}; }
+      rerender();
     }
+    for(var j=0;j<ths.length;j++){
+      ths[j].onclick=function(){ apply(this); };
+      // Ordinamento raggiungibile anche da tastiera.
+      ths[j].onkeydown=function(e){ if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){ e.preventDefault(); apply(this); } };
+    }
+  }
+
+  // Applica il cap di rendering e restituisce la fetta da disegnare + il resto.
+  function capped(list, showAll){
+    if(showAll || (S.RENDER_CAP >= list.length)){ return { rows:list, hidden:0 }; }
+    return { rows:list.slice(0,S.RENDER_CAP), hidden:list.length-S.RENDER_CAP };
+  }
+  function capNote(hidden, total, btnId){
+    if(!hidden) return '';
+    return '<div class="cap-note">Showing '+(total-hidden)+' of '+total
+      + ' — refine the filter or <button class="link-btn" id="'+btnId+'">show all</button></div>';
   }
 
   function renderWizard1(){
     var apps=S.appData.apps||[];
-    if(apps.length===0){ $('wizard1-body').innerHTML='<div class="empty">All store applications are up to date.</div>'; return; }
+    if(apps.length===0){
+      $('wizard1-body').innerHTML='<div class="empty">All store applications are up to date.</div>';
+      $('w1-actions').style.display='none';
+      return;
+    }
     var base=apps.slice().sort(function(a,b){ var x=(a.name||'').toLowerCase(), y=(b.name||'').toLowerCase(); return x<y?-1:(x>y?1:0); });
     var sorted=appSortRows(base);
+    var cap=capped(sorted, S.showAllW1);
     var rows='';
-    for(var i=0;i<sorted.length;i++){ var ap=sorted[i];
+    for(var i=0;i<cap.rows.length;i++){ var ap=cap.rows[i];
       rows+='<tr><td class="col-name">'+esc(ap.name)+'</td><td class="col-scope">'+esc(ap.scope)+'</td>'
           + '<td class="col-ver">'+verCell(ap.current,ap.latest)+'</td></tr>';
     }
     var h='<div class="info-box">Found <strong>'+apps.length+'</strong> application(s) with available updates. Click <strong>Next: Select</strong> to choose which to install.</div>'
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + wth('name','Application')+wth('scope','Scope')+wth('current','Current &#8594; Latest')
-      + '</tr></thead><tbody>'+rows+'</tbody></table></div></div>'
-      + '<div class="mt16 row-gap"><button class="btn btn-primary" id="w1-next">Next: Select &#8594;</button>'
-      + '<button class="btn btn-secondary" id="w1-cancel">Cancel</button></div>';
+      + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
+      + capNote(cap.hidden, sorted.length, 'w1-showall')+'</div>';
     $('wizard1-body').innerHTML=h;
-    $('w1-next').onclick=function(){ openSelect(); };
-    $('w1-cancel').onclick=function(){ showView('home'); };
+    var sa=$('w1-showall'); if(sa){ sa.onclick=function(){ S.showAllW1=true; renderWizard1(); }; }
     wireWizSort('wizard1-body', renderWizard1);
+    // Action bar sticky: sempre raggiungibile, anche con centinaia di righe.
+    $('w1-info').innerHTML='<span class="wa-strong">'+plural(apps.length,'application','applications')+'</span> with updates available';
+    $('w1-actions').style.display='flex';
   }
 
   // ---- WIZARD 2 (Select) ----
@@ -460,46 +658,107 @@
   }
   function filteredApps(){
     var txt=($('sel-filter').value||'').toLowerCase();
+    var scope=($('sel-scope')&&$('sel-scope').value)||'';
     var apps=S.appData.apps||[];
     return apps.filter(function(a){
+      if(scope && (a.scope||'')!==scope){ return false; }
       return !txt || (a.name||'').toLowerCase().indexOf(txt)>-1 || (a.scope||'').toLowerCase().indexOf(txt)>-1;
     });
   }
+  // Gli aggiornamenti arrivano tipicamente a famiglie (sn_csm_*, sn_itom_*):
+  // un filtro per scope è più rapido che digitare il prefisso.
+  function buildScopeFilter(){
+    var sel=$('sel-scope'); if(!sel) return;
+    var keep=sel.value||'';
+    var apps=S.appData.apps||[], seen={}, list=[];
+    for(var i=0;i<apps.length;i++){ var s=apps[i].scope||''; if(s&&!seen[s]){ seen[s]=1; list.push(s); } }
+    list.sort();
+    var html='<option value="">All scopes ('+apps.length+')</option>';
+    for(var j=0;j<list.length;j++){ html+='<option value="'+esc(list[j])+'">'+esc(list[j])+'</option>'; }
+    sel.innerHTML=html;
+    if(keep){ sel.value=keep; }
+  }
   function openSelect(){
     showView('wizard2');
+    S.showAllSel=false;   // il cap riparte a ogni ingresso nello step
+    buildScopeFilter();
     renderSelect();
   }
   function renderSelect(){
-    var list=appSortRows(filteredApps()), iff=inFlightSet(), rows='';
-    for(var i=0;i<list.length;i++){ var a=list[i]; var dis=iff[a.sysId];
+    var all=appSortRows(filteredApps()), iff=inFlightSet(), rows='';
+    var cap=capped(all, S.showAllSel);
+    for(var i=0;i<cap.rows.length;i++){ var a=cap.rows[i]; var dis=iff[a.sysId];
       rows+='<tr><td><input class="check sel-cb" type="checkbox" data-id="'+esc(a.sysId)+'"'
+          + ' aria-label="Select '+esc(a.name)+'"'
           + (S.selected[a.sysId]?' checked':'') + (dis?' disabled':'') + ' /></td>'
           + '<td class="col-name">'+esc(a.name)+'</td><td class="col-scope">'+esc(a.scope)+'</td>'
           + '<td class="col-ver">'+verCell(a.current,a.latest)+'</td>'
-          + '<td>'+(dis?'<span class="pill pill-installing">In Progress</span>':'<span class="pill pill-pending">Pending</span>')+'</td></tr>';
+          + '<td>'+(dis?statusPill('installing'):'<span class="pill pill-pending has-ico"><span class="pico" aria-hidden="true">•</span>pending</span>')+'</td></tr>';
     }
-    if(list.length===0){ rows='<tr><td colspan="5" class="empty">No applications match your filter.</td></tr>'; }
+    if(all.length===0){ rows='<tr><td colspan="5" class="empty">No applications match your filter.</td></tr>'; }
     var h='<div class="card"><div class="tbl-wrap"><table><thead><tr>'
-      + '<th style="width:36px"><input class="check" type="checkbox" id="sel-allcheck" /></th>'
+      + '<th style="width:36px"><input class="check" type="checkbox" id="sel-allcheck" aria-label="Select all shown applications" /></th>'
       + wth('name','Application')+wth('scope','Scope')+wth('current','Current &#8594; Latest')+wth('status','Status')
-      + '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+      + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
+      + capNote(cap.hidden, all.length, 'sel-showall')+'</div>';
     $('sel-table').innerHTML=h;
-    var cbs=$('sel-table').querySelectorAll('.sel-cb');
-    for(var j=0;j<cbs.length;j++){ cbs[j].onchange=function(){ toggleApp(this.getAttribute('data-id')); }; }
+
+    // Event delegation: un solo handler sul tbody invece di uno per checkbox.
+    // Prima ogni spunta ricostruiva l'intera tabella e riagganciava N handler —
+    // con 300 righe il click aveva un ritardo percepibile.
+    var tb=$('sel-table').querySelector('tbody');
+    if(tb){
+      tb.onchange=function(e){
+        var cb=e.target;
+        if(cb && cb.className && cb.className.indexOf('sel-cb')>-1){
+          toggleApp(cb.getAttribute('data-id'));
+        }
+      };
+    }
+    var sa=$('sel-showall'); if(sa){ sa.onclick=function(){ S.showAllSel=true; renderSelect(); }; }
     var ac=$('sel-allcheck');
-    if(ac){ ac.onchange=function(){ var ck=this.checked, l=filteredApps(), f=inFlightSet(); for(var x=0;x<l.length;x++){ if(f[l[x].sysId])continue; if(ck) S.selected[l[x].sysId]=true; else delete S.selected[l[x].sysId]; } renderSelect(); }; }
+    if(ac){
+      // "Select all" agisce su tutte le righe che passano il filtro, non solo su
+      // quelle rese: il cap è un limite di rendering, non di selezione.
+      ac.onchange=function(){
+        var ck=this.checked, l=filteredApps(), f=inFlightSet();
+        for(var x=0;x<l.length;x++){ if(f[l[x].sysId]) continue; if(ck) S.selected[l[x].sysId]=true; else delete S.selected[l[x].sysId]; }
+        renderSelect();
+      };
+    }
     wireWizSort('sel-table', renderSelect);
     updateSelCount();
   }
+  // Non ridisegna la tabella: aggiorna solo lo stato e la barra. È ciò che rende
+  // fluida la selezione su liste lunghe.
   function toggleApp(id){ if(S.selected[id]){ delete S.selected[id]; } else { S.selected[id]=true; } updateSelCount(); }
   function selectedIds(){ var o=[]; for(var k in S.selected){ if(S.selected[k]) o.push(k); } return o; }
   function updateSelCount(){
-    var n=selectedIds().length;
+    var n=selectedIds().length, inf=(S.appData.inFlight||[]).length;
     $('sel-count').textContent=n+' selected';
-    $('sel-install').disabled=(n===0);
+    var hint=$('sel-hint');
+    if(hint){ hint.innerHTML = inf ? (inf+' already installing (not selectable)') : ''; }
+    var btn=$('sel-install');
+    btn.disabled=(n===0);
+    btn.textContent = n ? ('Install '+plural(n,'update','updates')) : 'Install Updates';
   }
 
   // ---- WIZARD 3: LAUNCH (client fires triggers; server monitors unattended) ----
+  // Conferma esplicita: l'installazione è lunga e non annullabile una volta
+  // avviata, quindi l'utente deve vedere cosa sta lanciando prima di partire.
+  function confirmInstalls(){
+    var n=selectedIds().length;
+    if(!n) return;
+    confirmModal({
+      title: 'Install '+plural(n,'update','updates')+'?',
+      bodyHtml: 'You are about to update <strong>'+n+'</strong> '+(n===1?'application':'applications')+' on <strong>'+esc(S.info.instanceName||'this instance')+'</strong>.'
+        + '<br/><br/>Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going.',
+      confirmLabel: 'Install '+n,
+      cancelLabel: 'Review selection',
+      onConfirm: startInstalls
+    });
+  }
+
   function startInstalls(){
     var ids=selectedIds(), byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
     var apps=[];
@@ -516,7 +775,16 @@
       function pump(){
         while(active<POOL && queue.length){
           var a=queue.shift(); active++;
-          triggerOne(a, map[a.sysId], function(){ active--; S.launchTriggered++; renderLaunch(); pump(); });
+          // once() + watchdog: se una callback di rete non tornasse mai, la coda
+          // si fermerebbe a metà senza alcun segnale. Qui avanza in ogni caso.
+          var step=once(function(){ active--; S.launchTriggered++; renderLaunch(); pump(); });
+          (function(app, logId, advance){
+            var guard=setTimeout(function(){
+              renderLaunch('An install took too long to launch — moving on to the next one.');
+              advance();
+            }, 120000);
+            triggerOne(app, logId, function(){ clearTimeout(guard); advance(); });
+          })(a, map[a.sysId], step);
         }
         if(active===0 && queue.length===0 && S.launching){ S.launching=false; renderLaunch(); $('launch-actions').style.display='flex'; openMonitor(S.currentBatch); }
       }
@@ -604,7 +872,19 @@
       var batches=(d&&d.batches)||[]; var sel=$('mon-batch'); if(!sel) return;
       sel.innerHTML='';
       if(!batches.length){ var o0=document.createElement('option'); o0.value=''; o0.textContent='(no batches)'; sel.appendChild(o0); return; }
-      for(var i=0;i<batches.length;i++){ var b=batches[i]; var o=document.createElement('option'); o.value=b.batch; o.textContent='Batch · '+(b.started||b.batch); if(b.batch===selected){ o.selected=true; } sel.appendChild(o); }
+      // Con più batch nello stesso giorno la sola data non li distingue: mostro
+      // anche conteggio ed esito.
+      for(var i=0;i<batches.length;i++){
+        var b=batches[i], o=document.createElement('option');
+        var bits=[];
+        if(b.total){ bits.push(b.total+' apps'); }
+        if(b.failed){ bits.push(b.failed+' failed'); }
+        else if(b.active){ bits.push('running'); }
+        o.value=b.batch;
+        o.textContent=(b.started||b.batch)+(bits.length?(' · '+bits.join(' · ')):'');
+        if(b.batch===selected){ o.selected=true; }
+        sel.appendChild(o);
+      }
     });
   }
   function startMonitorPolling(){ if(S.monTimer){ clearTimeout(S.monTimer); } pollMonitor(); }
@@ -613,9 +893,30 @@
     if(!S.currentBatch){ renderMonitorEmpty(); return; }
     ajax('getBatchStatus',{ batch:S.currentBatch }, function(e,d){
       if(!e && d && !d.error){ renderMonitor(d); }
-      var act = d && d.counts && (((d.counts.running||0)>0) || ((d.counts.queued||0)>0));
+      // Il server espone 'installing', non 'running': con la chiave sbagliata il
+      // polling si fermava appena l'ultima app usciva dalla coda, congelando il
+      // monitor su uno stato non definitivo.
+      var c=(d&&d.counts)||{};
+      var act = ((c.installing||0)>0) || ((c.queued||0)>0);
       if(S.monTimer){ clearTimeout(S.monTimer); S.monTimer=null; }
       if(act){ S.monTimer=setTimeout(pollMonitor, 15000); }
+    });
+  }
+  function cancelQueued(){
+    if(!S.currentBatch) return;
+    var c=(S.monData&&S.monData.counts)||{}, q=c.queued||0;
+    if(!q) return;
+    confirmModal({
+      title:'Cancel '+plural(q,'queued install','queued installs')+'?',
+      bodyHtml:'The '+q+' '+(q===1?'application':'applications')+' still waiting in the queue will be marked <strong>cancelled</strong>.'
+        + '<br/><br/>Installs already running cannot be interrupted and will finish.',
+      confirmLabel:'Cancel '+q, cancelLabel:'Keep queued', danger:true,
+      onConfirm:function(){
+        ajax('cancelRemaining',{ batch:S.currentBatch }, function(e,d){
+          if(!e && d && d.ok){ announce(d.cancelled+' queued installs cancelled'); }
+          startMonitorPolling();
+        });
+      }
     });
   }
   function monSortRows(list){
@@ -630,42 +931,83 @@
     return out;
   }
   function sortInd(k){ var s=S.monSort; if(!s||s.k!==k) return ''; return s.dir===-1?' ▾':' ▴'; }
+
+  // Riquadro conclusivo: quando il batch chiude è il momento in cui l'utente
+  // decide cosa fare, quindi l'esito va detto in chiaro con accesso diretto ai
+  // soli fallimenti.
+  function batchSummary(d){
+    var c=d.counts||{}, bs=d.status||'running';
+    if(bs==='running'){ return ''; }
+    var cls='summary-ok', ico='✓', title, text=[];
+    if(c.complete){ text.push(c.complete+' updated'); }
+    if(c.failed){ text.push(c.failed+' failed'); }
+    if(c.cancelled){ text.push(c.cancelled+' cancelled'); }
+    if(bs==='complete'){ title='All updates installed'; }
+    else if(bs==='partial'){ cls='summary-warn'; ico='!'; title='Finished with failures'; }
+    else if(bs==='failed'){ cls='summary-bad'; ico='✕'; title='All updates failed'; }
+    else { cls='summary-warn'; ico='⊘'; title='Batch cancelled'; }
+    var extra = c.failed ? ' <button class="link-btn" id="mon-onlyfailed">Show only failures</button>' : '';
+    return '<div class="summary '+cls+'"><div class="summary-ico" aria-hidden="true">'+ico+'</div>'
+      + '<div><div class="summary-title">'+esc(title)+'</div>'
+      + '<div class="summary-text">'+esc(text.join(' · '))+'.'+extra+'</div></div></div>';
+  }
+
   function renderMonitor(d){
     S.monData=d;
-    var c=d.counts||{}, list=monSortRows(d.rows||[]), rows='';
+    var c=d.counts||{}, all=d.rows||[];
+    var list=monSortRows(S.monOnlyFailed ? all.filter(function(r){ return r.status==='failed'; }) : all);
+    var rows='';
     for(var i=0;i<list.length;i++){ var r=list[i]; var st=r.status||'queued'; var pct=r.pct||0;
       rows+='<tr><td class="col-name">'+esc(r.name)+'</td><td class="col-scope">'+esc(r.scope)+'</td>'
           + '<td class="col-ver">'+verCell(r.current,r.latest)+'</td>'
-          + '<td><span class="pill pill-'+esc(st)+'">'+esc(st)+'</span></td>'
+          + '<td>'+statusPill(st)+'</td>'
           + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+pct+'%</div>'
           + '<div class="prog-wrap"><div class="prog-bar'+(st==='complete'?' success':(st==='failed'?' failed':''))+'" style="width:'+pct+'%"></div></div></td>'
           + '<td style="font-size:12px;color:var(--text-2);max-width:240px;word-break:break-word">'+esc(r.message)+'</td></tr>';
     }
-    if(!list.length){ rows='<tr><td colspan="6" class="empty">No apps in this batch.</td></tr>'; }
+    if(!list.length){ rows='<tr><td colspan="6" class="empty">'+(S.monOnlyFailed?'No failures in this batch.':'No apps in this batch.')+'</td></tr>'; }
     var bs=d.status||'running';
-    var badgeCls = bs==='complete'?'complete':(bs==='failed'?'failed':(bs==='partial'?'queued':'running'));
-    function th(k,label,extra){ return '<th class="sortable" data-k="'+k+'"'+(extra||'')+'>'+label+sortInd(k)+'</th>'; }
-    var h='<div class="kpi-grid">'
+    function th(k,label,extra){
+      return '<th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.monSort,k)+(extra||'')+'>'+label+sortInd(k)+'</th>';
+    }
+    var h=batchSummary(d)
+      + '<div class="kpi-grid">'
       + kpi('Total', c.total||0, 'in this batch','')
       + kpi('Installing', c.installing||0, 'running now', (c.installing>0)?'accent':'')
       + kpi('Queued', c.queued||0, 'waiting in queue','')
       + kpi('Complete', c.complete||0, 'installed','success')
       + kpi('Failed', c.failed||0, 'see message', (c.failed>0)?'warning':'')
       + '</div>'
-      + '<div class="actions-bar"><div style="font-size:13px;color:var(--text-2)">Batch status: <span class="pill pill-'+badgeCls+'">'+esc(bs)+'</span></div>'
+      + '<div class="actions-bar"><div style="font-size:13px;color:var(--text-2)">Batch status: '+statusPill(bs)
+      +   (S.monOnlyFailed?' <button class="link-btn" id="mon-showall-rows">show all</button>':'')+'</div>'
       +   '<div style="font-size:12px;color:var(--text-3)">Last refreshed '+esc(new Date().toLocaleString())+'</div></div>'
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')+th('message','Message')
       + '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
     $('mon-body').innerHTML=h;
+
+    var of=$('mon-onlyfailed'); if(of){ of.onclick=function(){ S.monOnlyFailed=true; renderMonitor(S.monData); }; }
+    var sr=$('mon-showall-rows'); if(sr){ sr.onclick=function(){ S.monOnlyFailed=false; renderMonitor(S.monData); }; }
+
+    // "Cancel queued" solo quando c'è effettivamente qualcosa da annullare.
+    var cb=$('mon-cancel');
+    if(cb){ cb.style.display=((c.queued||0)>0)?'inline-flex':'none'; }
+
+    // Annuncio per screen reader: il polling cambia il DOM senza che l'utente
+    // non vedente se ne accorga.
+    if(bs!=='running'){ announce('Batch '+bs+': '+(c.complete||0)+' complete, '+(c.failed||0)+' failed'); }
+    else { announce((c.installing||0)+' installing, '+(c.queued||0)+' queued, '+(c.complete||0)+' complete'); }
+
     var ths=$('mon-body').querySelectorAll('th.sortable');
+    function applyMon(th2){
+      var k=th2.getAttribute('data-k');
+      if(S.monSort && S.monSort.k===k){ S.monSort.dir=(S.monSort.dir===1?-1:1); }
+      else { S.monSort={k:k,dir:1}; }
+      renderMonitor(S.monData);
+    }
     for(var j=0;j<ths.length;j++){
-      ths[j].onclick=function(){
-        var k=this.getAttribute('data-k');
-        if(S.monSort && S.monSort.k===k){ S.monSort.dir=(S.monSort.dir===1?-1:1); }
-        else { S.monSort={k:k,dir:1}; }
-        renderMonitor(S.monData);
-      };
+      ths[j].onclick=function(){ applyMon(this); };
+      ths[j].onkeydown=function(e){ if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){ e.preventDefault(); applyMon(this); } };
     }
   }
 
@@ -677,16 +1019,21 @@
     $('tab-guide').onclick=function(){ showView('guide'); };
     var gf=$('guide-foot'); if(gf){ gf.textContent='Now Plugin Updater v'+S.version+' · by Gianmario Marongiu'; }
     $('btn-refresh').onclick=refresh;
-    $('sel-filter').oninput=renderSelect;
+    // Debounce: senza, ogni carattere digitato ricostruisce l'intera tabella.
+    $('sel-filter').oninput=debounce(function(){ S.showAllSel=false; renderSelect(); }, 150);
+    $('sel-scope').onchange=function(){ S.showAllSel=false; renderSelect(); };
     $('sel-all').onclick=function(){ var l=filteredApps(), iff=inFlightSet(); for(var i=0;i<l.length;i++){ if(!iff[l[i].sysId]) S.selected[l[i].sysId]=true; } renderSelect(); };
     $('sel-none').onclick=function(){ S.selected={}; renderSelect(); };
-    $('sel-install').onclick=startInstalls;
+    $('sel-install').onclick=confirmInstalls;
     $('sel-back').onclick=function(){ showView('wizard1'); };
     $('sel-cancel').onclick=function(){ showView('home'); };
+    $('w1-next').onclick=function(){ openSelect(); };
+    $('w1-cancel').onclick=function(){ showView('home'); };
     $('launch-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     $('launch-home').onclick=function(){ showView('home'); refresh(); };
-    $('mon-batch').onchange=function(){ S.currentBatch=this.value; startMonitorPolling(); };
+    $('mon-batch').onchange=function(){ S.currentBatch=this.value; S.monOnlyFailed=false; startMonitorPolling(); };
     $('mon-refresh').onclick=function(){ startMonitorPolling(); };
+    $('mon-cancel').onclick=cancelQueued;
     refresh();
   }
 
