@@ -2,7 +2,7 @@
 
 A ServiceNow administration application that lets an administrator discover, select, and batch-install the available updates for Store applications on an instance — replacing the per-app flow in the native Application Manager.
 
-**Version 1.4.0 · by Gianmario Marongiu · Global scope · no build, no external dependencies.**
+**Version 1.4.1 · by Gianmario Marongiu · Global scope · no build, no external dependencies.**
 
 ## What it does
 
@@ -13,6 +13,11 @@ The native Application Manager updates one application at a time. Now Plugin Upd
 - **Verified outcomes** — a run counts as Complete only if the application actually reaches the target version.
 - **No stored credentials** — installs are triggered with the admin's own session; no passwords or tokens are stored.
 - **Built on the platform** — a single UI Page using vanilla JavaScript (no React, no bundler, no external libraries).
+
+## What's new in 1.4.1
+
+**Fix**
+- **Install confirmation popup was invisible.** Its `.modal` class collided with the platform's own Next Experience/Polaris `.modal{display:none}` rule; since the app's CSS never set `display`, the platform rule won and the dialog stayed hidden (the click still registered, so nothing visibly happened). Renamed to `.npu-modal`.
 
 ## What's new in 1.4.0
 

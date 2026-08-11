@@ -148,10 +148,10 @@
 
 /* --- Modal di conferma --- */
 #app .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;animation:npu-fade .18s ease}
-#app .modal{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--sh-md);max-width:460px;width:100%;padding:26px 28px}
-#app .modal h3{font-size:18px;font-weight:600;letter-spacing:-.01em;margin-bottom:10px}
-#app .modal p{font-size:14px;color:var(--text-2);line-height:1.55;margin-bottom:8px}
-#app .modal .modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
+#app .npu-modal{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--sh-md);max-width:460px;width:100%;padding:26px 28px}
+#app .npu-modal h3{font-size:18px;font-weight:600;letter-spacing:-.01em;margin-bottom:10px}
+#app .npu-modal p{font-size:14px;color:var(--text-2);line-height:1.55;margin-bottom:8px}
+#app .npu-modal .modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
 #app .btn-danger{background:var(--danger);color:#fff}
 #app .btn-danger:hover{background:#e0281e}
 
@@ -358,7 +358,7 @@
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.4.0',
+    version:'1.4.1',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -402,7 +402,7 @@
     var danger = !!opts.danger;
     host.innerHTML=''
       + '<div class="modal-back" id="modal-back">'
-      +   '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">'
+      +   '<div class="npu-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">'
       +     '<h3 id="modal-title">'+esc(opts.title||'Confirm')+'</h3>'
       +     '<p>'+(opts.bodyHtml||esc(opts.body||''))+'</p>'
       +     '<div class="modal-btns">'
