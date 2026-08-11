@@ -474,10 +474,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // running (=installing) from pending (=queued), verifies version, finalises,
     // handles cancelled/failed, and times out workers that never materialise.
     //
-    // v1.4.0 — la versione installata è l'arbitro finale dello stato: un worker
-    // può riportare state='complete' con state_code='error' (installazione non
-    // applicata). Prima del fix quelle righe venivano marcate 'complete', quindi
-    // un batch fallito appariva riuscito.
+    // v1.4.0 — la versione installata è l'arbitro finale dello stato. Fino alla
+    // v1.3.7 una riga veniva marcata 'complete' anche quando l'app era rimasta
+    // alla versione precedente, quindi un update non applicato appariva riuscito.
     monitorBatches: function() {
         if (!this._guardServer('monitorBatches')) { return '0:0'; }
         var gr = new GlideRecord('u_plugin_updater_install_log');
@@ -533,16 +532,24 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 continue;
             }
             var state = (w.state || '').toLowerCase();
-            var code  = (w.code || '').toLowerCase();
             if (w.pct) { gr.setValue('u_percent_complete', w.pct); }
 
             if (state === 'complete' || state === 'success') {
-                // La versione effettivamente installata decide: un worker "complete"
-                // con state_code='error' — o che ha lasciato l'app alla versione
-                // precedente — è un fallimento, non un successo.
+                // La versione effettivamente installata è l'ARBITRO UNICO dell'esito.
+                //
+                // Attenzione: NON si può usare state_code come criterio di fallimento.
+                // Misurato su questa istanza, il worker CICD chiude con
+                // state='complete' + state_code='error' anche quando l'installazione
+                // è andata a buon fine (723 righe su 725 con state_code='error'
+                // avevano la versione target corretta). Usare state_code qui
+                // significherebbe marcare come fallite centinaia di installazioni
+                // riuscite: un falso negativo peggiore del falso positivo che
+                // questo fix corregge.
+                //
+                // Il mismatch di versione, invece, è inequivocabile: se l'app non ha
+                // raggiunto il target, l'update non è stato applicato.
                 var v = this._verify(gr.getValue('u_store_app_id'), gr.getValue('u_target_version'), verifyCache);
-                var codeFailed = (code === 'error' || code === 'failed' || code === 'cancelled');
-                if (codeFailed || !v.matches) {
+                if (!v.matches) {
                     gr.setValue('u_status', 'failed');
                     gr.setValue('u_error_message', this._failMessage(w, v, gr.getValue('u_target_version')));
                 } else {
@@ -595,9 +602,26 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         };
     },
 
+    // _cmpVer — confronto semantico di versione: -1, 0, 1.
+    // Serve perché l'uguaglianza stretta non basta: se un batch successivo (o la
+    // sync dello Store) ha portato l'app oltre il target di questo batch, quella
+    // installazione è comunque riuscita. Solo una versione INFERIORE al target
+    // indica che l'update non è stato applicato.
+    _cmpVer: function(a, b) {
+        var pa = ('' + (a || '')).split(/[.\-]/), pb = ('' + (b || '')).split(/[.\-]/);
+        var n = Math.max(pa.length, pb.length);
+        for (var i = 0; i < n; i++) {
+            var x = parseInt(pa[i], 10); if (isNaN(x)) { x = 0; }
+            var y = parseInt(pb[i], 10); if (isNaN(y)) { y = 0; }
+            if (x !== y) { return (x > y) ? 1 : -1; }
+        }
+        return 0;
+    },
+
     // _verify — confronta la versione installata con il target. `cache` è opzionale:
     // monitorBatches lo passa per non ripetere la stessa lettura su sys_store_app
     // a ogni giro del job (le righe di un batch puntano spesso alla stessa app).
+    // matches = true quando la versione installata è >= target (vedi _cmpVer).
     _verify: function(appSysId, target, cache) {
         appSysId = this._sysId(appSysId);
         if (!appSysId) { return { matches: false, current: '' }; }
@@ -610,23 +634,29 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             if (cache) { cache[appSysId] = cur; }
         }
         if (cur === null) { return { matches: false, current: '' }; }
-        return { matches: (cur === target), current: cur };
+        // Nessun target dichiarato: non c'è nulla da verificare, non fallire.
+        if (!target) { return { matches: true, current: cur }; }
+        return { matches: (this._cmpVer(cur, target) >= 0), current: cur, exact: (cur === target) };
     },
 
-    // Messaggio d'errore leggibile: preferisce quello del worker, altrimenti spiega
-    // il mismatch di versione (il caso "installazione non applicata").
+    // Messaggio d'errore leggibile. Il fatto constatato (la versione non è cambiata)
+    // viene prima, perché è l'unica informazione affidabile; l'eventuale errore del
+    // worker viene accodato solo se aggiunge qualcosa di leggibile.
     _failMessage: function(w, v, target) {
-        var m = (w && (w.error || w.message)) || '';
+        var base;
+        if (v && !v.matches) {
+            base = v.current
+                ? ('Install did not apply: still at ' + v.current + ', below the target ' + target)
+                : 'Install did not apply: application record not found';
+        } else {
+            base = 'Install failed';
+        }
+        var m = ('' + ((w && (w.error || w.message)) || '')).trim();
         // "Executing queued operation" è il messaggio residuo del worker: non informa.
         if (m && m.toLowerCase().indexOf('executing queued operation') === -1) {
-            return ('' + m).substring(0, 1000);
+            base += ' — ' + m;
         }
-        if (v && !v.matches) {
-            return v.current
-                ? ('Install did not apply: still at ' + v.current + ' (expected ' + target + ')')
-                : 'Install did not apply: application record not found';
-        }
-        return 'Install failed';
+        return base.substring(0, 1000);
     },
 
     // Most recent completion time (ms) across a batch — used to detect a stalled queue.

@@ -14,9 +14,22 @@
  * proprio quello che un admin consulta per capire se un update e' passato.
  *
  * COSA FA
- * Rilegge le righe 'complete' e le riclassifica come 'failed' quando la versione
- * installata non corrisponde al target, oppure quando il worker riporta
- * state_code di errore.
+ * Rilegge le righe 'complete' e le riclassifica come 'failed' SOLO quando la
+ * versione installata e' semanticamente INFERIORE al target.
+ *
+ * DUE CRITERI SCARTATI, entrambi misurati su un'istanza reale (1072 righe):
+ *
+ * 1) state_code del worker — NON utilizzabile. Su 725 righe con
+ *    state_code='error', 723 avevano comunque raggiunto il target:
+ *    l'installazione era riuscita. Il worker CICD chiude con state_code='error'
+ *    anche in caso di successo.
+ *
+ * 2) uguaglianza stretta (cur === target) — NON utilizzabile. Darebbe 507
+ *    "fallimenti", ma 503 di quelli hanno una versione SUPERIORE al target,
+ *    perche' un batch successivo o la sync dello Store ha aggiornato ancora
+ *    l'app. Quelle installazioni riuscirono.
+ *
+ * Con il confronto semantico i veri fallimenti risultano 4 su 1072.
  *
  * COME SI USA
  *   1) Esegui cosi' com'e' (DRY_RUN = true): non scrive nulla, elenca solo cosa
@@ -33,6 +46,21 @@
     var LIMIT   = 5000;   // tetto di sicurezza sulle righe esaminate
 
     // ---- Utility ------------------------------------------------------------
+    // Confronto semantico di versione (-1, 0, 1). L'uguaglianza stretta non basta:
+    // molte righe storiche hanno oggi una versione SUPERIORE al target, perche' un
+    // batch successivo ha aggiornato ulteriormente l'app. Quelle installazioni
+    // riuscirono. Solo actual < target indica un update non applicato.
+    function cmpVer(a, b) {
+        var pa = ('' + (a || '')).split(/[.\-]/), pb = ('' + (b || '')).split(/[.\-]/);
+        var n = Math.max(pa.length, pb.length);
+        for (var i = 0; i < n; i++) {
+            var x = parseInt(pa[i], 10); if (isNaN(x)) { x = 0; }
+            var y = parseInt(pb[i], 10); if (isNaN(y)) { y = 0; }
+            if (x !== y) { return (x > y) ? 1 : -1; }
+        }
+        return 0;
+    }
+
     function currentVersion(appSysId, cache) {
         if (!appSysId || !/^[0-9a-f]{32}$/i.test(appSysId)) { return null; }
         if (cache.hasOwnProperty(appSysId)) { return cache[appSysId]; }
@@ -78,25 +106,25 @@
             continue;
         }
 
-        var w = workerOutcome(gr.getValue('u_progress_id'));
-        var codeFailed = !!(w && (w.code === 'error' || w.code === 'failed' || w.code === 'cancelled'));
-        var versionMismatch = (cur !== target);
+        // Senza target non c'e' nulla da verificare.
+        if (!target) { stats.alreadyOk++; continue; }
 
-        if (!codeFailed && !versionMismatch) {
+        // Unico criterio: la versione installata e' INFERIORE al target.
+        // >= target significa installazione riuscita (eventualmente superata dopo).
+        if (cmpVer(cur, target) >= 0) {
             stats.alreadyOk++;
             continue;
         }
 
+        var w = workerOutcome(gr.getValue('u_progress_id'));
+
         // Motivo leggibile, coerente con _failMessage() dello Script Include.
-        var reason;
-        if (w && w.error) {
-            reason = w.error;
-        } else if (versionMismatch) {
-            reason = 'Install did not apply: still at ' + (cur || 'unknown') + ' (expected ' + target + ')';
-        } else {
-            reason = 'Install failed (worker state_code=' + ((w && w.code) || 'unknown') + ')';
+        var reason = 'Install did not apply: still at ' + (cur || 'unknown') + ', below the target ' + target;
+        var wm = ('' + ((w && (w.error || w.message)) || '')).trim();
+        if (wm && wm.toLowerCase().indexOf('executing queued operation') === -1) {
+            reason += ' — ' + wm;
         }
-        reason = ('' + reason).substring(0, 1000);
+        reason = reason.substring(0, 1000);
 
         changes.push({
             sysId:  gr.getUniqueValue(),
