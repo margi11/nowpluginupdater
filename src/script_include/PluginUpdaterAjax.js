@@ -184,34 +184,123 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // sn_appclient handler runs UpdateChecker.checkAvailableUpdates(forceUpdate).
     // Asynchronous: the client polls getInstanceInfo.lastStoreSync for completion.
     // -----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // syncStore — avvia la sincronizzazione con lo Store.
+    //
+    // NON usa gs.eventQueue('sn_appclient.check.for.update'): misurato su questa
+    // istanza, quell'evento viene processato con 9-13 ore di ritardo perché finisce
+    // in una coda condivisa con centinaia di eventi pendenti (text_index e altri).
+    // Nessun polling lato client può reggere quei tempi, e il pulsante sembrava
+    // "bloccato".
+    //
+    // Usa invece uno Scheduled Job "Run Once", che lo scheduler prende in carico
+    // entro pochi secondi indipendentemente dalla coda eventi. Il job chiama
+    // UpdateChecker.checkAvailableUpdates() direttamente — misurato ~112s su 1.200
+    // applicazioni. Non lo eseguiamo in linea perché supererebbe il timeout della
+    // transazione GlideAjax.
+    // -----------------------------------------------------------------------
     syncStore: function() {
         if (!this._guard()) { return this._forbidden(); }
-        gs.eventQueue('sn_appclient.check.for.update', null, '', '');
-        // startedAt è il riferimento con cui il client distingue "sync finita" da
-        // "sync mai partita": apps_sync_progress vale 0.00 in entrambi i casi, quindi
-        // da solo è ambiguo. Il completamento si riconosce da lastSync > startedAt.
+
+        var startedAt = new GlideDateTime();
+        var prevSync  = gs.getProperty('sn_appclient.apps_last_sync_time', '');
+
+        // Se una sync è già in corso, non accodarne un'altra.
+        if (this._syncRunning()) {
+            return JSON.stringify({
+                queued: false, alreadyRunning: true,
+                startedAt: '' + startedAt, lastSync: prevSync
+            });
+        }
+
+        var script = ''
+            + "// Now Plugin Updater — one-shot Store sync (created by syncStore)\n"
+            + "try {\n"
+            + "    gs.info('[PluginUpdater] Store sync starting');\n"
+            + "    new sn_appclient.UpdateChecker().checkAvailableUpdates(false, false, { forceUpdate: true });\n"
+            + "    gs.info('[PluginUpdater] Store sync finished');\n"
+            + "} catch (e) {\n"
+            + "    gs.error('[PluginUpdater] Store sync failed: ' + e);\n"
+            + "}\n";
+
+        // I job "once" restano in tabella dopo l'esecuzione: rimuovo i precedenti
+        // così non se ne accumula uno per ogni click sul pulsante.
+        this._cleanupSyncJobs();
+
+        var job = new GlideRecord('sysauto_script');
+        job.initialize();
+        job.setValue('name', 'Plugin Updater - Store Sync (once)');
+        job.setValue('script', script);
+        job.setValue('active', true);
+        job.setValue('run_type', 'once');
+        job.setValue('run_start', startedAt);
+        job.setValue('run_as', gs.getUserID());
+        job.setValue('conditional', false);
+        var jobId = job.insert();
+
+        if (!jobId) {
+            gs.error('[PluginUpdater] syncStore: could not create the one-shot sync job');
+            return JSON.stringify({
+                queued: false, error: 'Could not start the sync job. Check the "Scheduled Script Execution" table permissions.',
+                startedAt: '' + startedAt, lastSync: prevSync
+            });
+        }
+
+        gs.info('[PluginUpdater] syncStore: one-shot job ' + jobId + ' scheduled by ' + gs.getUserName());
         return JSON.stringify({
             queued:    true,
-            startedAt: '' + new GlideDateTime(),
-            lastSync:  gs.getProperty('sn_appclient.apps_last_sync_time', '')
+            jobId:     jobId,
+            startedAt: '' + startedAt,
+            lastSync:  prevSync
         });
+    },
+
+    // Una sync è in corso? apps_sync_progress è > 0 solo durante l'elaborazione
+    // (a fine corsa la piattaforma la riporta a 0).
+    _syncRunning: function() {
+        var raw = parseFloat(gs.getProperty('sn_appclient.apps_sync_progress', '0'));
+        return !isNaN(raw) && raw > 0;
+    },
+
+    // Elimina i job one-shot di sync creati in precedenza (ne resta traccia in
+    // sysauto_script anche dopo l'esecuzione). Ne tiene solo quelli creati negli
+    // ultimi 10 minuti, che potrebbero essere ancora in attesa di partire.
+    _cleanupSyncJobs: function() {
+        var cutoff = new GlideDateTime();
+        cutoff.addSeconds(-600);
+        var gr = new GlideRecord('sysauto_script');
+        gr.addQuery('name', 'Plugin Updater - Store Sync (once)');
+        gr.addQuery('sys_created_on', '<', cutoff);
+        gr.setLimit(50);
+        gr.query();
+        var n = 0;
+        while (gr.next()) { gr.deleteRecord(); n++; }
+        if (n) { gs.info('[PluginUpdater] cleaned up ' + n + ' old one-shot sync job(s)'); }
+        return n;
     },
 
     // -----------------------------------------------------------------------
     // getSyncProgress — avanzamento reale della sincronizzazione con lo Store.
-    // La piattaforma (sn_appclient.UpdateChecker._setAppsSyncProgress) scrive
-    // sn_appclient.apps_sync_progress a ogni fase: 0.01 fixUpdateAvailableField,
-    // 0.03 fetchAppUpdates, 0.20-0.70 updateAppRecords (incrementale), 0.85
-    // refreshStoreResponseCache, 0.96 syncGoldenConfigs, poi 0.00 = 'finished'.
-    // Restituisce { pct, running, lastSync } — pct 0 con lastSync aggiornato = finita.
+    //
+    // La property sn_appclient.apps_sync_progress è aggiornata a ogni fase da
+    // UpdateChecker._setAppsSyncProgress, che scrive `progress*100`: la scala è
+    // quindi PERCENTUALE 0-100 (verificato in corsa: valore osservato "85.0"),
+    // non una frazione 0-1. A fine sync la piattaforma la riporta a 0.
+    //
+    // Fasi osservate: 1 fixUpdateAvailableField, 3 fetchAppUpdates, 20-70
+    // updateAppRecords (incrementale), 85 refreshStoreResponseCache,
+    // 96 syncGoldenConfigs, poi 0 = finita.
+    //
+    // Restituisce { pct, running, lastSync }. pct 0 è ambiguo di per sé (idle
+    // oppure finita): il client lo disambigua confrontando lastSync con lo
+    // startedAt restituito da syncStore.
     // -----------------------------------------------------------------------
     getSyncProgress: function() {
         if (!this._guard()) { return this._forbidden(); }
-        var raw = gs.getProperty('sn_appclient.apps_sync_progress', '');
-        var frac = parseFloat(raw);
-        if (isNaN(frac)) { frac = 0; }
-        var pct = Math.round(frac * 100);
-        if (pct < 0) { pct = 0; }
+        var pct = parseFloat(gs.getProperty('sn_appclient.apps_sync_progress', '0'));
+        if (isNaN(pct)) { pct = 0; }
+        pct = Math.round(pct);
+        if (pct < 0)   { pct = 0; }
         if (pct > 100) { pct = 100; }
         return JSON.stringify({
             pct:      pct,
