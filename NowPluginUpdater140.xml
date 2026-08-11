@@ -1,48 +1,36 @@
-<?xml version="1.0" encoding="UTF-8"?><unload unload_date="2026-08-11 11:47:26">
+<?xml version="1.0" encoding="UTF-8"?><unload unload_date="2026-08-11 12:14:17">
 <sys_remote_update_set action="INSERT_OR_UPDATE">
 <application display_value="Global">global</application>
 <application_name>Global</application_name>
 <application_scope>global</application_scope>
-<application_version/>
-<collisions/>
-<commit_date/>
-<deleted/>
+<application_version/><collisions/><commit_date/><deleted/>
 <description>v1.4.0 — Fix false-complete installs (state_code, version as final arbiter), observable Store sync (apps_sync_progress), sticky wizard action bar, event delegation, render cap, scope filter, pre-install confirmation, cancel queued, end-of-batch summary, a11y, query optimisations. Author: Gianmario Marongiu. | Components: Script Include, UI Page, Scheduled Job, Table + fields, ACLs, Module, App Menu, u_status choices.</description>
 <inserted/>
 <name>Now Plugin Updater v1.4.0</name>
-<origin_sys_id/>
-<parent display_value=""/>
-<release_date/>
-<remote_base_update_set display_value=""/>
-<remote_parent_id/>
+<origin_sys_id/><parent display_value=""/><release_date/>
+<remote_base_update_set display_value=""/><remote_parent_id/>
 <remote_sys_id>a90cb84b872a43503ad5851d8bbb350c</remote_sys_id>
-<state>loaded</state>
-<summary/>
+<state>loaded</state><summary/>
 <sys_class_name>sys_remote_update_set</sys_class_name>
 <sys_created_by>admin</sys_created_by>
-<sys_created_on>2026-08-11 11:47:26</sys_created_on>
-<sys_id>6926594feb6e4350a9e2f5b9bad0cd27</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_created_on>2026-08-11 12:14:17</sys_created_on>
+<sys_id>0b4c5d0b87a283503ad5851d8bbb356a</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_updated_by>admin</sys_updated_by>
-<sys_updated_on>2026-08-11 11:47:26</sys_updated_on>
-<update_set display_value=""/>
-<update_source display_value=""/>
-<updated/>
+<sys_updated_on>2026-08-11 12:14:17</sys_updated_on>
+<update_set display_value=""/><update_source display_value=""/><updated/>
 </sys_remote_update_set>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_security_acl_1378659487b103103ad5851d8bbb3528</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_security_acl"><sys_security_acl action="INSERT_OR_UPDATE"><active>true</active><admin_overrides>true</admin_overrides><advanced>false</advanced><applies_to/><condition/><controlled_by_refs/><decision_type>allow</decision_type><description>Allow create for records in u_plugin_updater_install_log, for users with role admin.</description><local_or_existing>Existing</local_or_existing><name>u_plugin_updater_install_log</name><operation display_value="create">create</operation><script/><security_attribute/><sys_class_name>sys_security_acl</sys_class_name><sys_created_by>system</sys_created_by><sys_created_on>2026-06-26 15:17:10</sys_created_on><sys_id>1378659487b103103ad5851d8bbb3528</sys_id><sys_mod_count>2</sys_mod_count><sys_name>u_plugin_updater_install_log</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_security_acl_1378659487b103103ad5851d8bbb3528</sys_update_name><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-06-26 15:17:11</sys_updated_on><type display_value="record">record</type></sys_security_acl></record_update>]]></payload>
 <payload_hash>-1819954327</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>d2a14dcb87aa43503ad5851d8bbb3505</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>d2a14dcb87aa43503ad5851d8bbb3505</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64d7f0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -51,24 +39,20 @@
 <type>Access Control</type>
 <update_domain>global</update_domain>
 <update_guid>9aa14dcbc0aa43501439c21494750504</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_security_acl_4778259487b103103ad5851d8bbb3542</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_security_acl"><sys_security_acl action="INSERT_OR_UPDATE"><active>true</active><admin_overrides>true</admin_overrides><advanced>false</advanced><applies_to/><condition/><controlled_by_refs/><decision_type>allow</decision_type><description>Allow write for records in u_plugin_updater_install_log, for users with role admin.</description><local_or_existing>Existing</local_or_existing><name>u_plugin_updater_install_log</name><operation display_value="write">write</operation><script/><security_attribute/><sys_class_name>sys_security_acl</sys_class_name><sys_created_by>system</sys_created_by><sys_created_on>2026-06-26 15:17:09</sys_created_on><sys_id>4778259487b103103ad5851d8bbb3542</sys_id><sys_mod_count>2</sys_mod_count><sys_name>u_plugin_updater_install_log</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_security_acl_4778259487b103103ad5851d8bbb3542</sys_update_name><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-06-26 15:17:10</sys_updated_on><type display_value="record">record</type></sys_security_acl></record_update>]]></payload>
 <payload_hash>94138666</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>1aa14dcb87aa43503ad5851d8bbb350c</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>1aa14dcb87aa43503ad5851d8bbb350c</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64dd20000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -77,24 +61,20 @@
 <type>Access Control</type>
 <update_domain>global</update_domain>
 <update_guid>12a14dcb22aa43503d98be12747de50c</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_security_acl_be78219487b103103ad5851d8bbb3527</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_security_acl"><sys_security_acl action="INSERT_OR_UPDATE"><active>true</active><admin_overrides>true</admin_overrides><advanced>false</advanced><applies_to/><condition/><controlled_by_refs/><decision_type>allow</decision_type><description>Allow read for records in u_plugin_updater_install_log, for users with role admin.</description><local_or_existing>Existing</local_or_existing><name>u_plugin_updater_install_log</name><operation display_value="read">read</operation><script/><security_attribute/><sys_class_name>sys_security_acl</sys_class_name><sys_created_by>system</sys_created_by><sys_created_on>2026-06-26 15:17:08</sys_created_on><sys_id>be78219487b103103ad5851d8bbb3527</sys_id><sys_mod_count>2</sys_mod_count><sys_name>u_plugin_updater_install_log</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_security_acl_be78219487b103103ad5851d8bbb3527</sys_update_name><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-06-26 15:17:09</sys_updated_on><type display_value="record">record</type></sys_security_acl></record_update>]]></payload>
 <payload_hash>1834336631</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>9ea14dcb87aa43503ad5851d8bbb350f</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>9ea14dcb87aa43503ad5851d8bbb350f</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64dfb0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -103,24 +83,20 @@
 <type>Access Control</type>
 <update_domain>global</update_domain>
 <update_guid>96a14dcbfcaa43505aa00f2a4658090f</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_security_acl_af78a59487b103103ad5851d8bbb354b</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_security_acl"><sys_security_acl action="INSERT_OR_UPDATE"><active>true</active><admin_overrides>true</admin_overrides><advanced>false</advanced><applies_to/><condition/><controlled_by_refs/><decision_type>allow</decision_type><description>Allow delete for records in u_plugin_updater_install_log, for users with role admin.</description><local_or_existing>Existing</local_or_existing><name>u_plugin_updater_install_log</name><operation display_value="delete">delete</operation><script/><security_attribute/><sys_class_name>sys_security_acl</sys_class_name><sys_created_by>system</sys_created_by><sys_created_on>2026-06-26 15:17:11</sys_created_on><sys_id>af78a59487b103103ad5851d8bbb354b</sys_id><sys_mod_count>2</sys_mod_count><sys_name>u_plugin_updater_install_log</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_security_acl_af78a59487b103103ad5851d8bbb354b</sys_update_name><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-06-26 15:17:12</sys_updated_on><type display_value="record">record</type></sys_security_acl></record_update>]]></payload>
 <payload_hash>-2081052938</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>92a14dcb87aa43503ad5851d8bbb3509</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>92a14dcb87aa43503ad5851d8bbb3509</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64daa0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -129,24 +105,20 @@
 <type>Access Control</type>
 <update_domain>global</update_domain>
 <update_guid>9aa14dcb17aa4350e6874574a27e6308</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_app_application_4deba150eb710310a9e2f5b9bad0cd65</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update sys_domain="global" table="sys_app_application"><sys_app_application action="INSERT_OR_UPDATE"><active>true</active><category/><description>Discover, select, and install available Store application updates.</description><device_type>browser</device_type><hint>Now Plugin Updater</hint><name/><order>100</order><roles>admin</roles><sys_class_name>sys_app_application</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:32:02</sys_created_on><sys_domain>global</sys_domain><sys_domain_path>/</sys_domain_path><sys_id>4deba150eb710310a9e2f5b9bad0cd65</sys_id><sys_mod_count>0</sys_mod_count><sys_name>Now Plugin Updater</sys_name><sys_overrides/><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_app_application_4deba150eb710310a9e2f5b9bad0cd65</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:32:02</sys_updated_on><title>Now Plugin Updater</title><view_name/></sys_app_application></record_update>]]></payload>
 <payload_hash>-1994492028</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>dea14dcb87aa43503ad5851d8bbb3501</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>dea14dcb87aa43503ad5851d8bbb3501</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64d570000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -155,24 +127,20 @@
 <type>Application Menu</type>
 <update_domain>global</update_domain>
 <update_guid>96a14dcb9daa435074e5f5c233939601</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_choice_u_plugin_updater_install_log_u_status</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_choice"><sys_choice action="INSERT_OR_UPDATE"><dependent_value/><element>u_status</element><hint/><inactive>false</inactive><inactive_on_update>false</inactive_on_update><label>Queued</label><language>en</language><name>u_plugin_updater_install_log</name><sequence>0</sequence><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:33</sys_created_on><sys_id>3b18219c877103103ad5851d8bbb353e</sys_id><sys_mod_count>0</sys_mod_count><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:33</sys_updated_on><value>queued</value></sys_choice><sys_choice action="INSERT_OR_UPDATE"><dependent_value/><element>u_status</element><hint/><inactive>false</inactive><inactive_on_update>false</inactive_on_update><label>Installing</label><language>en</language><name>u_plugin_updater_install_log</name><sequence>1</sequence><sys_created_by>system</sys_created_by><sys_created_on>2026-08-11 08:19:41</sys_created_on><sys_id>1c120983eb2a4350a9e2f5b9bad0cd13</sys_id><sys_mod_count>0</sys_mod_count><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-08-11 08:19:41</sys_updated_on><value>installing</value></sys_choice><sys_choice action="INSERT_OR_UPDATE"><dependent_value/><element>u_status</element><hint/><inactive>false</inactive><inactive_on_update>false</inactive_on_update><label>In Progress</label><language>en</language><name>u_plugin_updater_install_log</name><sequence>2</sequence><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:33</sys_created_on><sys_id>fb18e19c877103103ad5851d8bbb35df</sys_id><sys_mod_count>1</sys_mod_count><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-08-11 08:19:42</sys_updated_on><value>in_progress</value></sys_choice><sys_choice action="INSERT_OR_UPDATE"><dependent_value/><element>u_status</element><hint/><inactive>false</inactive><inactive_on_update>false</inactive_on_update><label>Complete</label><language>en</language><name>u_plugin_updater_install_log</name><sequence>3</sequence><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:33</sys_created_on><sys_id>bb186d9c877103103ad5851d8bbb3578</sys_id><sys_mod_count>1</sys_mod_count><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-08-11 08:19:42</sys_updated_on><value>complete</value></sys_choice><sys_choice action="INSERT_OR_UPDATE"><dependent_value/><element>u_status</element><hint/><inactive>false</inactive><inactive_on_update>false</inactive_on_update><label>Failed</label><language>en</language><name>u_plugin_updater_install_log</name><sequence>4</sequence><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:33</sys_created_on><sys_id>bb18e19c877103103ad5851d8bbb3561</sys_id><sys_mod_count>1</sys_mod_count><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-08-11 08:19:42</sys_updated_on><value>failed</value></sys_choice><sys_choice action="INSERT_OR_UPDATE"><dependent_value/><element>u_status</element><hint/><inactive>false</inactive><inactive_on_update>false</inactive_on_update><label>Cancelled</label><language>en</language><name>u_plugin_updater_install_log</name><sequence>5</sequence><sys_created_by>system</sys_created_by><sys_created_on>2026-08-11 08:19:43</sys_created_on><sys_id>e0120983eb2a4350a9e2f5b9bad0cd99</sys_id><sys_mod_count>0</sys_mod_count><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-08-11 08:19:43</sys_updated_on><value>cancelled</value></sys_choice></record_update>]]></payload>
 <payload_hash></payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:25:13</sys_created_on>
-<sys_id>d5538d8787ea43503ad5851d8bbb3544</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>d5538d8787ea43503ad5851d8bbb3544</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefecfa280000000</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:25:13</sys_updated_on>
@@ -180,16 +148,13 @@
 <target_name>Plugin Updater Install Log.Status</target_name>
 <type>Choice list</type>
 <update_domain>global</update_domain>
-<update_guid>6d26594feb6e4350a9e2f5b9bad0cd27</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid>8f4c5d0b87a283503ad5851d8bbb356a</update_guid>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_null</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes>enforce_dot_walk_cross_scope_access=true</attributes><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -198,12 +163,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label/><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element/><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="Collection">collection</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:14:58</sys_created_on><sys_id>87f7ad98877103103ad5851d8bbb35a7</sys_id><sys_name>u_plugin_updater_install_log</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_null</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:14:58</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-2044851470</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>62a14dcb87aa43503ad5851d8bbb3565</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>62a14dcb87aa43503ad5851d8bbb3565</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe6501e0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -212,15 +176,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>eaa14dcb5baa4350ce8a065f7f25a064</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_app_name</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_app_name" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -229,12 +190,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>App Name</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_app_name</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>255</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:14</sys_created_on><sys_id>4308691c877103103ad5851d8bbb3550</sys_id><sys_name>App Name</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_app_name</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:14</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>531998366</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>12a14dcb87aa43503ad5851d8bbb352f</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>12a14dcb87aa43503ad5851d8bbb352f</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64f000000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -243,15 +203,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>1aa14dcb8faa4350da530d43239a1b2e</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_app_scope</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_app_scope" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -260,12 +217,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>App Scope</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_app_scope</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>100</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:15</sys_created_on><sys_id>c3082dd4877103103ad5851d8bbb3530</sys_id><sys_name>App Scope</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_app_scope</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:15</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-1040127869</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>eea14dcb87aa43503ad5851d8bbb356b</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>eea14dcb87aa43503ad5851d8bbb356b</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe650750000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -274,15 +230,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>e6a14dcb90aa43504f4b3fc81ca4246b</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_completed_at</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_completed_at" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -291,12 +244,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Completed At</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_completed_at</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="">glide_date_time</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:25</sys_created_on><sys_id>f518ad5c877103103ad5851d8bbb3545</sys_id><sys_name>Completed At</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_completed_at</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:25</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-160482354</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>a2a14dcb87aa43503ad5851d8bbb3582</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>a2a14dcb87aa43503ad5851d8bbb3582</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe650f00000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -305,24 +257,20 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>aaa14dcb0baa4350c6de6d729d26d181</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_sys_created_on</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="sys_created_on" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation/><choice>0</choice><choice_field/><choice_table/><column_label>Created</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>sys_created_on</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="">glide_date_time</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:14:59</sys_created_on><sys_id>5ff721d8877103103ad5851d8bbb35c7</sys_id><sys_name/><sys_package/><sys_policy/><sys_scope/><sys_update_name/><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:14:59</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type/><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-964371663</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>6ea14dcb87aa43503ad5851d8bbb3541</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>6ea14dcb87aa43503ad5851d8bbb3541</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64f8e0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -331,24 +279,20 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>a6a14dcb4aaa435031f1c2d6fc47cc41</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_sys_created_by</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="sys_created_by" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation/><choice>0</choice><choice_field/><choice_table/><column_label>Created by</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>sys_created_by</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:14:59</sys_created_on><sys_id>9bf721d8877103103ad5851d8bbb35c5</sys_id><sys_name/><sys_package/><sys_policy/><sys_scope/><sys_update_name/><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:14:59</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type/><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-575655798</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>a2a14dcb87aa43503ad5851d8bbb3569</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>a2a14dcb87aa43503ad5851d8bbb3569</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe6504d0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -357,15 +301,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>eaa14dcb42aa43500703e9e31661d468</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_error_message</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_error_message" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -374,12 +315,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Error Message</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_error_message</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>1000</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:15</sys_created_on><sys_id>0308691c877103103ad5851d8bbb35a1</sys_id><sys_name>Error Message</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_error_message</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:15</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-240772941</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>daa14dcb87aa43503ad5851d8bbb3513</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>daa14dcb87aa43503ad5851d8bbb3513</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64e640000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -388,15 +328,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>12a14dcb41aa43501c59b2a9f6cec013</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_percent_complete</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_percent_complete" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -405,12 +342,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Percent Complete</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_percent_complete</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="Integer">integer</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:25</sys_created_on><sys_id>3918ad5c877103103ad5851d8bbb353a</sys_id><sys_name>Percent Complete</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_percent_complete</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:25</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>388015486</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>5ea14dcb87aa43503ad5851d8bbb352c</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>5ea14dcb87aa43503ad5851d8bbb352c</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64eea0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -419,15 +355,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>56a14dcb51aa43506730e9463300632c</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_previous_version</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_previous_version" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -436,12 +369,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Previous Version</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_previous_version</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:15</sys_created_on><sys_id>8308691c877103103ad5851d8bbb35ba</sys_id><sys_name>Previous Version</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_previous_version</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:15</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>1663169070</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>aea14dcb87aa43503ad5851d8bbb3549</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>aea14dcb87aa43503ad5851d8bbb3549</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe650030000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -450,15 +382,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>a6a14dcbc5aa4350ecf106edf8524c49</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_product_category</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_product_category" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -467,12 +396,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Product Category</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_product_category</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>100</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:15</sys_created_on><sys_id>0f08691c877103103ad5851d8bbb35db</sys_id><sys_name>Product Category</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_product_category</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:15</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-131443971</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>9ea14dcb87aa43503ad5851d8bbb3515</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>9ea14dcb87aa43503ad5851d8bbb3515</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64e7c0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -481,15 +409,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>96a14dcb2aaa4350b893ce7df8a10215</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_progress_id</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_progress_id" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -498,12 +423,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Progress ID</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_progress_id</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>32</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:15</sys_created_on><sys_id>4b08691c877103103ad5851d8bbb35ad</sys_id><sys_name>Progress ID</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_progress_id</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:15</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-791533231</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>5ea14dcb87aa43503ad5851d8bbb353f</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>5ea14dcb87aa43503ad5851d8bbb353f</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64f630000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -512,15 +436,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>56a14dcb60aa43509e768e479b4eb23f</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_session_id</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_session_id" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -529,12 +450,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Session ID</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_session_id</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>32</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:15</sys_created_on><sys_id>cb08691c877103103ad5851d8bbb3594</sys_id><sys_name>Session ID</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_session_id</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:15</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-1496115267</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>a2a14dcb87aa43503ad5851d8bbb356e</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>a2a14dcb87aa43503ad5851d8bbb356e</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe650910000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -543,15 +463,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>aaa14dcb67aa435013b6c58702e0c06d</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_started_at</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_started_at" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -560,12 +477,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Started At</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_started_at</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="">glide_date_time</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:25</sys_created_on><sys_id>7918615c877103103ad5851d8bbb3560</sys_id><sys_name>Started At</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_started_at</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:25</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>1256176462</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>eaa14dcb87aa43503ad5851d8bbb3547</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>eaa14dcb87aa43503ad5851d8bbb3547</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64fe90000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -574,15 +490,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>e2a14dcbdbaa43508817def429a1c647</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_status</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_status" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -591,12 +504,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice>1</choice><choice_field/><choice_table/><column_label>Status</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_status</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="Choice">choice</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:25</sys_created_on><sys_id>3518ad5c877103103ad5851d8bbb3575</sys_id><sys_name>Status</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_status</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:25</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-1196490952</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>9aa14dcb87aa43503ad5851d8bbb352a</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>9aa14dcb87aa43503ad5851d8bbb352a</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64ed20000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -605,15 +517,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>92a14dcbaaaa4350db5f4c9d86e3252a</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_store_app_id</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_store_app_id" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -622,12 +531,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Store App ID</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_store_app_id</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>32</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:15</sys_created_on><sys_id>4708691c877103103ad5851d8bbb3587</sys_id><sys_name>Store App ID</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_store_app_id</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:15</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>585548485</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>d2a14dcb87aa43503ad5851d8bbb3531</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>d2a14dcb87aa43503ad5851d8bbb3531</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64f190000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -636,24 +544,20 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>daa14dcb00aa4350e946544597086c30</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_sys_id</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="sys_id" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation/><choice>0</choice><choice_field/><choice_table/><column_label>Sys ID</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>sys_id</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="">GUID</internal_type><mandatory>false</mandatory><max_length>32</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>true</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:14:59</sys_created_on><sys_id>dbf721d8877103103ad5851d8bbb35bd</sys_id><sys_name/><sys_package/><sys_policy/><sys_scope/><sys_update_name/><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:14:59</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type/><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-1686708472</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>e2a14dcb87aa43503ad5851d8bbb357f</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>e2a14dcb87aa43503ad5851d8bbb357f</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe650cb0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -662,15 +566,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>2ea14dcbcaaa43502e2286bf4ff9dc7e</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_target_version</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_target_version" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -679,12 +580,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Target Version</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_target_version</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:15</sys_created_on><sys_id>8f08691c877103103ad5851d8bbb35d2</sys_id><sys_name>Target Version</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_target_version</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:15</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>371118370</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>26a14dcb87aa43503ad5851d8bbb3567</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>26a14dcb87aa43503ad5851d8bbb3567</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe650350000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -693,15 +593,12 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>2ea14dcb1faa4350853417d9b915ca66</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_u_triggered_by</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="u_triggered_by" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation><![CDATA[(function calculatedFieldValue(current) {
 
@@ -710,12 +607,11 @@
 
 })(current);]]]]><![CDATA[></calculation><choice/><choice_field/><choice_table/><column_label>Triggered By</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>u_triggered_by</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="Reference">reference</internal_type><mandatory>false</mandatory><max_length>32</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference display_value="" name="sys_user">sys_user</reference><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:15:25</sys_created_on><sys_id>7118255c877103103ad5851d8bbb3521</sys_id><sys_name>Triggered By</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_dictionary_u_plugin_updater_install_log_u_triggered_by</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:15:25</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type>script</virtual_type><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>970607877</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>a6a14dcb87aa43503ad5851d8bbb3545</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>a6a14dcb87aa43503ad5851d8bbb3545</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64fc70000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -724,24 +620,20 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>aea14dcb37aa435040a0584cf6b85444</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_sys_updated_on</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="sys_updated_on" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation/><choice>0</choice><choice_field/><choice_table/><column_label>Updated</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>sys_updated_on</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="">glide_date_time</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:14:59</sys_created_on><sys_id>d7f721d8877103103ad5851d8bbb35c3</sys_id><sys_name/><sys_package/><sys_policy/><sys_scope/><sys_update_name/><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:14:59</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type/><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>597974686</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:56</sys_created_on>
-<sys_id>a2a14dcb87aa43503ad5851d8bbb3570</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>a2a14dcb87aa43503ad5851d8bbb3570</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe650a90000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:56</sys_updated_on>
@@ -750,24 +642,20 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>eaa14dcbfbaa4350fd3d02a2655a096f</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_sys_updated_by</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="sys_updated_by" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation/><choice>0</choice><choice_field/><choice_table/><column_label>Updated by</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>sys_updated_by</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="String">string</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:14:59</sys_created_on><sys_id>17f721d8877103103ad5851d8bbb35c1</sys_id><sys_name/><sys_package/><sys_policy/><sys_scope/><sys_update_name/><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:14:59</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type/><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-203899139</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>1ea14dcb87aa43503ad5851d8bbb3517</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>1ea14dcb87aa43503ad5851d8bbb3517</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64e8e0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -776,24 +664,20 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>56a14dcb5baa4350ac0aa89361c27c17</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_dictionary_u_plugin_updater_install_log_sys_mod_count</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update><sys_dictionary action="INSERT_OR_UPDATE" element="sys_mod_count" table="u_plugin_updater_install_log"><active>true</active><array>false</array><attributes/><audit>false</audit><calculation/><choice>0</choice><choice_field/><choice_table/><column_label>Updates</column_label><comments/><create_roles/><default_value/><defaultsort/><delete_roles/><dependent/><dependent_on_field/><display>false</display><dynamic_creation>false</dynamic_creation><dynamic_creation_script/><dynamic_default_value/><dynamic_ref_qual/><element>sys_mod_count</element><element_reference>false</element_reference><foreign_database/><formula/><function_definition/><function_field>false</function_field><internal_type display_value="Integer">integer</internal_type><mandatory>false</mandatory><max_length>40</max_length><name>u_plugin_updater_install_log</name><next_element/><primary>false</primary><read_only>false</read_only><read_only_option/><read_roles/><reference/><reference_cascade_rule/><reference_floats>false</reference_floats><reference_key/><reference_qual/><reference_qual_condition/><reference_type/><spell_check>false</spell_check><staged>false</staged><sys_class_name>sys_dictionary</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:14:59</sys_created_on><sys_id>2ff721d8877103103ad5851d8bbb35fb</sys_id><sys_name/><sys_package/><sys_policy/><sys_scope/><sys_update_name/><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:14:59</sys_updated_on><table_reference>false</table_reference><text_index>false</text_index><unique>false</unique><use_dependent_field>false</use_dependent_field><use_dynamic_default>false</use_dynamic_default><use_reference_qualifier>simple</use_reference_qualifier><virtual>false</virtual><virtual_type/><widget/><write_roles/><xml_view>false</xml_view></sys_dictionary></record_update>]]></payload>
 <payload_hash>-1302743305</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>5aa14dcb87aa43503ad5851d8bbb3527</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>5aa14dcb87aa43503ad5851d8bbb3527</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64eb20000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -802,24 +686,20 @@
 <type>Dictionary</type>
 <update_domain>global</update_domain>
 <update_guid>92a14dcbbfaa4350a2bbed5c29c76327</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_app_module_5bebe5d4877503103ad5851d8bbb355e</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update sys_domain="global" table="sys_app_module"><sys_app_module action="INSERT_OR_UPDATE"><active>true</active><application display_value="Now Plugin Updater">4deba150eb710310a9e2f5b9bad0cd65</application><assessment/><device_type/><filter/><hint>Open the Now Plugin Updater to discover and install Store application updates.</hint><homepage/><image/><link_type>DIRECT</link_type><map_page/><mobile_title>Plugin Updater</mobile_title><mobile_view_name>Mobile</mobile_view_name><name/><order>100</order><override_menu_roles>false</override_menu_roles><query>now/nav/ui/classic/params/target/pgi_plugin_updater.do</query><report/><require_confirmation>true</require_confirmation><roles>admin</roles><route/><screen/><sys_class_name>sys_app_module</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:32:11</sys_created_on><sys_domain>global</sys_domain><sys_domain_path>/</sys_domain_path><sys_id>5bebe5d4877503103ad5851d8bbb355e</sys_id><sys_mod_count>2</sys_mod_count><sys_name>Plugin Updater</sys_name><sys_overrides/><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_app_module_5bebe5d4877503103ad5851d8bbb355e</sys_update_name><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-06-28 15:46:49</sys_updated_on><timeline_page/><title>Plugin Updater</title><uncancelable>false</uncancelable><ux_list/><view_name/><window_name/></sys_app_module></record_update>]]></payload>
 <payload_hash>-2103283490</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>daa10dcb87aa43503ad5851d8bbb35c0</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>daa10dcb87aa43503ad5851d8bbb35c0</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64d230000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -828,15 +708,12 @@
 <type>Module</type>
 <update_domain>global</update_domain>
 <update_guid>92a10dcb64aa4350c83c38ee352637c0</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sysauto_script_4b2edfa0eb358710a9e2f5b9bad0cd39</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="sysauto_script"><sysauto_script action="INSERT_OR_UPDATE"><active>true</active><advanced>false</advanced><business_calendar/><condition/><conditional>false</conditional><entered_run_end/><entered_run_start/><entered_time/><max_drift/><name>Plugin Updater - Monitor Batches</name><offset/><offset_type>0</offset_type><repeat_every/><run_as display_value="System Administrator">6816f79cc0a8016401c5a33be04be441</run_as><run_as_tz/><run_dayofmonth>1</run_dayofmonth><run_dayofweek/><run_daysofweek/><run_end/><run_month/><run_period>1970-01-01 00:01:00</run_period><run_start>2026-06-27 18:29:50</run_start><run_time/><run_type>periodically</run_type><run_weekinmonth/><script><![CDATA[// Now Plugin Updater — server-side batch monitor (credential-free). Polls sys_progress_worker, verifies versions, finalizes install-log rows.
 try {
@@ -845,12 +722,11 @@ try {
   gs.error('[PluginUpdater] monitor job error: ' + e);
 }]]]]><![CDATA[></script><sys_class_name>sysauto_script</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-27 18:29:50</sys_created_on><sys_id>4b2edfa0eb358710a9e2f5b9bad0cd39</sys_id><sys_mod_count>0</sys_mod_count><sys_name>Plugin Updater - Monitor Batches</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sysauto_script_4b2edfa0eb358710a9e2f5b9bad0cd39</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-27 18:29:50</sys_updated_on><time_zone/><upgrade_safe>false</upgrade_safe></sysauto_script></record_update>]]></payload>
 <payload_hash>29780841</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>d2a10dcb87aa43503ad5851d8bbb35b9</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>d2a10dcb87aa43503ad5851d8bbb35b9</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64cb50000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -859,15 +735,12 @@ try {
 <type>Scheduled Script Execution</type>
 <update_domain>global</update_domain>
 <update_guid>96a10dcbe8aa43501abb1d0c90dc23b8</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_script_include_37d62d14877103103ad5851d8bbb3547</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_script_include"><sys_script_include action="INSERT_OR_UPDATE"><access>package_private</access><active>true</active><api_name>global.PluginUpdaterAjax</api_name><caller_access/><client_callable>true</client_callable><description>Now Plugin Updater v1.4.0 — client-callable GlideAjax. Admin role-guarded, sys_id-sanitized. v1.4.0: reads state_code (not the non-existent completion_code) and treats the installed version as the final arbiter, so failed installs are no longer reported Complete; adds getSyncProgress, getHomeData, cancelRemaining; aggregate-based listBatches.</description><mobile_callable>false</mobile_callable><name>PluginUpdaterAjax</name><sandbox_callable>false</sandbox_callable><script><![CDATA[var PluginUpdaterAjax = Class.create();
 PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
@@ -1546,12 +1419,11 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     type: 'PluginUpdaterAjax'
 });]]]]><![CDATA[></script><sys_class_name>sys_script_include</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:10:06</sys_created_on><sys_id>37d62d14877103103ad5851d8bbb3547</sys_id><sys_mod_count>52</sys_mod_count><sys_name>PluginUpdaterAjax</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_script_include_37d62d14877103103ad5851d8bbb3547</sys_update_name><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-08-11 08:10:30</sys_updated_on></sys_script_include></record_update>]]></payload>
 <payload_hash>-1379985855</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 07:58:17</sys_created_on>
-<sys_id>e22d3403876a43503ad5851d8bbb353c</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>e22d3403876a43503ad5851d8bbb353c</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefdf84300000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:10:30</sys_updated_on>
@@ -1560,24 +1432,20 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 <type>Script Include</type>
 <update_domain>global</update_domain>
 <update_guid>35ff38cb00a643508c280d2c40f286e1</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_db_object_f6f7a598877103103ad5851d8bbb3506</name>
 <payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_db_object"><sys_db_object action="INSERT_OR_UPDATE"><access>public</access><actions_access>false</actions_access><alter_access>false</alter_access><caller_access/><client_scripts_access>false</client_scripts_access><columnar_table>false</columnar_table><configuration_access>false</configuration_access><create_access>false</create_access><create_access_controls>false</create_access_controls><delete_access>false</delete_access><filter_extension/><is_data_interface>false</is_data_interface><is_df_table>false</is_df_table><is_document_table>false</is_document_table><is_extendable>false</is_extendable><label>Plugin Updater Install Log</label><live_feed_enabled>false</live_feed_enabled><name>u_plugin_updater_install_log</name><number_ref/><provider_class/><read_access>false</read_access><scriptable_table>false</scriptable_table><super_class/><sys_class_name>sys_db_object</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:14:57</sys_created_on><sys_id>f6f7a598877103103ad5851d8bbb3506</sys_id><sys_mod_count>0</sys_mod_count><sys_name>Plugin Updater Install Log</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_db_object_f6f7a598877103103ad5851d8bbb3506</sys_update_name><sys_updated_by>admin</sys_updated_by><sys_updated_on>2026-06-26 15:14:57</sys_updated_on><update_access>false</update_access><user_role/><ws_access>true</ws_access></sys_db_object></record_update>]]></payload>
 <payload_hash>-1859924967</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 08:17:55</sys_created_on>
-<sys_id>1ea10dcb87aa43503ad5851d8bbb35bc</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>1ea10dcb87aa43503ad5851d8bbb35bc</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefe64cdd0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
 <sys_updated_on>2026-08-11 08:17:55</sys_updated_on>
@@ -1586,17 +1454,14 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 <type>Table</type>
 <update_domain>global</update_domain>
 <update_guid>d2a10dcb3faa43509a4063fab82fb4bc</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 <sys_update_xml action="INSERT_OR_UPDATE">
 <action>INSERT_OR_UPDATE</action>
 <application display_value="Global">global</application>
-<category>customer</category>
-<comments/>
+<category>customer</category><comments/>
 <name>sys_ui_page_c14be11ceb310310a9e2f5b9bad0cde1</name>
-<payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_ui_page"><sys_ui_page action="INSERT_OR_UPDATE"><category>general</category><client_script/><description>Now Plugin Updater — admin screen to discover, select, and install available updates for Store applications. Alpine.js, no-build. Author: Gianmario Marongiu.</description><direct>false</direct><endpoint/><html><![CDATA[<?xml version="1.0" encoding="utf-8" ?>
+<payload><![CDATA[<?xml version="1.0" encoding="UTF-8"?><record_update table="sys_ui_page"><sys_ui_page action="INSERT_OR_UPDATE"><category>general</category><client_script/><description>Now Plugin Updater — admin screen to discover, select, and install available updates for Store applications. Alpine.js, no-build. Author: Gianmario Marongiu.</description><direct>0</direct><endpoint/><html><![CDATA[<?xml version="1.0" encoding="utf-8" ?>
 <j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null">
 <style>
 /* =====================================================
@@ -1722,25 +1587,16 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 #app .mt16{margin-top:16px}
 #app .row-gap{display:flex;gap:12px;flex-wrap:wrap}
 
-/* --- Sticky wizard action bar (v1.4.0) -------------------------------------
-   Con centinaia di app la tabella supera i 10.000px: i pulsanti in fondo al DOM
-   costringevano a scorrere tutta la lista per procedere. Una barra sticky in
-   basso resta sempre raggiungibile senza togliere larghezza alla tabella (una
-   sidebar destra comprimerebbe la colonna monospace delle versioni).
-   Il margine negativo la fa arrivare a filo dei bordi di .content. */
-#app .wizard-actions{
-  position:sticky;bottom:0;z-index:60;
-  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
-  margin:18px -28px -36px;padding:14px 28px;
-  background:rgba(251,251,253,.88);
-  backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
-  border-top:1px solid var(--border);
+/* --- Azioni del wizard, sopra la tabella (v1.4.0) --------------------------
+   Con centinaia di applicazioni la tabella supera i 10.000px di altezza: i
+   pulsanti vanno prima della lista, non dopo, così l'utente non deve scorrere
+   nulla per procedere. */
+#app .top-actions{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-bottom:18px;
 }
-#app .wizard-actions .wa-info{font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-#app .wizard-actions .wa-btns{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
-#app .wa-strong{font-weight:600;color:var(--text)}
-/* Su viewport basse la barra non deve mangiare troppo spazio verticale. */
-@media (max-height:560px){ #app .wizard-actions{position:static;margin:18px 0 0;padding:14px 0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none} }
+#app .top-actions .ta-hint{font-size:12px;color:var(--text-3)}
+#app .top-actions .count-badge{margin-left:4px}
 
 /* --- Rendering cap notice --- */
 #app .cap-note{display:flex;align-items:center;gap:10px;justify-content:center;padding:14px;font-size:13px;color:var(--text-2);background:var(--surface-2);border-top:1px solid var(--border)}
@@ -1761,6 +1617,34 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 #app .modal .modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
 #app .btn-danger{background:var(--danger);color:#fff}
 #app .btn-danger:hover{background:#e0281e}
+
+/* --- Riga espandibile con il motivo del fallimento ------------------------
+   Il messaggio della piattaforma può essere lungo: comprimerlo in una colonna
+   lo rende illeggibile. Sta invece in una riga di dettaglio a piena larghezza,
+   aperta su richiesta solo per la riga che interessa. */
+#app .why-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  width:auto;padding:3px 9px;border:none;border-radius:var(--r-pill);
+  background:rgba(255,59,48,.10);color:#c0281b;
+  font:inherit;font-size:11px;font-weight:600;cursor:pointer;transition:background .15s;
+}
+#app .why-btn:hover{background:rgba(255,59,48,.18)}
+#app .why-btn .chev{font-size:9px;transition:transform .2s}
+#app .why-btn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+#app tr.why-row td{background:var(--surface-2);padding:0;border-bottom:1px solid var(--border)}
+#app .why-box{
+  padding:14px 18px 16px;border-left:3px solid var(--danger);
+  animation:npu-fade .18s ease;
+}
+#app .why-label{
+  font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--danger);margin-bottom:7px;
+}
+#app .why-msg{
+  font-family:ui-monospace,'SF Mono',monospace;font-size:12px;line-height:1.55;
+  color:var(--text);white-space:pre-wrap;word-break:break-word;
+}
+#app .why-meta{font-size:12px;color:var(--text-3);margin-top:8px}
 
 /* --- Riepilogo di fine batch --- */
 #app .summary{display:flex;align-items:flex-start;gap:14px;padding:18px 22px;border-radius:var(--r-lg);margin-bottom:20px;box-shadow:var(--sh-sm)}
@@ -1817,13 +1701,6 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
       </div>
       <div class="section-title">Updatable Applications</div>
       <div id="wizard1-body"></div>
-      <div class="wizard-actions" id="w1-actions" style="display:none">
-        <div class="wa-info" id="w1-info"></div>
-        <div class="wa-btns">
-          <button class="btn btn-ghost" id="w1-cancel">Cancel</button>
-          <button class="btn btn-primary" id="w1-next">Next: Select &#8594;</button>
-        </div>
-      </div>
     </div>
 
     <!-- WIZARD 2 — Select -->
@@ -1842,18 +1719,14 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         <button class="btn btn-secondary btn-sm" id="sel-all">Select All</button>
         <button class="btn btn-ghost btn-sm" id="sel-none">Clear</button>
       </div>
-      <div id="sel-table"></div>
-      <div class="wizard-actions">
-        <div class="wa-info">
-          <span class="count-badge" id="sel-count">0 selected</span>
-          <span id="sel-hint"></span>
-        </div>
-        <div class="wa-btns">
-          <button class="btn btn-ghost" id="sel-cancel">Cancel</button>
-          <button class="btn btn-secondary" id="sel-back">&#8592; Back</button>
-          <button class="btn btn-primary" id="sel-install">Install Updates</button>
-        </div>
+      <div class="top-actions">
+        <button class="btn btn-primary" id="sel-install">Install Updates</button>
+        <button class="btn btn-secondary" id="sel-back">&#8592; Back</button>
+        <button class="btn btn-ghost" id="sel-cancel">Cancel</button>
+        <span class="count-badge" id="sel-count">0 selected</span>
+        <span class="ta-hint" id="sel-hint"></span>
       </div>
+      <div id="sel-table"></div>
     </div>
 
     <!-- WIZARD 3 — Launch -->
@@ -1905,7 +1778,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         </div>
         <div class="guide-section mt16">
           <h3>3 &#183; Wizard &#8212; Select</h3>
-          <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The action bar stays pinned to the bottom of the screen, so you never have to scroll a long list to continue. Apps already being installed are shown as&#160;<em>installing</em>&#160;and cannot be re-selected.</p>
+          <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The buttons sit&#160;<strong>above the list</strong>, so you never have to scroll hundreds of rows to continue. Apps already being installed are shown as&#160;<em>installing</em>&#160;and cannot be re-selected.</p>
           <p>Very long lists render the first 150 rows for speed &#8212; use&#160;<strong>show all</strong>&#160;or the filters to reach the rest.&#160;<strong>Select All</strong>&#160;always applies to everything matching the current filter, not just the visible rows.</p>
         </div>
         <div class="guide-section mt16">
@@ -1915,6 +1788,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             <li>They are enqueued&#160;<strong>one at a time</strong>&#160;(the platform's CICD install API is single-flight); a busy queue is retried automatically, and a 400 &#8220;offering required&#8221; error is retried with the offering id.</li>
             <li>Once launching finishes you can&#160;<strong>close the page</strong>: a scheduled job on the server tracks every install, verifies the installed version, and marks each&#160;<em>Complete</em>&#160;or&#160;<em>Failed</em>.</li>
             <li>An install counts as&#160;<strong>Complete</strong>&#160;only if the application actually reaches the target version. If the platform reports success but the version did not change, the row is marked&#160;<strong>Failed</strong>&#160;with the version it stayed on.</li>
+            <li>Whenever a row carries a message, a&#160;<strong>Details</strong>&#160;(or&#160;<strong>Why failed</strong>) button appears in the last column. It opens the exact text reported by the platform underneath that row &#8212; useful for telling apart an app that was rejected at launch from one whose install did not apply. If any application fails to launch, the wizard stays on the Launch step so you can read the reasons before moving on.</li>
             <li>The&#160;<strong>Monitor</strong>&#160;tab shows the batch with five counters &#8212; Total,&#160;<strong>Installing</strong>&#160;(running right now),&#160;<strong>Queued</strong>&#160;(waiting in the server queue), Complete, Failed &#8212; and a sortable per-app table. When the batch ends a summary appears, with a shortcut to list only the failures.</li>
             <li><strong>Cancel queued</strong>&#160;drops the applications still waiting in the queue. Installs already running cannot be interrupted and will finish.</li>
             <li>Reopening the page reloads your most recent batch automatically; the batch selector lets you review earlier ones.</li>
@@ -1955,6 +1829,8 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // disponibile con "show all": il paging classico è stato scartato perché
     // spezzerebbe la selezione multipla su più pagine.
     RENDER_CAP:150, showAllSel:false, showAllW1:false,
+    // Righe di dettaglio aperte, per chiave: sopravvive ai refresh del polling.
+    whyOpen:{}, launchWhyOpen:{},
     loadedHome:false, appsFetchedAt:0
   };
 
@@ -2165,7 +2041,6 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     var age = S.appsFetchedAt ? (new Date().getTime()-S.appsFetchedAt) : 999999;
     var fresh = S.appsFetchedAt && (30000 > age);
     if(fresh && S.appData && S.appData.apps){ renderWizard1(); return; }
-    $('w1-actions').style.display='none';
     $('wizard1-body').innerHTML='<div class="loading"><div class="spinner"></div> Scanning store applications&#8230;</div>';
     ajax('getUpdatableApps',{},function(e,d){
       if(e){ $('wizard1-body').innerHTML='<div class="alert alert-danger">'+esc(e)+'</div>'; return; }
@@ -2224,8 +2099,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
   function renderWizard1(){
     var apps=S.appData.apps||[];
     if(apps.length===0){
-      $('wizard1-body').innerHTML='<div class="empty">All store applications are up to date.</div>';
-      $('w1-actions').style.display='none';
+      $('wizard1-body').innerHTML='<div class="empty">All store applications are up to date.</div>'
+        + '<div class="top-actions" style="margin-top:18px"><button class="btn btn-secondary" id="w1-cancel">&#8592; Home</button></div>';
+      $('w1-cancel').onclick=function(){ showView('home'); };
       return;
     }
     var base=apps.slice().sort(function(a,b){ var x=(a.name||'').toLowerCase(), y=(b.name||'').toLowerCase(); return x<y?-1:(x>y?1:0); });
@@ -2236,17 +2112,22 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
       rows+='<tr><td class="col-name">'+esc(ap.name)+'</td><td class="col-scope">'+esc(ap.scope)+'</td>'
           + '<td class="col-ver">'+verCell(ap.current,ap.latest)+'</td></tr>';
     }
+    // I pulsanti stanno SOPRA la tabella, subito sotto il messaggio: con centinaia
+    // di applicazioni l'utente non deve scorrere l'intera lista per procedere.
     var h='<div class="info-box">Found <strong>'+apps.length+'</strong> application(s) with available updates. Click <strong>Next: Select</strong> to choose which to install.</div>'
+      + '<div class="top-actions">'
+      +   '<button class="btn btn-primary" id="w1-next">Next: Select &#8594;</button>'
+      +   '<button class="btn btn-secondary" id="w1-cancel">Cancel</button>'
+      + '</div>'
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + wth('name','Application')+wth('scope','Scope')+wth('current','Current &#8594; Latest')
       + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
       + capNote(cap.hidden, sorted.length, 'w1-showall')+'</div>';
     $('wizard1-body').innerHTML=h;
+    $('w1-next').onclick=function(){ openSelect(); };
+    $('w1-cancel').onclick=function(){ showView('home'); };
     var sa=$('w1-showall'); if(sa){ sa.onclick=function(){ S.showAllW1=true; renderWizard1(); }; }
     wireWizSort('wizard1-body', renderWizard1);
-    // Action bar sticky: sempre raggiungibile, anche con centinaia di righe.
-    $('w1-info').innerHTML='<span class="wa-strong">'+plural(apps.length,'application','applications')+'</span> with updates available';
-    $('w1-actions').style.display='flex';
   }
 
   // ---- WIZARD 2 (Select) ----
@@ -2363,6 +2244,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(a){ apps.push({sysId:a.sysId,name:a.name,scope:a.scope,current:a.current,latest:a.latest}); } }
     if(!apps.length) return;
     S.launchTotal=apps.length; S.launchTriggered=0; S.launchFailed=0; S.launching=true;
+    S.launchErrors=[]; S.launchWhyOpen={};   // motivi dei mancati avvii, mostrati in wizard3
     showView('wizard3'); $('launch-actions').style.display='none';
     renderLaunch('Creating batch&#8230;');
     ajax('createBatch',{ apps: JSON.stringify(apps) }, function(e,d){
@@ -2384,7 +2266,14 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             triggerOne(app, logId, function(){ clearTimeout(guard); advance(); });
           })(a, map[a.sysId], step);
         }
-        if(active===0 && queue.length===0 && S.launching){ S.launching=false; renderLaunch(); $('launch-actions').style.display='flex'; openMonitor(S.currentBatch); }
+        if(active===0 && queue.length===0 && S.launching){
+          S.launching=false;
+          renderLaunch();
+          $('launch-actions').style.display='flex';
+          // Se tutto è partito, vai diretto al Monitor. Se qualcosa non è partito,
+          // resta qui: i motivi sono su questa schermata e vanno letti.
+          if(!S.launchFailed){ openMonitor(S.currentBatch); }
+        }
       }
       pump();
     });
@@ -2393,13 +2282,50 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
   function renderLaunch(msg){
     var pct=S.launchTotal? Math.round((S.launchTriggered/S.launchTotal)*100):0;
     var head=S.launching? ('Launching&#8230; '+S.launchTriggered+' / '+S.launchTotal) : ('Launched '+S.launchTriggered+' / '+S.launchTotal);
+    var errs=S.launchErrors||[];
     var h='<div class="info-box">Launching <strong>'+S.launchTotal+'</strong> install(s) with your session. When launching completes you can close the tab &#8212; installs continue on the server and are tracked on the Monitor page.</div>'
       + '<div class="card"><div class="card-body">'
       + '<div style="font-size:15px;font-weight:600;margin-bottom:8px">'+head+(S.launchFailed?(' &#183; '+S.launchFailed+' failed to launch'):'')+'</div>'
       + '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%"></div></div>'
       + (msg?('<div style="margin-top:10px;font-size:12px;color:var(--text-2)">'+msg+'</div>'):'')
       + '</div></div>';
+
+    // Elenco dei mancati avvii: compare solo se ce n'è almeno uno, e ogni motivo
+    // si apre su richiesta — così non invade la vista durante un lancio riuscito.
+    if(errs.length){
+      var rows='';
+      for(var i=0;i<errs.length;i++){
+        var e=errs[i], open=!!S.launchWhyOpen[e.key];
+        rows+='<tr><td class="col-name">'+esc(e.name)+'</td>'
+            + '<td class="col-scope">'+esc(e.scope)+'</td>'
+            + '<td>'+statusPill('failed')+'</td>'
+            + '<td><button class="why-btn" data-lwhy="'+esc(e.key)+'" aria-expanded="'+(open?'true':'false')+'">'
+            +   'Why failed<span class="chev" aria-hidden="true">&#9660;</span></button></td></tr>';
+        if(open){
+          rows+='<tr class="why-row"><td colspan="4"><div class="why-box">'
+              + '<div class="why-label">Reason reported by the platform</div>'
+              + '<div class="why-msg">'+esc(e.message)+'</div>'
+              + (e.target?('<div class="why-meta">Target version '+esc(e.target)+'</div>'):'')
+              + '</div></td></tr>';
+        }
+      }
+      h+='<div class="mt16"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">'
+        + plural(errs.length,'application','applications')+' could not be started</div>'
+        + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
+        + '<th>Application</th><th>Scope</th><th>Status</th><th style="width:110px">Details</th>'
+        + '</tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
+    }
+
     $('launch-body').innerHTML=h;
+
+    var lb=$('launch-body').querySelectorAll('.why-btn');
+    for(var j=0;j<lb.length;j++){
+      lb[j].onclick=function(){
+        var k=this.getAttribute('data-lwhy');
+        if(S.launchWhyOpen[k]){ delete S.launchWhyOpen[k]; } else { S.launchWhyOpen[k]=true; }
+        renderLaunch();
+      };
+    }
   }
 
   function cicdUrl(row){
@@ -2432,7 +2358,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     if(r.status===200||r.status===201){
       var pid=r.body&&r.body.result&&r.body.result.links&&r.body.result.links.progress&&r.body.result.links.progress.id;
       if(pid){ ajax('attachWorker',{ log_sys_id:logSysId, progress_id:pid }, function(){ done(); }); return; }
-      failTrigger(logSysId,'No progress ID returned', done); return;
+      failTrigger(a, logSysId,'The install was accepted but no progress ID was returned, so it cannot be tracked.', done); return;
     }
     var msg=trigErr(r);
     if(r.status===400 && !withOffering){
@@ -2441,7 +2367,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
       if(offering && (''+msg).toLowerCase().indexOf('offering')>-1){ fire(a, logSysId, done, attempt, true, offering); return; }
     }
     if(isTransient(r.status, msg)){ retryOrFail(a, logSysId, done, attempt, msg); return; }
-    failTrigger(logSysId, msg, done);
+    failTrigger(a, logSysId, 'HTTP ' + r.status + ' — ' + msg, done);
   }
   function retryOrFail(a, logSysId, done, attempt, msg){
     var MAX=8;
@@ -2449,11 +2375,21 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
       renderLaunch('Waiting for the CICD queue&#8230; (retry '+(attempt+1)+'/'+MAX+')');
       setTimeout(function(){ fire(a, logSysId, done, attempt+1, false, null); }, 2000 + attempt*800);
     } else {
-      failTrigger(logSysId, 'Enqueue failed after '+MAX+' retries: '+msg, done);
+      failTrigger(a, logSysId, 'Still rejected after '+MAX+' retries — ' + msg, done);
     }
   }
-  function failTrigger(logSysId, message, done){
+  // Registra il motivo del mancato avvio, oltre a marcare la riga sul server:
+  // senza questo l'utente vedeva solo "N failed to launch" senza il perché.
+  function failTrigger(a, logSysId, message, done){
     S.launchFailed++;
+    if(!S.launchErrors){ S.launchErrors=[]; }
+    S.launchErrors.push({
+      key:   logSysId || ('e'+S.launchErrors.length),
+      name:  (a && a.name) || '(unknown application)',
+      scope: (a && a.scope) || '',
+      target:(a && a.latest) || '',
+      message: message
+    });
     ajax('failRow',{ log_sys_id:logSysId, message:message }, function(){ done(); });
   }
 
@@ -2556,12 +2492,31 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     var list=monSortRows(S.monOnlyFailed ? all.filter(function(r){ return r.status==='failed'; }) : all);
     var rows='';
     for(var i=0;i<list.length;i++){ var r=list[i]; var st=r.status||'queued'; var pct=r.pct||0;
+      var key=r.logSysId||('row'+i);
+      var hasMsg=!!(r.message && (''+r.message).trim());
+      var open=!!S.whyOpen[key];
+      // Colonna "Details": pulsante solo dove c'è davvero qualcosa da leggere.
+      var detail='';
+      if(hasMsg){
+        detail='<button class="why-btn" data-why="'+esc(key)+'" aria-expanded="'+(open?'true':'false')+'">'
+             + (st==='failed'?'Why failed':'Details')+'<span class="chev" aria-hidden="true">&#9660;</span></button>';
+      } else {
+        detail='<span style="color:var(--text-3);font-size:12px">&#8212;</span>';
+      }
       rows+='<tr><td class="col-name">'+esc(r.name)+'</td><td class="col-scope">'+esc(r.scope)+'</td>'
           + '<td class="col-ver">'+verCell(r.current,r.latest)+'</td>'
           + '<td>'+statusPill(st)+'</td>'
           + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+pct+'%</div>'
           + '<div class="prog-wrap"><div class="prog-bar'+(st==='complete'?' success':(st==='failed'?' failed':''))+'" style="width:'+pct+'%"></div></div></td>'
-          + '<td style="font-size:12px;color:var(--text-2);max-width:240px;word-break:break-word">'+esc(r.message)+'</td></tr>';
+          + '<td>'+detail+'</td></tr>';
+      // Riga di dettaglio a piena larghezza, resa solo se aperta.
+      if(hasMsg && open){
+        rows+='<tr class="why-row"><td colspan="6"><div class="why-box">'
+            + '<div class="why-label">'+(st==='failed'?'Reason reported by the platform':'Message')+'</div>'
+            + '<div class="why-msg">'+esc(r.message)+'</div>'
+            + (r.startedAt?('<div class="why-meta">Started '+esc(r.startedAt)+'</div>'):'')
+            + '</div></td></tr>';
+      }
     }
     if(!list.length){ rows='<tr><td colspan="6" class="empty">'+(S.monOnlyFailed?'No failures in this batch.':'No apps in this batch.')+'</td></tr>'; }
     var bs=d.status||'running';
@@ -2580,9 +2535,21 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
       +   (S.monOnlyFailed?' <button class="link-btn" id="mon-showall-rows">show all</button>':'')+'</div>'
       +   '<div style="font-size:12px;color:var(--text-3)">Last refreshed '+esc(new Date().toLocaleString())+'</div></div>'
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
-      + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')+th('message','Message')
+      + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')
+      + '<th style="width:110px">Details</th>'
       + '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
     $('mon-body').innerHTML=h;
+
+    // Espansione/chiusura del dettaglio: lo stato vive in S.whyOpen, quindi
+    // sopravvive ai refresh del polling e all'ordinamento.
+    var wb=$('mon-body').querySelectorAll('.why-btn');
+    for(var w=0;w<wb.length;w++){
+      wb[w].onclick=function(){
+        var k=this.getAttribute('data-why');
+        if(S.whyOpen[k]){ delete S.whyOpen[k]; } else { S.whyOpen[k]=true; }
+        renderMonitor(S.monData);
+      };
+    }
 
     var of=$('mon-onlyfailed'); if(of){ of.onclick=function(){ S.monOnlyFailed=true; renderMonitor(S.monData); }; }
     var sr=$('mon-showall-rows'); if(sr){ sr.onclick=function(){ S.monOnlyFailed=false; renderMonitor(S.monData); }; }
@@ -2625,8 +2592,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     $('sel-install').onclick=confirmInstalls;
     $('sel-back').onclick=function(){ showView('wizard1'); };
     $('sel-cancel').onclick=function(){ showView('home'); };
-    $('w1-next').onclick=function(){ openSelect(); };
-    $('w1-cancel').onclick=function(){ showView('home'); };
+    // w1-next / w1-cancel sono resi dentro renderWizard1(): agganciati là.
     $('launch-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     $('launch-home').onclick=function(){ showView('home'); refresh(); };
     $('mon-batch').onchange=function(){ S.currentBatch=this.value; S.monOnlyFailed=false; startMonitorPolling(); };
@@ -2639,24 +2605,21 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
   else { init(); }
 })();
 </script>
-</j:jelly>]]]]><![CDATA[></html><name>pgi_plugin_updater</name><processing_script/><sys_class_name>sys_ui_page</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:29:19</sys_created_on><sys_id>c14be11ceb310310a9e2f5b9bad0cde1</sys_id><sys_mod_count>59</sys_mod_count><sys_name>pgi_plugin_updater</sys_name><sys_package display_value="Global" source="global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_ui_page_c14be11ceb310310a9e2f5b9bad0cde1</sys_update_name><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-08-11 08:00:11</sys_updated_on></sys_ui_page></record_update>]]></payload>
+</j:jelly>]]]]><![CDATA[></html><name>pgi_plugin_updater</name><processing_script/><sys_class_name>sys_ui_page</sys_class_name><sys_created_by>admin</sys_created_by><sys_created_on>2026-06-26 15:29:19</sys_created_on><sys_id>c14be11ceb310310a9e2f5b9bad0cde1</sys_id><sys_mod_count>60</sys_mod_count><sys_name>pgi_plugin_updater</sys_name><sys_package display_value="Global">global</sys_package><sys_policy/><sys_scope display_value="Global">global</sys_scope><sys_update_name>sys_ui_page_c14be11ceb310310a9e2f5b9bad0cde1</sys_update_name><sys_updated_by>system</sys_updated_by><sys_updated_on>2026-08-11 10:12:28</sys_updated_on></sys_ui_page></record_update>]]></payload>
 <payload_hash>-11657840</payload_hash>
-<remote_update_set display_value="Now Plugin Updater v1.4.0">6926594feb6e4350a9e2f5b9bad0cd27</remote_update_set>
+<remote_update_set display_value="Now Plugin Updater v1.4.0">0b4c5d0b87a283503ad5851d8bbb356a</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-08-11 07:58:17</sys_created_on>
-<sys_id>ee2d3403876a43503ad5851d8bbb3575</sys_id>
-<sys_mod_count>0</sys_mod_count>
+<sys_id>ee2d3403876a43503ad5851d8bbb3575</sys_id><sys_mod_count>0</sys_mod_count>
 <sys_recorded_at>19fefd611e50000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
-<sys_updated_on>2026-08-11 08:00:11</sys_updated_on>
+<sys_updated_on>2026-08-11 10:13:28</sys_updated_on>
 <table></table>
 <target_name>pgi_plugin_updater</target_name>
 <type>UI Page</type>
 <update_domain>global</update_domain>
 <update_guid>6a9d3cc3b26a43507a6ca6d47e8ab114</update_guid>
-<update_guid_history/>
-<update_set display_value=""/>
-<view/>
+<update_guid_history/><update_set display_value=""/><view/>
 </sys_update_xml>
 </unload>

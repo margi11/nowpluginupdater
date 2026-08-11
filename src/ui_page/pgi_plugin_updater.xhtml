@@ -124,25 +124,16 @@
 #app .mt16{margin-top:16px}
 #app .row-gap{display:flex;gap:12px;flex-wrap:wrap}
 
-/* --- Sticky wizard action bar (v1.4.0) -------------------------------------
-   Con centinaia di app la tabella supera i 10.000px: i pulsanti in fondo al DOM
-   costringevano a scorrere tutta la lista per procedere. Una barra sticky in
-   basso resta sempre raggiungibile senza togliere larghezza alla tabella (una
-   sidebar destra comprimerebbe la colonna monospace delle versioni).
-   Il margine negativo la fa arrivare a filo dei bordi di .content. */
-#app .wizard-actions{
-  position:sticky;bottom:0;z-index:60;
-  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
-  margin:18px -28px -36px;padding:14px 28px;
-  background:rgba(251,251,253,.88);
-  backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
-  border-top:1px solid var(--border);
+/* --- Azioni del wizard, sopra la tabella (v1.4.0) --------------------------
+   Con centinaia di applicazioni la tabella supera i 10.000px di altezza: i
+   pulsanti vanno prima della lista, non dopo, così l'utente non deve scorrere
+   nulla per procedere. */
+#app .top-actions{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-bottom:18px;
 }
-#app .wizard-actions .wa-info{font-size:13px;color:var(--text-2);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-#app .wizard-actions .wa-btns{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
-#app .wa-strong{font-weight:600;color:var(--text)}
-/* Su viewport basse la barra non deve mangiare troppo spazio verticale. */
-@media (max-height:560px){ #app .wizard-actions{position:static;margin:18px 0 0;padding:14px 0;background:none;backdrop-filter:none;-webkit-backdrop-filter:none} }
+#app .top-actions .ta-hint{font-size:12px;color:var(--text-3)}
+#app .top-actions .count-badge{margin-left:4px}
 
 /* --- Rendering cap notice --- */
 #app .cap-note{display:flex;align-items:center;gap:10px;justify-content:center;padding:14px;font-size:13px;color:var(--text-2);background:var(--surface-2);border-top:1px solid var(--border)}
@@ -163,6 +154,34 @@
 #app .modal .modal-btns{display:flex;gap:10px;justify-content:flex-end;margin-top:22px}
 #app .btn-danger{background:var(--danger);color:#fff}
 #app .btn-danger:hover{background:#e0281e}
+
+/* --- Riga espandibile con il motivo del fallimento ------------------------
+   Il messaggio della piattaforma può essere lungo: comprimerlo in una colonna
+   lo rende illeggibile. Sta invece in una riga di dettaglio a piena larghezza,
+   aperta su richiesta solo per la riga che interessa. */
+#app .why-btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  width:auto;padding:3px 9px;border:none;border-radius:var(--r-pill);
+  background:rgba(255,59,48,.10);color:#c0281b;
+  font:inherit;font-size:11px;font-weight:600;cursor:pointer;transition:background .15s;
+}
+#app .why-btn:hover{background:rgba(255,59,48,.18)}
+#app .why-btn .chev{font-size:9px;transition:transform .2s}
+#app .why-btn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+#app tr.why-row td{background:var(--surface-2);padding:0;border-bottom:1px solid var(--border)}
+#app .why-box{
+  padding:14px 18px 16px;border-left:3px solid var(--danger);
+  animation:npu-fade .18s ease;
+}
+#app .why-label{
+  font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
+  color:var(--danger);margin-bottom:7px;
+}
+#app .why-msg{
+  font-family:ui-monospace,'SF Mono',monospace;font-size:12px;line-height:1.55;
+  color:var(--text);white-space:pre-wrap;word-break:break-word;
+}
+#app .why-meta{font-size:12px;color:var(--text-3);margin-top:8px}
 
 /* --- Riepilogo di fine batch --- */
 #app .summary{display:flex;align-items:flex-start;gap:14px;padding:18px 22px;border-radius:var(--r-lg);margin-bottom:20px;box-shadow:var(--sh-sm)}
@@ -219,13 +238,6 @@
       </div>
       <div class="section-title">Updatable Applications</div>
       <div id="wizard1-body"></div>
-      <div class="wizard-actions" id="w1-actions" style="display:none">
-        <div class="wa-info" id="w1-info"></div>
-        <div class="wa-btns">
-          <button class="btn btn-ghost" id="w1-cancel">Cancel</button>
-          <button class="btn btn-primary" id="w1-next">Next: Select &#8594;</button>
-        </div>
-      </div>
     </div>
 
     <!-- WIZARD 2 — Select -->
@@ -244,18 +256,14 @@
         <button class="btn btn-secondary btn-sm" id="sel-all">Select All</button>
         <button class="btn btn-ghost btn-sm" id="sel-none">Clear</button>
       </div>
-      <div id="sel-table"></div>
-      <div class="wizard-actions">
-        <div class="wa-info">
-          <span class="count-badge" id="sel-count">0 selected</span>
-          <span id="sel-hint"></span>
-        </div>
-        <div class="wa-btns">
-          <button class="btn btn-ghost" id="sel-cancel">Cancel</button>
-          <button class="btn btn-secondary" id="sel-back">&#8592; Back</button>
-          <button class="btn btn-primary" id="sel-install">Install Updates</button>
-        </div>
+      <div class="top-actions">
+        <button class="btn btn-primary" id="sel-install">Install Updates</button>
+        <button class="btn btn-secondary" id="sel-back">&#8592; Back</button>
+        <button class="btn btn-ghost" id="sel-cancel">Cancel</button>
+        <span class="count-badge" id="sel-count">0 selected</span>
+        <span class="ta-hint" id="sel-hint"></span>
       </div>
+      <div id="sel-table"></div>
     </div>
 
     <!-- WIZARD 3 — Launch -->
@@ -307,7 +315,7 @@
         </div>
         <div class="guide-section mt16">
           <h3>3 &#183; Wizard &#8212; Select</h3>
-          <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The action bar stays pinned to the bottom of the screen, so you never have to scroll a long list to continue. Apps already being installed are shown as&#160;<em>installing</em>&#160;and cannot be re-selected.</p>
+          <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The buttons sit&#160;<strong>above the list</strong>, so you never have to scroll hundreds of rows to continue. Apps already being installed are shown as&#160;<em>installing</em>&#160;and cannot be re-selected.</p>
           <p>Very long lists render the first 150 rows for speed &#8212; use&#160;<strong>show all</strong>&#160;or the filters to reach the rest.&#160;<strong>Select All</strong>&#160;always applies to everything matching the current filter, not just the visible rows.</p>
         </div>
         <div class="guide-section mt16">
@@ -317,6 +325,7 @@
             <li>They are enqueued&#160;<strong>one at a time</strong>&#160;(the platform's CICD install API is single-flight); a busy queue is retried automatically, and a 400 &#8220;offering required&#8221; error is retried with the offering id.</li>
             <li>Once launching finishes you can&#160;<strong>close the page</strong>: a scheduled job on the server tracks every install, verifies the installed version, and marks each&#160;<em>Complete</em>&#160;or&#160;<em>Failed</em>.</li>
             <li>An install counts as&#160;<strong>Complete</strong>&#160;only if the application actually reaches the target version. If the platform reports success but the version did not change, the row is marked&#160;<strong>Failed</strong>&#160;with the version it stayed on.</li>
+            <li>Whenever a row carries a message, a&#160;<strong>Details</strong>&#160;(or&#160;<strong>Why failed</strong>) button appears in the last column. It opens the exact text reported by the platform underneath that row &#8212; useful for telling apart an app that was rejected at launch from one whose install did not apply. If any application fails to launch, the wizard stays on the Launch step so you can read the reasons before moving on.</li>
             <li>The&#160;<strong>Monitor</strong>&#160;tab shows the batch with five counters &#8212; Total,&#160;<strong>Installing</strong>&#160;(running right now),&#160;<strong>Queued</strong>&#160;(waiting in the server queue), Complete, Failed &#8212; and a sortable per-app table. When the batch ends a summary appears, with a shortcut to list only the failures.</li>
             <li><strong>Cancel queued</strong>&#160;drops the applications still waiting in the queue. Installs already running cannot be interrupted and will finish.</li>
             <li>Reopening the page reloads your most recent batch automatically; the batch selector lets you review earlier ones.</li>
@@ -357,6 +366,8 @@
     // disponibile con "show all": il paging classico è stato scartato perché
     // spezzerebbe la selezione multipla su più pagine.
     RENDER_CAP:150, showAllSel:false, showAllW1:false,
+    // Righe di dettaglio aperte, per chiave: sopravvive ai refresh del polling.
+    whyOpen:{}, launchWhyOpen:{},
     loadedHome:false, appsFetchedAt:0
   };
 
@@ -567,7 +578,6 @@
     var age = S.appsFetchedAt ? (new Date().getTime()-S.appsFetchedAt) : 999999;
     var fresh = S.appsFetchedAt && (30000 > age);
     if(fresh && S.appData && S.appData.apps){ renderWizard1(); return; }
-    $('w1-actions').style.display='none';
     $('wizard1-body').innerHTML='<div class="loading"><div class="spinner"></div> Scanning store applications&#8230;</div>';
     ajax('getUpdatableApps',{},function(e,d){
       if(e){ $('wizard1-body').innerHTML='<div class="alert alert-danger">'+esc(e)+'</div>'; return; }
@@ -626,8 +636,9 @@
   function renderWizard1(){
     var apps=S.appData.apps||[];
     if(apps.length===0){
-      $('wizard1-body').innerHTML='<div class="empty">All store applications are up to date.</div>';
-      $('w1-actions').style.display='none';
+      $('wizard1-body').innerHTML='<div class="empty">All store applications are up to date.</div>'
+        + '<div class="top-actions" style="margin-top:18px"><button class="btn btn-secondary" id="w1-cancel">&#8592; Home</button></div>';
+      $('w1-cancel').onclick=function(){ showView('home'); };
       return;
     }
     var base=apps.slice().sort(function(a,b){ var x=(a.name||'').toLowerCase(), y=(b.name||'').toLowerCase(); return x<y?-1:(x>y?1:0); });
@@ -638,17 +649,22 @@
       rows+='<tr><td class="col-name">'+esc(ap.name)+'</td><td class="col-scope">'+esc(ap.scope)+'</td>'
           + '<td class="col-ver">'+verCell(ap.current,ap.latest)+'</td></tr>';
     }
+    // I pulsanti stanno SOPRA la tabella, subito sotto il messaggio: con centinaia
+    // di applicazioni l'utente non deve scorrere l'intera lista per procedere.
     var h='<div class="info-box">Found <strong>'+apps.length+'</strong> application(s) with available updates. Click <strong>Next: Select</strong> to choose which to install.</div>'
+      + '<div class="top-actions">'
+      +   '<button class="btn btn-primary" id="w1-next">Next: Select &#8594;</button>'
+      +   '<button class="btn btn-secondary" id="w1-cancel">Cancel</button>'
+      + '</div>'
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + wth('name','Application')+wth('scope','Scope')+wth('current','Current &#8594; Latest')
       + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
       + capNote(cap.hidden, sorted.length, 'w1-showall')+'</div>';
     $('wizard1-body').innerHTML=h;
+    $('w1-next').onclick=function(){ openSelect(); };
+    $('w1-cancel').onclick=function(){ showView('home'); };
     var sa=$('w1-showall'); if(sa){ sa.onclick=function(){ S.showAllW1=true; renderWizard1(); }; }
     wireWizSort('wizard1-body', renderWizard1);
-    // Action bar sticky: sempre raggiungibile, anche con centinaia di righe.
-    $('w1-info').innerHTML='<span class="wa-strong">'+plural(apps.length,'application','applications')+'</span> with updates available';
-    $('w1-actions').style.display='flex';
   }
 
   // ---- WIZARD 2 (Select) ----
@@ -765,6 +781,7 @@
     for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(a){ apps.push({sysId:a.sysId,name:a.name,scope:a.scope,current:a.current,latest:a.latest}); } }
     if(!apps.length) return;
     S.launchTotal=apps.length; S.launchTriggered=0; S.launchFailed=0; S.launching=true;
+    S.launchErrors=[]; S.launchWhyOpen={};   // motivi dei mancati avvii, mostrati in wizard3
     showView('wizard3'); $('launch-actions').style.display='none';
     renderLaunch('Creating batch&#8230;');
     ajax('createBatch',{ apps: JSON.stringify(apps) }, function(e,d){
@@ -786,7 +803,14 @@
             triggerOne(app, logId, function(){ clearTimeout(guard); advance(); });
           })(a, map[a.sysId], step);
         }
-        if(active===0 && queue.length===0 && S.launching){ S.launching=false; renderLaunch(); $('launch-actions').style.display='flex'; openMonitor(S.currentBatch); }
+        if(active===0 && queue.length===0 && S.launching){
+          S.launching=false;
+          renderLaunch();
+          $('launch-actions').style.display='flex';
+          // Se tutto è partito, vai diretto al Monitor. Se qualcosa non è partito,
+          // resta qui: i motivi sono su questa schermata e vanno letti.
+          if(!S.launchFailed){ openMonitor(S.currentBatch); }
+        }
       }
       pump();
     });
@@ -795,13 +819,50 @@
   function renderLaunch(msg){
     var pct=S.launchTotal? Math.round((S.launchTriggered/S.launchTotal)*100):0;
     var head=S.launching? ('Launching&#8230; '+S.launchTriggered+' / '+S.launchTotal) : ('Launched '+S.launchTriggered+' / '+S.launchTotal);
+    var errs=S.launchErrors||[];
     var h='<div class="info-box">Launching <strong>'+S.launchTotal+'</strong> install(s) with your session. When launching completes you can close the tab &#8212; installs continue on the server and are tracked on the Monitor page.</div>'
       + '<div class="card"><div class="card-body">'
       + '<div style="font-size:15px;font-weight:600;margin-bottom:8px">'+head+(S.launchFailed?(' &#183; '+S.launchFailed+' failed to launch'):'')+'</div>'
       + '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%"></div></div>'
       + (msg?('<div style="margin-top:10px;font-size:12px;color:var(--text-2)">'+msg+'</div>'):'')
       + '</div></div>';
+
+    // Elenco dei mancati avvii: compare solo se ce n'è almeno uno, e ogni motivo
+    // si apre su richiesta — così non invade la vista durante un lancio riuscito.
+    if(errs.length){
+      var rows='';
+      for(var i=0;i<errs.length;i++){
+        var e=errs[i], open=!!S.launchWhyOpen[e.key];
+        rows+='<tr><td class="col-name">'+esc(e.name)+'</td>'
+            + '<td class="col-scope">'+esc(e.scope)+'</td>'
+            + '<td>'+statusPill('failed')+'</td>'
+            + '<td><button class="why-btn" data-lwhy="'+esc(e.key)+'" aria-expanded="'+(open?'true':'false')+'">'
+            +   'Why failed<span class="chev" aria-hidden="true">&#9660;</span></button></td></tr>';
+        if(open){
+          rows+='<tr class="why-row"><td colspan="4"><div class="why-box">'
+              + '<div class="why-label">Reason reported by the platform</div>'
+              + '<div class="why-msg">'+esc(e.message)+'</div>'
+              + (e.target?('<div class="why-meta">Target version '+esc(e.target)+'</div>'):'')
+              + '</div></td></tr>';
+        }
+      }
+      h+='<div class="mt16"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">'
+        + plural(errs.length,'application','applications')+' could not be started</div>'
+        + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
+        + '<th>Application</th><th>Scope</th><th>Status</th><th style="width:110px">Details</th>'
+        + '</tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
+    }
+
     $('launch-body').innerHTML=h;
+
+    var lb=$('launch-body').querySelectorAll('.why-btn');
+    for(var j=0;j<lb.length;j++){
+      lb[j].onclick=function(){
+        var k=this.getAttribute('data-lwhy');
+        if(S.launchWhyOpen[k]){ delete S.launchWhyOpen[k]; } else { S.launchWhyOpen[k]=true; }
+        renderLaunch();
+      };
+    }
   }
 
   function cicdUrl(row){
@@ -834,7 +895,7 @@
     if(r.status===200||r.status===201){
       var pid=r.body&&r.body.result&&r.body.result.links&&r.body.result.links.progress&&r.body.result.links.progress.id;
       if(pid){ ajax('attachWorker',{ log_sys_id:logSysId, progress_id:pid }, function(){ done(); }); return; }
-      failTrigger(logSysId,'No progress ID returned', done); return;
+      failTrigger(a, logSysId,'The install was accepted but no progress ID was returned, so it cannot be tracked.', done); return;
     }
     var msg=trigErr(r);
     if(r.status===400 && !withOffering){
@@ -843,7 +904,7 @@
       if(offering && (''+msg).toLowerCase().indexOf('offering')>-1){ fire(a, logSysId, done, attempt, true, offering); return; }
     }
     if(isTransient(r.status, msg)){ retryOrFail(a, logSysId, done, attempt, msg); return; }
-    failTrigger(logSysId, msg, done);
+    failTrigger(a, logSysId, 'HTTP ' + r.status + ' — ' + msg, done);
   }
   function retryOrFail(a, logSysId, done, attempt, msg){
     var MAX=8;
@@ -851,11 +912,21 @@
       renderLaunch('Waiting for the CICD queue&#8230; (retry '+(attempt+1)+'/'+MAX+')');
       setTimeout(function(){ fire(a, logSysId, done, attempt+1, false, null); }, 2000 + attempt*800);
     } else {
-      failTrigger(logSysId, 'Enqueue failed after '+MAX+' retries: '+msg, done);
+      failTrigger(a, logSysId, 'Still rejected after '+MAX+' retries — ' + msg, done);
     }
   }
-  function failTrigger(logSysId, message, done){
+  // Registra il motivo del mancato avvio, oltre a marcare la riga sul server:
+  // senza questo l'utente vedeva solo "N failed to launch" senza il perché.
+  function failTrigger(a, logSysId, message, done){
     S.launchFailed++;
+    if(!S.launchErrors){ S.launchErrors=[]; }
+    S.launchErrors.push({
+      key:   logSysId || ('e'+S.launchErrors.length),
+      name:  (a && a.name) || '(unknown application)',
+      scope: (a && a.scope) || '',
+      target:(a && a.latest) || '',
+      message: message
+    });
     ajax('failRow',{ log_sys_id:logSysId, message:message }, function(){ done(); });
   }
 
@@ -958,12 +1029,31 @@
     var list=monSortRows(S.monOnlyFailed ? all.filter(function(r){ return r.status==='failed'; }) : all);
     var rows='';
     for(var i=0;i<list.length;i++){ var r=list[i]; var st=r.status||'queued'; var pct=r.pct||0;
+      var key=r.logSysId||('row'+i);
+      var hasMsg=!!(r.message && (''+r.message).trim());
+      var open=!!S.whyOpen[key];
+      // Colonna "Details": pulsante solo dove c'è davvero qualcosa da leggere.
+      var detail='';
+      if(hasMsg){
+        detail='<button class="why-btn" data-why="'+esc(key)+'" aria-expanded="'+(open?'true':'false')+'">'
+             + (st==='failed'?'Why failed':'Details')+'<span class="chev" aria-hidden="true">&#9660;</span></button>';
+      } else {
+        detail='<span style="color:var(--text-3);font-size:12px">&#8212;</span>';
+      }
       rows+='<tr><td class="col-name">'+esc(r.name)+'</td><td class="col-scope">'+esc(r.scope)+'</td>'
           + '<td class="col-ver">'+verCell(r.current,r.latest)+'</td>'
           + '<td>'+statusPill(st)+'</td>'
           + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+pct+'%</div>'
           + '<div class="prog-wrap"><div class="prog-bar'+(st==='complete'?' success':(st==='failed'?' failed':''))+'" style="width:'+pct+'%"></div></div></td>'
-          + '<td style="font-size:12px;color:var(--text-2);max-width:240px;word-break:break-word">'+esc(r.message)+'</td></tr>';
+          + '<td>'+detail+'</td></tr>';
+      // Riga di dettaglio a piena larghezza, resa solo se aperta.
+      if(hasMsg && open){
+        rows+='<tr class="why-row"><td colspan="6"><div class="why-box">'
+            + '<div class="why-label">'+(st==='failed'?'Reason reported by the platform':'Message')+'</div>'
+            + '<div class="why-msg">'+esc(r.message)+'</div>'
+            + (r.startedAt?('<div class="why-meta">Started '+esc(r.startedAt)+'</div>'):'')
+            + '</div></td></tr>';
+      }
     }
     if(!list.length){ rows='<tr><td colspan="6" class="empty">'+(S.monOnlyFailed?'No failures in this batch.':'No apps in this batch.')+'</td></tr>'; }
     var bs=d.status||'running';
@@ -982,9 +1072,21 @@
       +   (S.monOnlyFailed?' <button class="link-btn" id="mon-showall-rows">show all</button>':'')+'</div>'
       +   '<div style="font-size:12px;color:var(--text-3)">Last refreshed '+esc(new Date().toLocaleString())+'</div></div>'
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
-      + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')+th('message','Message')
+      + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')
+      + '<th style="width:110px">Details</th>'
       + '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
     $('mon-body').innerHTML=h;
+
+    // Espansione/chiusura del dettaglio: lo stato vive in S.whyOpen, quindi
+    // sopravvive ai refresh del polling e all'ordinamento.
+    var wb=$('mon-body').querySelectorAll('.why-btn');
+    for(var w=0;w<wb.length;w++){
+      wb[w].onclick=function(){
+        var k=this.getAttribute('data-why');
+        if(S.whyOpen[k]){ delete S.whyOpen[k]; } else { S.whyOpen[k]=true; }
+        renderMonitor(S.monData);
+      };
+    }
 
     var of=$('mon-onlyfailed'); if(of){ of.onclick=function(){ S.monOnlyFailed=true; renderMonitor(S.monData); }; }
     var sr=$('mon-showall-rows'); if(sr){ sr.onclick=function(){ S.monOnlyFailed=false; renderMonitor(S.monData); }; }
@@ -1027,8 +1129,7 @@
     $('sel-install').onclick=confirmInstalls;
     $('sel-back').onclick=function(){ showView('wizard1'); };
     $('sel-cancel').onclick=function(){ showView('home'); };
-    $('w1-next').onclick=function(){ openSelect(); };
-    $('w1-cancel').onclick=function(){ showView('home'); };
+    // w1-next / w1-cancel sono resi dentro renderWizard1(): agganciati là.
     $('launch-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     $('launch-home').onclick=function(){ showView('home'); refresh(); };
     $('mon-batch').onchange=function(){ S.currentBatch=this.value; S.monOnlyFailed=false; startMonitorPolling(); };
