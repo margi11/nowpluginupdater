@@ -58,7 +58,7 @@ The native Application Manager updates one application at a time. Now Plugin Upd
 ### 1. Download
 Download the update set — a single portable XML file (`NowPluginUpdater140.xml`) containing the full app (UI Page, server logic, table, ACLs, scheduled job).
 
-A self-contained landing page, [`Now-Plugin-Updater-Landing.html`](Now-Plugin-Updater-Landing.html), embeds the same XML and offers it as a download, with screenshots and these instructions. Open it in a browser (desktop or mobile).
+A self-contained landing page, [`index.html`](index.html), embeds the same XML and offers it as a download, with screenshots and these instructions. Open it in a browser (desktop or mobile), or visit the published Netlify site.
 
 ### 2. Install
 Import and commit the update set on your instance:
@@ -91,7 +91,7 @@ Because the application list mirrors the Application Manager, a few platform-bun
 | `src/script_include/PluginUpdaterAjax.js` | Client-callable GlideAjax (`AbstractAjaxProcessor`), admin role-guarded, `sys_id`-sanitized |
 | `src/fix_scripts/repair_install_log_140.js` | One-off background script — reclassifies historical rows wrongly marked Complete (dry-run by default) |
 | `NowPluginUpdater140.xml` | Exported update set (v1.4.0) — portable install file |
-| `Now-Plugin-Updater-Landing.html` | Self-contained distribution page (screens, download, install/use guide) |
+| `index.html` | Self-contained distribution page (screens, download, install/use guide) — published to Netlify |
 | `Now-Plugin-Updater-Briefing.html` | Build briefing |
 | `Update-Sets/README.md` | Update-set export/import notes |
 | `plugin_updater_spec.md` | Full application specification |
