@@ -358,7 +358,7 @@
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.4.1',
+    version:'1.4.2',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -606,6 +606,11 @@
 
   // ---- WIZARD 1 ----
   function startWizard(){
+    // Selezione azzerata a ogni nuovo ingresso nel wizard: senza questo, le
+    // spunte di un batch già installato restavano in S.selected (nessun punto
+    // di uscita la puliva) e un giro successivo mostrava "N selected" con il
+    // pulsante di install già attivo pur senza nessuna checkbox spuntata.
+    S.selected={};
     showView('wizard1');
     // La Home ha già letto le stesse 1.200+ righe pochi secondi prima: se il dato
     // è fresco lo riuso invece di rifare la query.
