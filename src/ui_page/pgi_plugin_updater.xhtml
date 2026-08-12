@@ -358,7 +358,7 @@
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.4.2',
+    version:'1.4.3',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -521,9 +521,15 @@
   // l'avanzamento leggendo sn_appclient.apps_sync_progress, che la piattaforma
   // esprime in PERCENTUALE 0-100 e riporta a 0 quando ha finito.
   //
-  // Tempi osservati: il job parte entro ~30s, la sync dura ~2 minuti su 1.200 app.
-  // Oltre i 5 minuti smettiamo di seguirla ma NON la dichiariamo fallita: sta
-  // ancora girando sul server.
+  // Il tempo che lo scheduler impiega a raccogliere il trigger Run Once NON è
+  // sotto il nostro controllo e non è sempre lo stesso: misurato tipicamente
+  // sotto i 30s, ma osservato anche nell'ordine di alcuni minuti su istanze
+  // sotto carico. Il messaggio di attesa mostra i secondi trascorsi (e un
+  // avviso esplicito oltre i 90s) proprio per questo: senza un numero visibile,
+  // un'attesa più lunga del solito è indistinguibile da un blocco reale.
+  // La sync stessa dura poi ~2 minuti su 1.200 app. Oltre i 5 minuti totali
+  // smettiamo di seguirla ma NON la dichiariamo fallita: sta ancora girando
+  // sul server.
   function syncStore(){
     var btn=$('home-sync');
     if(!btn || S.syncing){ return; }
@@ -569,9 +575,17 @@
           }
 
           // Non ancora partita (il job attende lo scheduler) o già conclusa senza
-          // toccare il timestamp: continuo a osservare.
+          // toccare il timestamp: continuo a osservare. Il tempo trascorso è
+          // mostrato esplicitamente — senza, un'attesa scheduler più lunga del
+          // solito (osservato: pochi minuti, non i ~30s tipici) sembra un blocco.
           if(GIVE_UP_MS > elapsed){
-            renderSync(p.pct, sawRunning?'Finishing…':'Waiting for the sync job to start…');
+            var waitedS=Math.round(elapsed/1000);
+            var waitMsg=sawRunning
+              ? 'Finishing…'
+              : (waitedS>90
+                  ? 'Still waiting for the scheduler to pick up the sync job ('+waitedS+'s — this is taking longer than usual)…'
+                  : 'Waiting for the sync job to start… ('+waitedS+'s)');
+            renderSync(p.pct, waitMsg);
             setTimeout(poll, sawRunning?3000:6000);
           } else {
             keepGoingInBackground();
