@@ -1,0 +1,8 @@
+{
+  "name": "now-plugin-updater-site",
+  "private": true,
+  "description": "Netlify Functions support for the Now Plugin Updater landing page (download counter).",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
