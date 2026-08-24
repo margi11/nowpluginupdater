@@ -198,6 +198,33 @@
 
 /* Screen-reader only: annunci di stato senza impatto visivo. */
 #app .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* --- Dependency impact (v1.5.2, §6) -----------------------------------------
+   Suite panel: one shared block, suite-only, shown identically above the
+   table in both Step 1 and Step 2, expandable. Per-row tree: each table row
+   that pulls in dependencies (per-app DependencyProcessor-style resolution,
+   not the suite) gets its own "N more" expandable detail row — there is no
+   heuristic tier, every listed app carries the same "will be updated"
+   certainty (see PluginUpdaterAjax.getUpdateImpact). */
+#app .impact-panel{background:var(--accent-soft);border-radius:var(--r-lg);padding:16px 20px;margin-bottom:18px}
+#app .impact-panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#app .impact-panel-title{font-size:13px;font-weight:600;color:var(--text)}
+#app .impact-panel-title .accent-num{color:var(--accent)}
+#app .impact-list{margin-top:12px;display:none}
+#app .impact-list.open{display:block}
+#app .impact-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid rgba(0,113,227,.12);font-size:12px}
+#app .impact-row:first-child{border-top:none}
+#app .impact-name{font-weight:500;color:var(--text)}
+#app .impact-ver{font-family:ui-monospace,'SF Mono',monospace;color:var(--text-2);white-space:nowrap}
+#app .badge-hidden{background:rgba(110,110,115,.12);color:var(--text-2);font-size:9px;font-weight:600;padding:2px 7px;border-radius:var(--r-pill);margin-left:6px;white-space:nowrap}
+#app .tree-btn{display:inline-flex;align-items:center;gap:4px;background:none;border:none;font:inherit;font-size:11px;font-weight:500;color:var(--accent);cursor:pointer;padding:0}
+#app .tree-btn .chev{font-size:8px;transition:transform .2s}
+#app .tree-btn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+#app tr.tree-row td{background:var(--surface-2);padding:0;border-bottom:1px solid var(--border)}
+#app .tree-box{padding:12px 18px 14px;animation:npu-fade .18s ease}
+#app .tree-box .impact-row:first-child{border-top:none}
+#app .confirm-union{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+#app .confirm-union-list{max-height:220px;overflow-y:auto;margin-top:10px}
 </style>
 <div id="app">
 
@@ -303,7 +330,7 @@
       <div class="card" style="padding:24px 28px">
         <div class="guide-section">
           <h3>Overview</h3>
-          <p>Now Plugin Updater lets a ServiceNow administrator discover, select, and install the available updates for Store applications on this instance from a single screen, replacing the per-app flow in the native Application Manager. You need the&#160;<code>admin</code>&#160;role to use it.</p>
+          <p>Now Plugin Updater lets a ServiceNow administrator discover, select, and install the available updates for Store applications on this instance from a single screen, replacing the per-app flow in the native Application Manager. It also shows the same dependency impact the native Application Manager surfaces &#8212; which other applications will update alongside the ones you pick &#8212; before you launch. You need the&#160;<code>admin</code>&#160;role to use it.</p>
         </div>
         <div class="guide-section mt16">
           <h3>1 &#183; Home</h3>
@@ -312,14 +339,20 @@
         <div class="guide-section mt16">
           <h3>2 &#183; Wizard &#8212; Discover</h3>
           <p>Lists every Store application with an available update (the same set the native Application Manager shows: active, visible, previously installed). Each row shows the scope and the current &#8594; latest version. Click any column header to sort ascending/descending.</p>
+          <p>If any updatable apps belong to the same platform suite (for example&#160;<em>Now Assist</em>), a banner above the table names the suite and how many apps in it will update together &#8212; click&#160;<strong>Show apps</strong>&#160;to see the full list. Independently, any row that will pull in other applications &#8212; because it is a member of that suite, because installing it requires updating another app first, or both &#8212; shows a&#160;<strong>N&#160;more</strong>&#160;link next to its name; click it to expand exactly which applications and versions that row brings with it. This is the same information the native Application Manager shows in its own&#160;<em>Review Installation Details</em>&#160;dialog, surfaced here per row instead of one app at a time.</p>
         </div>
         <div class="guide-section mt16">
           <h3>3 &#183; Wizard &#8212; Select</h3>
           <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The buttons sit&#160;<strong>above the list</strong>, so you never have to scroll hundreds of rows to continue. Apps already being installed are shown as&#160;<em>installing</em>&#160;and cannot be re-selected.</p>
           <p>Very long lists render the first 150 rows for speed &#8212; use&#160;<strong>show all</strong>&#160;or the filters to reach the rest.&#160;<strong>Select All</strong>&#160;always applies to everything matching the current filter, not just the visible rows.</p>
+          <p>The same suite banner and per-row&#160;<strong>N&#160;more</strong>&#160;links from Discover are shown here too, so the impact of a row stays visible while you're choosing what to install.</p>
         </div>
         <div class="guide-section mt16">
-          <h3>4 &#183; Launch &amp; Monitor</h3>
+          <h3>4 &#183; Confirm &amp; Launch</h3>
+          <p>Before anything installs, the confirmation dialog names the instance and how many applications you selected, plus how many&#160;<strong>additional</strong>&#160;applications will update as a result of those selections &#8212; a single deduplicated count, never a per-row sum, with a&#160;<strong>Show all</strong>&#160;link to see the full list. Review it, then confirm to launch.</p>
+        </div>
+        <div class="guide-section mt16">
+          <h3>5 &#183; Launch &amp; Monitor</h3>
           <ul>
             <li>Installs are triggered with&#160;<strong>your own admin session</strong>&#160;&#8212; no credentials are stored.</li>
             <li>They are enqueued&#160;<strong>one at a time</strong>&#160;(the platform's CICD install API is single-flight); a busy queue is retried automatically, and a 400 &#8220;offering required&#8221; error is retried with the offering id.</li>
@@ -337,6 +370,7 @@
             <li>Because the list mirrors the Application Manager, a few platform-bundled apps that cannot be updated via the Store API will end as&#160;<strong>Failed</strong>&#160;&#8212; this is expected.</li>
             <li>Keep the page open only for the few seconds of launching; installs and monitoring then continue on the server.</li>
             <li><strong>Sync with Store</strong>&#160;runs the same catalog check as the Application Manager and shows its real progress, then reloads the page when it finishes &#8212; typically a couple of minutes. If it is still running after five minutes the page stops following it and says so: the sync keeps going on the server and does not need this page open.</li>
+            <li>Dependency impact is informational: the batch installs exactly what you selected&#160;&#8212; the platform pulls in the rest by itself once an install runs. Apps shown as impact but marked&#160;<em>not selectable</em>&#160;are hidden dependencies that update automatically and cannot be picked individually.</li>
           </ul>
         </div>
         <div class="guide-section mt16">
@@ -358,7 +392,7 @@
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.4.3',
+    version:'1.5.4',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -368,6 +402,9 @@
     RENDER_CAP:150, showAllSel:false, showAllW1:false,
     // Righe di dettaglio aperte, per chiave: sopravvive ai refresh del polling.
     whyOpen:{}, launchWhyOpen:{},
+    // Alberi di dipendenza per-riga aperti (v1.5.2, §6), per scope — separati
+    // tra Step 1 e Step 2 così aprirne uno in una vista non apre l'altro.
+    treeOpenW1:{}, treeOpenSel:{},
     loadedHome:false, appsFetchedAt:0
   };
 
@@ -688,6 +725,92 @@
       + ' — refine the filter or <button class="link-btn" id="'+btnId+'">show all</button></div>';
   }
 
+  // ---- Dependency impact (v1.5.4, §6) — two branches, same certainty. See
+  // PluginUpdaterAjax.getUpdateImpact: suite branch (sys_suite_config) and
+  // dependency branch (DependencyProcessor-style, sys_app_version target
+  // recursion) both carry an explicit version constraint against the target.
+  //
+  // Shared summary badge stays SUITE-ONLY (atomic block, one target per
+  // instance — a single top-of-page badge reads unambiguously). But every
+  // row that is ITSELF a suite member ALSO gets its own "N more" expansion
+  // (v1.5.4) — mirroring the native App Manager, where clicking Update on
+  // ANY suite member opens the same suite dialog listing its siblings. A row
+  // with no dependency-branch impact but suite membership (e.g. "ServiceNow
+  // Otto AI Agents") would otherwise show no expansion at all, even though
+  // the native dialog for that exact app lists 8 siblings.
+  function impactData(){ return (S.appData&&S.appData.impact)||null; }
+
+  function impactRowsHtml(apps){
+    var rows='';
+    for(var i=0;i<apps.length;i++){ var a=apps[i];
+      rows+='<div class="impact-row"><span class="impact-name">'+esc(a.name)
+          + (a.hidden?'<span class="badge-hidden">not selectable</span>':'')+'</span>'
+          + '<span class="impact-ver">'+esc(a.current)+' &#8594; <strong>'+esc(a.target)+'</strong></span></div>';
+    }
+    return rows;
+  }
+
+  // panelId lets Step 1 and Step 2 each have their own toggle/list ids —
+  // otherwise wiring both views' click handlers would clash on the same DOM id.
+  function renderSuitePanel(panelId){
+    var imp=impactData();
+    var suiteApps=(imp&&imp.suite&&imp.suite.apps)||[];
+    if(!suiteApps.length) return '';
+    var n=suiteApps.length, s=imp.suite;
+    return '<div class="impact-panel">'
+      + '<div class="impact-panel-head">'
+      +   '<div class="impact-panel-title">'+esc(s.name)+' '+esc(s.version)+' &#8212; <span class="accent-num">'+n+'</span> '+(n===1?'app':'apps')+' will be updated together</div>'
+      +   '<button class="tree-btn" id="'+panelId+'-suite-toggle" aria-expanded="false">Show apps <span class="chev">&#9660;</span></button>'
+      + '</div>'
+      + '<div class="impact-list" id="'+panelId+'-suite-list">'+impactRowsHtml(suiteApps)+'</div>'
+      + '</div>';
+  }
+  function wireToggle(id){
+    var st=$(id+'-toggle');
+    if(st){
+      st.onclick=function(){
+        var open=this.getAttribute('aria-expanded')==='true';
+        this.setAttribute('aria-expanded', open?'false':'true');
+        this.innerHTML=(open?'Show apps':'Hide apps')+' <span class="chev">&#9660;</span>';
+        var l=$(id+'-list'); if(l){ l.className='impact-list'+(open?'':' open'); }
+      };
+    }
+  }
+  function wireSuitePanel(panelId){
+    wireToggle(panelId+'-suite');
+  }
+
+  // Per-row impact breakdown (v1.5.4): how many apps does THIS row pull in,
+  // and which ones — two sources, merged:
+  //  - dependency branch: imp.dependenciesByRoot[scope] (§6.2, per-root BFS)
+  //  - suite membership: if this row is ITSELF a suite member, its own
+  //    impact is "the rest of the suite" (imp.suite.apps minus this row) —
+  //    this mirrors the native App Manager, where clicking Update on ANY
+  //    suite member opens the same suite dialog. Without this, a row that
+  //    is suite-only (like "ServiceNow Otto AI Agents") showed no expansion
+  //    at all, even though the native dialog for that exact app lists its
+  //    8 suite siblings (v1.5.4 fix).
+  function rowImpactList(scope){
+    var imp=impactData();
+    var list=((imp&&imp.dependenciesByRoot&&imp.dependenciesByRoot[scope])||[]).slice();
+    var suiteApps=(imp&&imp.suite&&imp.suite.apps)||[];
+    // Only add suite siblings when THIS row is itself a suite member —
+    // otherwise every non-suite row (e.g. Theme Builder) wrongly inherited
+    // the entire suite list (v1.5.4 bug, caught in smoke test before ship).
+    var isMember=false;
+    for(var j=0;j<suiteApps.length;j++){ if(suiteApps[j].scope===scope){ isMember=true; break; } }
+    if(isMember){
+      for(var i=0;i<suiteApps.length;i++){
+        if(suiteApps[i].scope!==scope){ list.push(suiteApps[i]); }
+      }
+    }
+    return list;
+  }
+  function rowDepCount(scope){ return rowImpactList(scope).length; }
+  function rowDepTreeHtml(scope){
+    return '<div class="tree-box">'+impactRowsHtml(rowImpactList(scope))+'</div>';
+  }
+
   function renderWizard1(){
     var apps=S.appData.apps||[];
     if(apps.length===0){
@@ -701,8 +824,12 @@
     var cap=capped(sorted, S.showAllW1);
     var rows='';
     for(var i=0;i<cap.rows.length;i++){ var ap=cap.rows[i];
-      rows+='<tr><td class="col-name">'+esc(ap.name)+'</td><td class="col-scope">'+esc(ap.scope)+'</td>'
+      var dn=rowDepCount(ap.scope), open=!!S.treeOpenW1[ap.scope];
+      rows+='<tr><td class="col-name">'+esc(ap.name)
+          +   (dn?' <button class="tree-btn tree-row-btn" data-id="'+esc(ap.scope)+'" aria-expanded="'+(open?'true':'false')+'">'+dn+' more <span class="chev">&#9660;</span></button>':'')
+          + '</td><td class="col-scope">'+esc(ap.scope)+'</td>'
           + '<td class="col-ver">'+verCell(ap.current,ap.latest)+'</td></tr>';
+      if(open){ rows+='<tr class="tree-row"><td colspan="3">'+rowDepTreeHtml(ap.scope)+'</td></tr>'; }
     }
     // I pulsanti stanno SOPRA la tabella, subito sotto il messaggio: con centinaia
     // di applicazioni l'utente non deve scorrere l'intera lista per procedere.
@@ -711,6 +838,7 @@
       +   '<button class="btn btn-primary" id="w1-next">Next: Select &#8594;</button>'
       +   '<button class="btn btn-secondary" id="w1-cancel">Cancel</button>'
       + '</div>'
+      + renderSuitePanel('w1-suite')
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + wth('name','Application')+wth('scope','Scope')+wth('current','Current &#8594; Latest')
       + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
@@ -719,6 +847,14 @@
     $('w1-next').onclick=function(){ openSelect(); };
     $('w1-cancel').onclick=function(){ showView('home'); };
     var sa=$('w1-showall'); if(sa){ sa.onclick=function(){ S.showAllW1=true; renderWizard1(); }; }
+    var tb1=$('wizard1-body').querySelector('tbody');
+    if(tb1){
+      tb1.onclick=function(e){
+        var b=e.target.closest?e.target.closest('.tree-row-btn'):null;
+        if(b){ var sc=b.getAttribute('data-id'); S.treeOpenW1[sc]=!S.treeOpenW1[sc]; renderWizard1(); }
+      };
+    }
+    wireSuitePanel('w1-suite');
     wireWizSort('wizard1-body', renderWizard1);
   }
 
@@ -752,22 +888,29 @@
   function openSelect(){
     showView('wizard2');
     S.showAllSel=false;   // il cap riparte a ogni ingresso nello step
+    S.treeOpenSel={};     // gli alberi di dipendenza per-riga ripartono chiusi (v1.5.2, §6)
     buildScopeFilter();
     renderSelect();
   }
+
   function renderSelect(){
     var all=appSortRows(filteredApps()), iff=inFlightSet(), rows='';
     var cap=capped(all, S.showAllSel);
     for(var i=0;i<cap.rows.length;i++){ var a=cap.rows[i]; var dis=iff[a.sysId];
+      var dn=rowDepCount(a.scope), open=!!S.treeOpenSel[a.scope];
       rows+='<tr><td><input class="check sel-cb" type="checkbox" data-id="'+esc(a.sysId)+'"'
           + ' aria-label="Select '+esc(a.name)+'"'
           + (S.selected[a.sysId]?' checked':'') + (dis?' disabled':'') + ' /></td>'
-          + '<td class="col-name">'+esc(a.name)+'</td><td class="col-scope">'+esc(a.scope)+'</td>'
+          + '<td class="col-name">'+esc(a.name)
+          +   (dn?' <button class="tree-btn tree-row-btn" data-id="'+esc(a.scope)+'" aria-expanded="'+(open?'true':'false')+'">'+dn+' more <span class="chev">&#9660;</span></button>':'')
+          + '</td><td class="col-scope">'+esc(a.scope)+'</td>'
           + '<td class="col-ver">'+verCell(a.current,a.latest)+'</td>'
           + '<td>'+(dis?statusPill('installing'):'<span class="pill pill-pending has-ico"><span class="pico" aria-hidden="true">•</span>pending</span>')+'</td></tr>';
+      if(open){ rows+='<tr class="tree-row"><td colspan="5">'+rowDepTreeHtml(a.scope)+'</td></tr>'; }
     }
     if(all.length===0){ rows='<tr><td colspan="5" class="empty">No applications match your filter.</td></tr>'; }
-    var h='<div class="card"><div class="tbl-wrap"><table><thead><tr>'
+    var h=renderSuitePanel('sel-suite')
+      + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + '<th style="width:36px"><input class="check" type="checkbox" id="sel-allcheck" aria-label="Select all shown applications" /></th>'
       + wth('name','Application')+wth('scope','Scope')+wth('current','Current &#8594; Latest')+wth('status','Status')
       + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
@@ -785,6 +928,10 @@
           toggleApp(cb.getAttribute('data-id'));
         }
       };
+      tb.onclick=function(e){
+        var b=e.target.closest?e.target.closest('.tree-row-btn'):null;
+        if(b){ var sc=b.getAttribute('data-id'); S.treeOpenSel[sc]=!S.treeOpenSel[sc]; renderSelect(); }
+      };
     }
     var sa=$('sel-showall'); if(sa){ sa.onclick=function(){ S.showAllSel=true; renderSelect(); }; }
     var ac=$('sel-allcheck');
@@ -797,6 +944,7 @@
         renderSelect();
       };
     }
+    wireSuitePanel('sel-suite');
     wireWizSort('sel-table', renderSelect);
     updateSelCount();
   }
@@ -817,16 +965,63 @@
   // ---- WIZARD 3: LAUNCH (client fires triggers; server monitors unattended) ----
   // Conferma esplicita: l'installazione è lunga e non annullabile una volta
   // avviata, quindi l'utente deve vedere cosa sta lanciando prima di partire.
+  // Impatto per la selezione corrente (§6): suite branch + dependency branch
+  // uniti e deduplicati per scope, stesso badge "will be updated" per
+  // entrambi — nessuna distinzione euristica, coerente col dialog nativo. Il
+  // conteggio è mostrato subito col dialog "count + show all" (§18.1.2): su
+  // un'istanza con suite ampie una lista sempre visibile appesantirebbe il
+  // dialog anche per selezioni piccole.
+  function confirmUnionHtml(union, cb){
+    var selIds={}; selectedIds().forEach(function(id){ selIds[id]=true; });
+    var scopes=selectedIds().map(function(id){ var a=(S.appData.apps||[]).filter(function(x){return x.sysId===id;})[0]; return a?a.scope:''; }).filter(Boolean);
+    ajax('getUpdateImpact', { scopes: scopes.join(',') }, function(err, res){
+      if(err || !res){ cb(''); return; }
+      var selectedScopeSet={}; (S.appData.apps||[]).forEach(function(a){ if(selIds[a.sysId]){ selectedScopeSet[a.scope]=true; } });
+      // Unione suite + dependency branch, deduplicata per scope; "N more"
+      // esclude le app già selezionate direttamente dal wizard.
+      var merged={}, order=[];
+      (res.suite&&res.suite.apps||[]).concat(res.dependencies||[]).forEach(function(a){
+        if(selectedScopeSet[a.scope] || merged[a.scope]){ return; }
+        merged[a.scope]=a; order.push(a);
+      });
+      var n=order.length;
+      if(!n){ cb(''); return; }
+      var rows='';
+      for(var i=0;i<Math.min(order.length,150);i++){ var it=order[i];
+        rows+='<div class="impact-row"><span class="impact-name">'+esc(it.name)
+            + (it.hidden?'<span class="badge-hidden">not selectable</span>':'')+'</span>'
+            + '<span class="impact-ver">'+esc(it.current)+' &#8594; '+esc(it.target)+'</span></div>';
+      }
+      cb('<div class="confirm-union">'
+        + '<strong>'+n+'</strong> more '+(n===1?'application':'applications')+' will be updated as a result.'
+        + ' <button class="tree-btn" id="confirm-union-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
+        + '<div class="impact-list confirm-union-list" id="confirm-union-list">'+rows+'</div>'
+        + '</div>');
+    });
+  }
+
   function confirmInstalls(){
     var n=selectedIds().length;
     if(!n) return;
-    confirmModal({
-      title: 'Install '+plural(n,'update','updates')+'?',
-      bodyHtml: 'You are about to update <strong>'+n+'</strong> '+(n===1?'application':'applications')+' on <strong>'+esc(S.info.instanceName||'this instance')+'</strong>.'
-        + '<br/><br/>Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going.',
-      confirmLabel: 'Install '+n,
-      cancelLabel: 'Review selection',
-      onConfirm: startInstalls
+    var baseHtml='You are about to update <strong>'+n+'</strong> '+(n===1?'application':'applications')+' on <strong>'+esc(S.info.instanceName||'this instance')+'</strong>.'
+      + '<br/><br/>Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going.';
+    confirmUnionHtml(null, function(unionHtml){
+      confirmModal({
+        title: 'Install '+plural(n,'update','updates')+'?',
+        bodyHtml: baseHtml + unionHtml,
+        confirmLabel: 'Install '+n,
+        cancelLabel: 'Review selection',
+        onConfirm: startInstalls
+      });
+      var ut=$('confirm-union-toggle');
+      if(ut){
+        ut.onclick=function(){
+          var open=this.getAttribute('aria-expanded')==='true';
+          this.setAttribute('aria-expanded', open?'false':'true');
+          this.innerHTML=(open?'Show all':'Hide')+' <span class="chev">&#9660;</span>';
+          var l=$('confirm-union-list'); if(l){ l.className='impact-list confirm-union-list'+(open?'':' open'); }
+        };
+      }
     });
   }
 

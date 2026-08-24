@@ -175,7 +175,236 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         }
 
         result.apps = apps;
+
+        // v1.5 — fold the dependency impact (§6) into the same response: no
+        // second round-trip, consistent with the getHomeData consolidation.
+        try { result.impact = JSON.parse(this.getUpdateImpact()); }
+        catch (eImpact) { result.impact = null; result.impactError = '' + eImpact; }
+
         return JSON.stringify(result);
+    },
+
+    // -----------------------------------------------------------------------
+    // getUpdateImpact (v1.5, §6) — apps updated *in addition to* what the admin
+    // selects, the same visibility the native App Manager gives in its "Review
+    // Installation Details" dialog. Two independent, both-certain mechanisms:
+    //
+    //   suite branch      — sys_suite_config (compatible=true, highest version)
+    //                       + sys_suite_config_app_version_m2m. Explicit
+    //                       per-app target version.
+    //   dependency branch — mirrors the platform's own DependencyProcessor
+    //                       (the logic behind Application Manager's Update
+    //                       button): for the app's TARGET version, read
+    //                       sys_app_version (source_app_id/scope + version =
+    //                       the target) and its `dependencies` glide_list.
+    //                       For each dependency, if installed < required,
+    //                       include it AND recurse into ITS target version's
+    //                       own dependencies; if installed >= required, stop
+    //                       — do not recurse into an already-satisfied node.
+    //
+    // v1.5.1 removed a third, heuristic branch that walked
+    // sys_store_app.dependencies (the INSTALLED version's floor, not the
+    // target's) breadth-first with no version check. Measured on this
+    // instance: for "Content Understanding" that produced 19 unrelated
+    // Platform Analytics sub-components (real update_available=1 rows, but
+    // reached only because a hub dependency — Generative AI Controller —
+    // declares 40+ sub-dependencies, none of which "Content Understanding"
+    // has anything to do with). The two branches kept here both carry an
+    // explicit version constraint against the TARGET, so both are shown with
+    // the same certainty — there is no "may" here, matching the native
+    // dialog, which badges every row identically.
+    //
+    // Verified live: "Content Understanding" 7.0.4→7.0.5 has zero dependency-
+    // branch impact (its 3 direct deps are already at the versions its own
+    // target requires) — the suite branch alone accounts for its 8 sibling
+    // apps. "Setup Hub" 2.0.4→2.0.8 has zero suite impact but a 3-app
+    // dependency-branch chain (Setup Hub Content → Common → Config),
+    // terminating correctly at Admin Center (already satisfied) instead of
+    // continuing into unrelated apps.
+    //
+    // Params: sysparm_scopes — optional CSV of selected scopes. Present ->
+    // both branches are restricted to roots within that selection (confirm
+    // dialog, deduplicated union). Omitted -> both branches run over every
+    // updatable app (Step 1 / Step 2 initial render, folded into
+    // getUpdatableApps, §6.7 — no query inside the recursion).
+    // -----------------------------------------------------------------------
+    getUpdateImpact: function() {
+        if (!this._guard()) { return this._forbidden(); }
+
+        var scopesParam = ('' + (this.getParameter('sysparm_scopes') || this.getParameter('scopes') || '')).trim();
+        var selectedScopes = null;
+        if (scopesParam) {
+            selectedScopes = {};
+            var parts = scopesParam.split(',');
+            for (var p = 0; p < parts.length; p++) {
+                var sc = parts[p].trim();
+                if (sc) { selectedScopes[sc] = true; }
+            }
+        }
+
+        // ---- Load sys_store_app ONCE into a scope-keyed index (§6.7) ----
+        var index = {}; // scope -> { name, current, latest, hideOnUi, updateAvailable }
+        var sa = new GlideRecord('sys_store_app');
+        sa.setLimit(20000);
+        sa.query();
+        while (sa.next()) {
+            var scope = sa.getValue('scope') || '';
+            if (!scope) { continue; }
+            index[scope] = {
+                name:            sa.getValue('name') || scope,
+                current:         sa.getValue('version') || '',
+                latest:          sa.getValue('latest_version') || '',
+                hideOnUi:        sa.getValue('hide_on_ui') === 'true' || sa.getValue('hide_on_ui') === '1',
+                updateAvailable: sa.getValue('update_available') === 'true' || sa.getValue('update_available') === '1'
+            };
+        }
+
+        // ---- Load sys_app_version ONCE into a "scope@version" -> deps index ----
+        // Mirrors what the native DependencyProcessor reads per target version.
+        var versionIndex = {}; // "scope@version" -> [{scope, minVersion}]
+        var av = new GlideRecord('sys_app_version');
+        av.setLimit(20000);
+        av.query();
+        while (av.next()) {
+            var avScope = av.getValue('scope') || '';
+            var avVersion = av.getValue('version') || '';
+            if (!avScope || !avVersion) { continue; }
+            var depsRaw = av.getValue('dependencies') || '';
+            var deps = [];
+            if (depsRaw) {
+                var depEntries = depsRaw.split(',');
+                for (var d = 0; d < depEntries.length; d++) {
+                    var entry = depEntries[d];
+                    var colon = entry.indexOf(':');
+                    if (colon < 0) { continue; }
+                    deps.push({ scope: entry.substring(0, colon), minVersion: entry.substring(colon + 1) });
+                }
+            }
+            versionIndex[avScope + '@' + avVersion] = deps;
+        }
+
+        // ---- Suite branch ----
+        var suiteResult = null;
+        var suiteMemberScopes = {}; // dedup against the dependency branch (§18.1.1 style — same certainty, never duplicated)
+        var sc = new GlideRecord('sys_suite_config');
+        sc.addQuery('compatible', true);
+        sc.orderByDesc('version');
+        sc.setLimit(1);
+        sc.query();
+        if (sc.next()) {
+            var suiteSysId = sc.getUniqueValue();
+            var suiteApps = [];
+            var m2m = new GlideRecord('sys_suite_config_app_version_m2m');
+            m2m.addQuery('suite_config', suiteSysId);
+            m2m.setLimit(5000);
+            m2m.query();
+            while (m2m.next()) {
+                var mScope = m2m.getValue('app_scope') || '';
+                var mTarget = m2m.getValue('app_version') || '';
+                if (!mScope) { continue; }
+                if (selectedScopes && !selectedScopes[mScope]) { continue; } // confirm dialog: restrict to the selection
+                var local = index[mScope];
+                if (!local) { continue; } // app absent -> not installed, will not be pulled in (§6.2)
+                var cmp = this._cmpVer(mTarget, local.current);
+                if (cmp <= 0) { continue; } // already at version or lower target -> no impact to show
+                suiteMemberScopes[mScope] = true;
+                suiteApps.push({
+                    scope:  mScope,
+                    name:   local.name,
+                    current: local.current,
+                    target:  mTarget,
+                    hidden:  local.hideOnUi
+                });
+            }
+            if (suiteApps.length) {
+                suiteResult = { name: sc.getValue('name') || 'Suite', version: sc.getValue('version') || '', apps: suiteApps };
+            }
+        }
+        // §6.9 — no compatible=true suite, or none of its members have impact: render nothing (no error).
+
+        // ---- Dependency branch (DependencyProcessor-style, target-version recursion) ----
+        var roots = [];
+        if (selectedScopes) {
+            for (var rs in selectedScopes) { if (index[rs]) { roots.push(rs); } }
+        } else {
+            for (var allScope in index) {
+                if (index[allScope].updateAvailable && !index[allScope].hideOnUi) { roots.push(allScope); }
+            }
+        }
+
+        var depByRoot = {};  // rootScope -> [impact node, ...] — per-row expansion (§14)
+        var unionNodes = {}; // scope -> impact node, deduped across ALL roots (§6.4, confirm dialog)
+        for (var r = 0; r < roots.length; r++) {
+            var rootScope = roots[r];
+            var rootEntry = index[rootScope];
+            if (!rootEntry) { continue; }
+            var visited = {};
+            visited[rootScope] = true;
+            // BFS from the root's OWN target version (its latest_version, i.e.
+            // what this batch installs) down through each dependency's target.
+            // No query here — `latest` already sits in the §6.7 in-memory index.
+            var queue = [{ scope: rootScope, version: rootEntry.latest }];
+            var rootDeps = [];
+
+            while (queue.length) {
+                var node = queue.shift();
+                if (!node.version) { continue; }
+                var deps = versionIndex[node.scope + '@' + node.version];
+                if (!deps) { continue; } // no sys_app_version row for that exact target — nothing to resolve further
+
+                for (var di = 0; di < deps.length; di++) {
+                    var dep = deps[di];
+                    var depScope = dep.scope;
+                    if (!depScope) { continue; }
+                    if (/^com\./.test(depScope)) { continue; } // platform plugin, not a Store app — not tracked here
+                    if (visited[depScope]) { continue; } // cycle guard
+                    visited[depScope] = true;
+
+                    var depEntry = index[depScope];
+                    if (!depEntry) { continue; } // dependency scope not installed — not impact
+
+                    var cmpDep = this._cmpVer(dep.minVersion, depEntry.current);
+                    if (cmpDep <= 0) { continue; } // already satisfies the target's requirement — stop, no recursion (mirrors the native processor)
+
+                    if (!suiteMemberScopes[depScope]) {
+                        var impactNode = {
+                            scope:   depScope,
+                            name:    depEntry.name,
+                            current: depEntry.current,
+                            target:  dep.minVersion,
+                            hidden:  depEntry.hideOnUi
+                        };
+                        rootDeps.push(impactNode);
+                        if (!unionNodes[depScope]) { unionNodes[depScope] = impactNode; }
+                    }
+                    queue.push({ scope: depScope, version: dep.minVersion }); // recurse into ITS target's own deps
+                }
+            }
+
+            if (rootDeps.length) { depByRoot[rootScope] = rootDeps; }
+        }
+
+        // Exclude roots from the UNION only when the caller passed an explicit
+        // selection (confirm dialog: "N MORE apps beyond what was picked"). The
+        // per-row breakdown (depByRoot) is never filtered by root membership —
+        // e.g. Setup Hub Content is both a root (it's independently updatable)
+        // and Setup Hub's own dependency-branch impact; the per-row view answers
+        // "what does THIS app pull in", so it must show that regardless.
+        var unionList = [];
+        if (selectedScopes) {
+            var rootSet = {};
+            for (var rr = 0; rr < roots.length; rr++) { rootSet[roots[rr]] = true; }
+            for (var us in unionNodes) { if (!rootSet[us]) { unionList.push(unionNodes[us]); } }
+        } else {
+            for (var us2 in unionNodes) { unionList.push(unionNodes[us2]); }
+        }
+
+        var out = {
+            suite: suiteResult,
+            dependenciesByRoot: Object.keys(depByRoot).length ? depByRoot : null,
+            dependencies: unionList.length ? unionList : null
+        };
+        return JSON.stringify(out);
     },
 
     // -----------------------------------------------------------------------
