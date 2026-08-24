@@ -19,9 +19,11 @@ Pre-sales Solution Consultant ServiceNow, mercato italiano. Applicazione custom 
 - Preferire componenti out-of-the-box prima di custom.
 - Ogni claim tecnico va validato contro la piattaforma o la documentazione ufficiale. Niente API, plugin, flag, tabelle o ruoli inventati.
 - **No React, no bundler, no Fluent SDK** — UI Page no-build (vedi spec §2).
-- **UI Layer:** Alpine.js caricato come UI Script (no-build, dichiarativo).
+- **UI Layer: vanilla JS puro** in un IIFE, con event delegation. **Niente Alpine.js, niente petite-vue, nessuna UI Script**: la spec le ammetteva come opzione (§2), ma l'app in produzione non le usa. Non introdurle.
 - **Stile UI:** Apple-inspired — pulito, elegante, moderno. Neutri chiari, tipografia fine, ombre sottili, bordi arrotondati.
 - **Tabella install-log:** inclusa nel MVP (non differita).
+- **CSS della UI Page:** tutto sotto `#app`. **Mai una classe `.modal`** — collide con la regola `.modal{display:none}` di Next Experience/Polaris e il dialog resta invisibile senza errori. Usare il prefisso `.npu-`.
+- **Esito di un'installazione:** l'unico arbitro è la versione effettivamente installata. Su `sys_progress_worker` **non esiste `completion_code`**, e `state_code` non è utilizzabile come criterio di fallimento (chiude a `error` anche su installazioni riuscite). Vedi spec §10.1.
 
 ## MCP & tooling
 - L'istanza demo è raggiungibile via MCP server già configurato in Claude Code.
