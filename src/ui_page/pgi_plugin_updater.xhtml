@@ -402,7 +402,7 @@
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.6.0',
+    version:'1.6.1',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -1073,7 +1073,18 @@
   function startInstalls(){
     var ids=selectedIds(), byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
     var apps=[];
-    for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(a){ apps.push({sysId:a.sysId,name:a.name,scope:a.scope,current:a.current,latest:a.latest}); } }
+    for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(a){
+      // Snapshot delle versioni "current" delle dipendenze previste da
+      // getUpdateImpact — sys_execution_tracker (v1.6, §10.3) porta solo la
+      // versione target di ciò che GlideAppLoader installa, non quella di
+      // partenza; senza questo il Monitor mostrava "→ 4.0.8" senza il "da"
+      // (bug segnalato dall'utente su Setup Hub Content: partiva da 3.1.2,
+      // mostrato solo il target). Presa qui, prima del lancio, perché dopo
+      // l'installazione sys_store_app.version è già il target.
+      var depSnap={};
+      rowImpactList(a.scope).forEach(function(d){ depSnap[d.scope]=d.current; });
+      apps.push({sysId:a.sysId,name:a.name,scope:a.scope,current:a.current,latest:a.latest,depVersions:depSnap});
+    } }
     if(!apps.length) return;
     S.launchTotal=apps.length; S.launchTriggered=0; S.launchFailed=0; S.launching=true;
     S.launchErrors=[]; S.launchWhyOpen={};   // motivi dei mancati avvii, mostrati in wizard3
@@ -1357,9 +1368,12 @@
       // righe (solo stato/percentuale).
       var deps=r.deps||[];
       for(var di=0;di<deps.length;di++){ var dep=deps[di]; var dpct=dep.pct||0;
+        // dep.current arriva dallo snapshot preso al lancio (v1.6.1) — assente
+        // solo per batch lanciati prima di questo fix, che restano "→ target".
+        var depVerHtml=dep.current?verCell(dep.current,dep.version):('&#8594; '+esc(dep.version));
         rows+='<tr class="dep-row"><td class="col-name"><span class="badge-dep">dependency</span>'+esc(dep.name)+'</td>'
             + '<td class="col-scope">'+esc(dep.scope)+'</td>'
-            + '<td class="col-ver">&#8594; '+esc(dep.version)+'</td>'
+            + '<td class="col-ver">'+depVerHtml+'</td>'
             + '<td>'+statusPill(dep.status)+'</td>'
             + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+dpct+'%</div>'
             + '<div class="prog-wrap"><div class="prog-bar'+(dep.status==='complete'?' success':(dep.status==='failed'?' failed':''))+'" style="width:'+dpct+'%"></div></div></td>'

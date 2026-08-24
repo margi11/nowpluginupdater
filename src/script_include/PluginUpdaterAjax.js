@@ -569,6 +569,15 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             gr.setValue('u_store_app_id',     this._sysId(a.sysId));
             gr.setValue('u_previous_version', ('' + (a.current || '')).substring(0, 40));
             gr.setValue('u_target_version',   ('' + (a.latest || '')).substring(0, 40));
+            // Snapshot of each dependency's pre-install version, taken from the
+            // client's getUpdateImpact result at launch time — sys_execution_tracker
+            // (§10.3) only carries the target version GlideAppLoader installs, never
+            // the version it started from, so this is the only place that data is
+            // available (sys_store_app.version is already the target once the
+            // install has run, so it cannot be reconstructed after the fact).
+            var depSnapJson = '';
+            try { depSnapJson = JSON.stringify(a.depVersions || {}).substring(0, 4000); } catch (e2) { depSnapJson = ''; }
+            gr.setValue('u_dependency_snapshot', depSnapJson);
             gr.setValue('u_status',           'queued');
             gr.setValue('u_session_id',       batchKey);
             gr.setValue('u_triggered_by',     gs.getUserID());
@@ -751,7 +760,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 pct:      parseInt(gr.getValue('u_percent_complete'), 10) || 0,
                 message:  gr.getValue('u_error_message') || '',
                 startedAt: gr.getDisplayValue('u_started_at'),
-                deps:     this._dependencyRowsFromTracker(gr.getValue('u_progress_id'), rowScope)
+                deps:     this._dependencyRowsFromTracker(gr.getValue('u_progress_id'), rowScope, gr.getValue('u_dependency_snapshot'))
             });
         }
 
@@ -802,9 +811,22 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // "Installing application <scope>:<version>"), skips the row's own scope
     // (that's the requested app, not a dependency), and returns one entry
     // per distinct scope found.
-    _dependencyRowsFromTracker: function(progressId, ownScope) {
+    //
+    // depSnapshotJson (v1.6.1): the tracker node name only carries the target
+    // version ("Installing application <scope>:<version>"), never the version
+    // it started from — and by the time this runs, sys_store_app.version is
+    // already the target, so there is no way to reconstruct "current" after
+    // the fact. createBatch snapshots each dependency's pre-install version
+    // (from the client's getUpdateImpact result, read before launch) into
+    // u_dependency_snapshot; this is that JSON map, scope -> current version.
+    _dependencyRowsFromTracker: function(progressId, ownScope, depSnapshotJson) {
         progressId = this._sysId(progressId);
         if (!progressId) { return []; }
+
+        var depCurrent = {};
+        if (depSnapshotJson) {
+            try { depCurrent = JSON.parse(depSnapshotJson) || {}; } catch (e) { depCurrent = {}; }
+        }
 
         var re = /^Installing application ([A-Za-z0-9_.]+):(.+)$/;
         var seen = {};
@@ -832,6 +854,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 var stMap = { 0: 'queued', 1: 'installing', 2: 'complete', 3: 'failed', 4: 'cancelled' };
                 found[depScope] = {
                     scope:   depScope,
+                    current: depCurrent[depScope] || '',
                     version: m[2],
                     status:  stMap.hasOwnProperty(stateNum) ? stMap[stateNum] : 'queued',
                     pct:     parseInt(gr.getValue('percent_complete'), 10) || 0

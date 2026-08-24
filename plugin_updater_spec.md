@@ -8,9 +8,10 @@
 
 > This spec supersedes the previous `SPECS.md`. The **domain logic** in that document was correct and is preserved here almost verbatim (filters, offering retry, version verification, progress polling, lessons learned). What changed is the **delivery architecture**, which was the actual cause of failure. Read §2 before building — it explains what to *not* repeat.
 >
-> **Sync status (v1.6.0 shipped).**
+> **Sync status (v1.6.1 shipped).**
 >
 > - **§1–§18 describe the shipped application**, reconciled against `src/script_include/PluginUpdaterAjax.js` and `src/ui_page/pgi_plugin_updater.xhtml`, and **verified live on `democrmfalectriae152010`**: Scheduled Jobs (§10.2), install-log dictionary and ACLs (§9), filter behaviour (§8.1), dependency impact (§6), per-row dependency tracking from `sys_execution_tracker` (§10.3).
+> - **v1.6.1 fixes a real bug found via a user-run install test**: the Monitor's dependency rows showed only the target version (`→ 4.0.8`), never what the dependency was upgraded *from* — read at a glance as a placeholder because several dependencies legitimately share the same target. `sys_execution_tracker` never carried a starting version, and `sys_store_app.version` is already the target by the time the Monitor reads it, so the fix snapshots each dependency's pre-install version client-side (from `getUpdateImpact`, already computed for the confirm dialog) into a new `u_dependency_snapshot` field at `createBatch` time — see §10.3.1.
 > - **v1.6 adds three admin-visibility fixes, all UI/data-shape only — no change to §6/§7/§8's core logic.** (1) The confirm dialog now names the *selected* apps in their own expandable list, not just a bare count (§14, §18.3.3). (2) The Monitor shows the dependency apps the platform actually installed alongside each row, read from `sys_execution_tracker` — an observed fact, not the §6 prediction (§10.3, §14). (3) Returning Home from the Monitor tab now force-refreshes the dashboard data (§14) so KPI counters never show a stale pre-batch state.
 > - **v1.6 also closes a silent-truncation bug in the confirm dialog** (§18.3.3): both of its expandable lists rendered at most 150 rows with no indication a real total was higher — inconsistent with the `capNote()` pattern already used in Step 1/2. Fixed with the same "Showing N of M" wording.
 > - **v1.6 documents, rather than resolves, a compatibility gap: the current dependency-impact mechanism (§6, `sys_app_version` + `sys_suite_config`) and the v1.6 tracker mechanism (§10.3, `sys_execution_tracker`) have only been verified on `democrmfalectriae152010` (Australia family). Neither has been verified on Zurich** — see §18.3.4. Do not represent this build as Zurich-compatible without that verification.
@@ -381,6 +382,7 @@ Table `u_plugin_updater_install_log`:
 | `u_percent_complete` | Integer | not String |
 | `u_session_id` | String(32) | groups one wizard batch |
 | `u_product_category` | String(100) | from §13 mapping — **defined but unused** by the shipped code; keep or drop with §13 |
+| `u_dependency_snapshot` | String(4000) | **v1.6.1.** JSON map `{scope: currentVersion, …}`, one entry per dependency `getUpdateImpact` predicted for this row at launch time, written by `createBatch` before any install runs. See §10.3 — this is the only place the dependency's *pre-install* version is ever available. |
 
 ### 9.1 Historical repair (v1.3.x → v1.4.0)
 
@@ -443,6 +445,16 @@ Live-verified case: a batch that requested only `Subscription Management v2` (`s
 **Extraction (`_dependencyRowsFromTracker`, server-side):** BFS from the row's `u_progress_id`, matching each descendant's `name` against `/^Installing application ([A-Za-z0-9_.]+):(.+)$/`; skip the row's own scope (that's the requested app, not a dependency); dedupe by scope. Friendly names are resolved in **one** `sys_store_app` query per `getBatchStatus` call across all rows' dependency scopes combined (§6.7-style — no query per row). `guard < 500` node visits caps runaway traversal on a corrupted/cyclic tree, though none has been observed.
 
 **Degradation:** no `u_progress_id` (row never got a worker attached) → empty dependency list, no error. No matching descendant nodes (dependency already satisfied, or the row's own install hasn't started writing tracker nodes yet) → empty list, not a placeholder.
+
+#### 10.3.1 v1.6.1 fix — the tracker node has no "current" version, only the target
+
+**Bug reported by the user** after a real install: testing with `Setup Hub` (`sn_ia_base`), the Monitor's dependency rows for `Setup Hub Content`/`Common`/`Config` all showed `→ 4.0.8` with no starting version — read at a glance as a repeated placeholder value, because three different apps showing the identical number with no "from" looks synthetic. It wasn't: `4.0.8` is the real, correctly-installed target version for all three (confirmed against `sys_store_app.version` post-install). The actual defect is narrower and easy to miss: **the tracker node's name (`Installing application <scope>:<version>`) never carried a starting version to begin with** — §10.3's extraction only ever had the target to show.
+
+**Why it can't be recovered after the fact.** `sys_store_app.version` would be the obvious place to read "current" — except by the time `getBatchStatus` runs (during or after the install), that field already holds the *new* version; the row the admin is looking at has already moved past the value being asked for. There is no server-side query, before or after this fix, that can reconstruct a dependency's pre-install version once the install has completed.
+
+**Fix.** The one place this data legitimately exists is the client, at confirm-dialog time, before anything has launched: `getUpdateImpact`'s `dependenciesByRoot[scope]` already carries `current` for every dependency (§6.10) — that's what the wizard's own `N more ▾` expansion has been rendering since v1.5.3. `startInstalls()` now builds a small `depVersions` map (`{scope: current}`) per selected app from `rowImpactList(scope)` and sends it to `createBatch` alongside the app itself. `createBatch` serializes it into the new `u_dependency_snapshot` field (§9) on that row — a snapshot taken at the one moment the data is still true. `_dependencyRowsFromTracker` now takes this JSON as a third argument and uses it to fill `current` on each dependency entry it builds from the tracker tree; the Monitor renders `current → target` (via the same `verCell()` used everywhere else) instead of a bare `→ target`.
+
+**Degradation, unchanged in spirit:** a row created before this fix shipped has no `u_dependency_snapshot` (empty string, parses to `{}`) — its dependency rows fall back to the pre-fix `→ target` display rather than showing a wrong or blank "current". Not an error, just a batch that predates the data being captured.
 
 ---
 
