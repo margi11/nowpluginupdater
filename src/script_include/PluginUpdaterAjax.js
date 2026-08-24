@@ -714,6 +714,10 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     },
 
     // getBatchStatus — param: batch. Returns rows + counts (installing/queued/complete/failed).
+    // v1.6 — each row also carries `deps`: the dependency apps the platform
+    // installed alongside it, read from sys_execution_tracker (§10.3), not
+    // just the ones we predicted pre-install via getUpdateImpact. This is
+    // what the platform actually did, not what we expected it would do.
     getBatchStatus: function() {
         if (!this._guard()) { return this._forbidden(); }
         var batch = ('' + (this.getParameter('sysparm_batch') || this.getParameter('batch') || '')).trim();
@@ -736,18 +740,43 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             else if (st === 'installing') { counts.installing++; }
             else if (st === 'cancelled') { counts.cancelled++; }
             else { counts.queued++; st = 'queued'; }
+            var rowScope = gr.getValue('u_app_scope') || '';
             rows.push({
                 logSysId: gr.getUniqueValue(),
                 name:     gr.getValue('u_app_name'),
-                scope:    gr.getValue('u_app_scope'),
+                scope:    rowScope,
                 current:  gr.getValue('u_previous_version'),
                 latest:   gr.getValue('u_target_version'),
                 status:   st,
                 pct:      parseInt(gr.getValue('u_percent_complete'), 10) || 0,
                 message:  gr.getValue('u_error_message') || '',
-                startedAt: gr.getDisplayValue('u_started_at')
+                startedAt: gr.getDisplayValue('u_started_at'),
+                deps:     this._dependencyRowsFromTracker(gr.getValue('u_progress_id'), rowScope)
             });
         }
+
+        // Resolve friendly names for dependency scopes in ONE query (§6.7 —
+        // no query per row), instead of leaving them as bare scope strings.
+        var depScopeSet = {};
+        for (var ri = 0; ri < rows.length; ri++) {
+            for (var di = 0; di < rows[ri].deps.length; di++) { depScopeSet[rows[ri].deps[di].scope] = true; }
+        }
+        var depScopeList = [];
+        for (var ds in depScopeSet) { depScopeList.push(ds); }
+        if (depScopeList.length) {
+            var nameByScope = {};
+            var sa = new GlideRecord('sys_store_app');
+            sa.addQuery('scope', 'IN', depScopeList.join(','));
+            sa.query();
+            while (sa.next()) { nameByScope[sa.getValue('scope')] = sa.getValue('name') || sa.getValue('scope'); }
+            for (var rj = 0; rj < rows.length; rj++) {
+                for (var dj = 0; dj < rows[rj].deps.length; dj++) {
+                    var dep = rows[rj].deps[dj];
+                    dep.name = nameByScope[dep.scope] || dep.scope;
+                }
+            }
+        }
+
         var bStatus = 'running';
         if (counts.total > 0 && counts.installing === 0 && counts.queued === 0) {
             if (counts.failed > 0) { bStatus = (counts.complete > 0) ? 'partial' : 'failed'; }
@@ -755,6 +784,64 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             else { bStatus = 'complete'; }
         }
         return JSON.stringify({ batch: batch, status: bStatus, counts: counts, rows: rows });
+    },
+
+    // _dependencyRowsFromTracker — v1.6, §10.3. sys_progress_worker and
+    // sys_execution_tracker share the same sys_id for the root node (measured
+    // live: a CICDAppRepoService$CICDInstallWorker's sys_id resolves directly
+    // in sys_execution_tracker). Every app GlideAppLoader actually installs
+    // as part of that root — the requested app AND any dependency the
+    // platform pulled in because it wasn't already at the required version —
+    // gets its own descendant node named "Installing application
+    // <scope>:<version>". Dependencies already satisfied at install time
+    // never get a node (§6.1) — this can only show what really ran, not what
+    // we predicted pre-install via getUpdateImpact.
+    //
+    // Walks the whole subtree (not just direct children — measured depth 2-3
+    // in practice, e.g. root -> "Installing application package" ->
+    // "Installing application <scope>:<version>"), skips the row's own scope
+    // (that's the requested app, not a dependency), and returns one entry
+    // per distinct scope found.
+    _dependencyRowsFromTracker: function(progressId, ownScope) {
+        progressId = this._sysId(progressId);
+        if (!progressId) { return []; }
+
+        var re = /^Installing application ([A-Za-z0-9_.]+):(.+)$/;
+        var seen = {};
+        var found = {};
+        var queue = [progressId];
+        var guard = 0;
+
+        while (queue.length && guard < 500) {
+            var parentId = queue.shift();
+            var gr = new GlideRecord('sys_execution_tracker');
+            gr.addQuery('parent', parentId);
+            gr.setLimit(200);
+            gr.query();
+            while (gr.next()) {
+                guard++;
+                var childId = gr.getUniqueValue();
+                queue.push(childId);
+                var name = gr.getValue('name') || '';
+                var m = re.exec(name);
+                if (!m) { continue; }
+                var depScope = m[1];
+                if (depScope === ownScope || seen[depScope]) { continue; }
+                seen[depScope] = true;
+                var stateNum = parseInt(gr.getValue('state'), 10);
+                var stMap = { 0: 'queued', 1: 'installing', 2: 'complete', 3: 'failed', 4: 'cancelled' };
+                found[depScope] = {
+                    scope:   depScope,
+                    version: m[2],
+                    status:  stMap.hasOwnProperty(stateNum) ? stMap[stateNum] : 'queued',
+                    pct:     parseInt(gr.getValue('percent_complete'), 10) || 0
+                };
+            }
+        }
+
+        var list = [];
+        for (var s in found) { list.push(found[s]); }
+        return list;
     },
 
     // attachWorker — UPDATE ONLY: record the worker id; status starts at 'queued'

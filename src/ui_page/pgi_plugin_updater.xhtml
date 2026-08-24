@@ -225,6 +225,15 @@
 #app .tree-box .impact-row:first-child{border-top:none}
 #app .confirm-union{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
 #app .confirm-union-list{max-height:220px;overflow-y:auto;margin-top:10px}
+#app .cap-note-inline{padding:10px 0 2px;font-size:12px;color:var(--text-3);text-align:center;border-top:1px solid rgba(0,113,227,.12);margin-top:4px}
+
+/* --- Monitor: dependency rows (v1.6, §10.3) ---------------------------------
+   Apps the platform actually installed alongside a batch row, read from
+   sys_execution_tracker. Slightly indented and muted so they read as
+   "part of the row above", never mistaken for a row the admin picked. */
+#app tr.dep-row td{background:var(--surface-2)}
+#app tr.dep-row .col-name{padding-left:32px;font-weight:400;color:var(--text-2);font-size:12.5px}
+#app .badge-dep{background:rgba(0,113,227,.10);color:var(--accent);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:var(--r-pill);margin-right:8px;white-space:nowrap}
 </style>
 <div id="app">
 
@@ -349,7 +358,7 @@
         </div>
         <div class="guide-section mt16">
           <h3>4 &#183; Confirm &amp; Launch</h3>
-          <p>Before anything installs, the confirmation dialog names the instance and how many applications you selected, plus how many&#160;<strong>additional</strong>&#160;applications will update as a result of those selections &#8212; a single deduplicated count, never a per-row sum, with a&#160;<strong>Show all</strong>&#160;link to see the full list. Review it, then confirm to launch.</p>
+          <p>Before anything installs, the confirmation dialog names the instance, lists the&#160;<strong>selected applications</strong>&#160;you are about to install (expand&#160;<strong>Show all</strong>&#160;on long lists), and separately shows how many&#160;<strong>additional</strong>&#160;applications will update as a result of those selections &#8212; a single deduplicated count, never a per-row sum, with its own&#160;<strong>Show all</strong>&#160;link. The two lists are kept apart on purpose: one is what you chose, the other is what the platform adds on its own. Review both, then confirm to launch.</p>
         </div>
         <div class="guide-section mt16">
           <h3>5 &#183; Launch &amp; Monitor</h3>
@@ -360,6 +369,7 @@
             <li>An install counts as&#160;<strong>Complete</strong>&#160;only if the application actually reaches the target version. If the platform reports success but the version did not change, the row is marked&#160;<strong>Failed</strong>&#160;with the version it stayed on.</li>
             <li>Whenever a row carries a message, a&#160;<strong>Details</strong>&#160;(or&#160;<strong>Why failed</strong>) button appears in the last column. It opens the exact text reported by the platform underneath that row &#8212; useful for telling apart an app that was rejected at launch from one whose install did not apply. If any application fails to launch, the wizard stays on the Launch step so you can read the reasons before moving on.</li>
             <li>The&#160;<strong>Monitor</strong>&#160;tab shows the batch with five counters &#8212; Total,&#160;<strong>Installing</strong>&#160;(running right now),&#160;<strong>Queued</strong>&#160;(waiting in the server queue), Complete, Failed &#8212; and a sortable per-app table. When the batch ends a summary appears, with a shortcut to list only the failures.</li>
+            <li>Underneath any application that pulled in dependencies, a&#160;<strong>dependency</strong>&#160;badge marks the applications the platform actually installed alongside it &#8212; this reflects what really happened, read directly from the platform's own installation tracker, not a prediction made before launch.</li>
             <li><strong>Cancel queued</strong>&#160;drops the applications still waiting in the queue. Installs already running cannot be interrupted and will finish.</li>
             <li>Reopening the page reloads your most recent batch automatically; the batch selector lets you review earlier ones.</li>
           </ul>
@@ -392,7 +402,7 @@
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.5.4',
+    version:'1.6.0',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -992,6 +1002,11 @@
             + (it.hidden?'<span class="badge-hidden">not selectable</span>':'')+'</span>'
             + '<span class="impact-ver">'+esc(it.current)+' &#8594; '+esc(it.target)+'</span></div>';
       }
+      // Nota di troncamento: senza questo, oltre 150 dipendenze aggregate
+      // sparivano dalla vista espansa senza alcun avviso — un troncamento
+      // silenzioso, incoerente col resto dell'app (Step 1/2 usano sempre un
+      // "showing N of M" esplicito quando tagliano una lista, v1.6 fix).
+      if(n>150){ rows+='<div class="cap-note-inline">Showing 150 of '+n+' &#8212; refine your selection to see the rest.</div>'; }
       cb('<div class="confirm-union">'
         + '<strong>'+n+'</strong> more '+(n===1?'application':'applications')+' will be updated as a result.'
         + ' <button class="tree-btn" id="confirm-union-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
@@ -1000,19 +1015,49 @@
     });
   }
 
+  // Elenco delle app SELEZIONATE direttamente dall'admin, espandibile come il
+  // blocco dipendenze — senza questo il dialog diceva solo "N applications",
+  // un numero senza nomi: l'admin non vedeva cosa stava effettivamente per
+  // installare, solo quante app extra la piattaforma avrebbe aggiunto.
+  function selectedListHtml(){
+    var ids=selectedIds(), byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
+    var apps=[]; for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(a){ apps.push({name:a.name,current:a.current,target:a.latest}); } }
+    var n=apps.length, rows='';
+    for(var j=0;j<Math.min(apps.length,150);j++){ var it=apps[j];
+      rows+='<div class="impact-row"><span class="impact-name">'+esc(it.name)+'</span>'
+          + '<span class="impact-ver">'+esc(it.current)+' &#8594; '+esc(it.target)+'</span></div>';
+    }
+    if(n>150){ rows+='<div class="cap-note-inline">Showing 150 of '+n+' &#8212; refine your selection to see the rest.</div>'; }
+    return '<div class="confirm-union">'
+      + '<strong>'+n+'</strong> selected '+(n===1?'application':'applications')+' will be installed.'
+      + ' <button class="tree-btn" id="confirm-selected-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
+      + '<div class="impact-list confirm-union-list" id="confirm-selected-list">'+rows+'</div>'
+      + '</div>';
+  }
+
   function confirmInstalls(){
     var n=selectedIds().length;
     if(!n) return;
     var baseHtml='You are about to update <strong>'+n+'</strong> '+(n===1?'application':'applications')+' on <strong>'+esc(S.info.instanceName||'this instance')+'</strong>.'
       + '<br/><br/>Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going.';
+    var selectedHtml=selectedListHtml();
     confirmUnionHtml(null, function(unionHtml){
       confirmModal({
         title: 'Install '+plural(n,'update','updates')+'?',
-        bodyHtml: baseHtml + unionHtml,
+        bodyHtml: baseHtml + selectedHtml + unionHtml,
         confirmLabel: 'Install '+n,
         cancelLabel: 'Review selection',
         onConfirm: startInstalls
       });
+      var st=$('confirm-selected-toggle');
+      if(st){
+        st.onclick=function(){
+          var open=this.getAttribute('aria-expanded')==='true';
+          this.setAttribute('aria-expanded', open?'false':'true');
+          this.innerHTML=(open?'Show all':'Hide')+' <span class="chev">&#9660;</span>';
+          var l=$('confirm-selected-list'); if(l){ l.className='impact-list confirm-union-list'+(open?'':' open'); }
+        };
+      }
       var ut=$('confirm-union-toggle');
       if(ut){
         ut.onclick=function(){
@@ -1304,6 +1349,22 @@
             + (r.startedAt?('<div class="why-meta">Started '+esc(r.startedAt)+'</div>'):'')
             + '</div></td></tr>';
       }
+      // Righe dipendenza (v1.6, §10.3): app che la piattaforma ha davvero
+      // installato insieme a questa, letto da sys_execution_tracker — non
+      // una previsione, un fatto osservato dopo il lancio. Badge "dependency"
+      // le distingue dalle righe principali; nessuna colonna Details perché
+      // il tracker non porta un messaggio d'errore leggibile come le nostre
+      // righe (solo stato/percentuale).
+      var deps=r.deps||[];
+      for(var di=0;di<deps.length;di++){ var dep=deps[di]; var dpct=dep.pct||0;
+        rows+='<tr class="dep-row"><td class="col-name"><span class="badge-dep">dependency</span>'+esc(dep.name)+'</td>'
+            + '<td class="col-scope">'+esc(dep.scope)+'</td>'
+            + '<td class="col-ver">&#8594; '+esc(dep.version)+'</td>'
+            + '<td>'+statusPill(dep.status)+'</td>'
+            + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+dpct+'%</div>'
+            + '<div class="prog-wrap"><div class="prog-bar'+(dep.status==='complete'?' success':(dep.status==='failed'?' failed':''))+'" style="width:'+dpct+'%"></div></div></td>'
+            + '<td><span style="color:var(--text-3);font-size:12px">&#8212;</span></td></tr>';
+      }
     }
     if(!list.length){ rows='<tr><td colspan="6" class="empty">'+(S.monOnlyFailed?'No failures in this batch.':'No apps in this batch.')+'</td></tr>'; }
     var bs=d.status||'running';
@@ -1365,7 +1426,16 @@
 
   // ---- Wiring ----
   function init(){
-    $('tab-home').onclick=function(){ showView('home'); if(!S.loadedHome) refresh(); };
+    // v1.6: refresh automatico anche quando si torna dal Monitor — senza
+    // questo la Home restava con i contatori pre-batch (es. "Updates
+    // Available" non ancora decrementato) finché non si cliccava Refresh
+    // Data a mano. monitorActive() va controllato PRIMA di showView('home'),
+    // che disattiva la vista monitor cambiando la classe .active.
+    $('tab-home').onclick=function(){
+      var fromMonitor=monitorActive();
+      showView('home');
+      if(!S.loadedHome || fromMonitor){ refresh(); }
+    };
     $('tab-wizard').onclick=startWizard;
     $('tab-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     $('tab-guide').onclick=function(){ showView('guide'); };
