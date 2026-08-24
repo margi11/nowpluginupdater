@@ -8,7 +8,13 @@
 
 > This spec supersedes the previous `SPECS.md`. The **domain logic** in that document was correct and is preserved here almost verbatim (filters, offering retry, version verification, progress polling, lessons learned). What changed is the **delivery architecture**, which was the actual cause of failure. Read §2 before building — it explains what to *not* repeat.
 >
-> **Sync status (v1.4.3 + v1.5 design).** §1–§5 and §7–§17 describe the **shipped** application, reconciled against `src/script_include/PluginUpdaterAjax.js` and `src/ui_page/pgi_plugin_updater.xhtml`. §6 is the **v1.5 dependency-impact design**, validated against two live instances but **not yet implemented**. Category grouping (§13) was specified but never built and is marked as such.
+> **Sync status (v1.4.3 shipped + v1.5 design).**
+>
+> - **§1–§5, §7–§18 describe the shipped application**, reconciled against `src/script_include/PluginUpdaterAjax.js` and `src/ui_page/pgi_plugin_updater.xhtml`, and **verified live on `democrmfalectriae152010`**: Scheduled Jobs (§10.2), install-log dictionary and ACLs (§9), filter behaviour (§8.1).
+> - **§6 is the v1.5 dependency-impact design — validated on two releases but NOT implemented.** No `getUpdateImpact` method exists yet; its signature in §6.10 is proposed, not built.
+> - **Corrected against measured data, do not revert:** the seven extra "updatable" filters (§8.1) and the use of `state_code` as a failure signal (§10.1) were both prescriptions that live data falsified.
+> - **Specified but never built:** category grouping (§13), and `u_product_category` (§9) is written by nothing.
+> - **Migration:** the one-off `repair_install_log_140.js` is described in §9.1.
 
 ---
 
@@ -307,20 +313,30 @@ fetch('/api/sn_cicd/app_repo/install?sys_id=' + sysId + '&version=' + encodeURIC
 
 ## 8. Filtering logic — which apps are "updatable"
 
-Show an app only if **all** conditions hold (carried over from prior spec — this is the high-value part that makes the list correct):
+**Implemented filter — three conditions**, mirroring what the Application Manager itself lists:
 
 | Filter | Reason |
 |---|---|
 | `update_available = true` | Flagged as having an update |
 | `active = true` | App is active |
-| `hide_on_ui = false` | Not a hidden dependency |
-| `install_date != ''` | Was previously installed |
-| `last_installed_from = 'store'` | Store app, not platform-bundled (platform-bundled cannot update via REST) |
-| `static_content = false` | Not a UX web-component package (these accept installs but never bump version) |
-| `name NOT LIKE @devsnc/` | UX Builder toolkit component — exclude |
-| `name NOT LIKE @servicenow/` | ServiceNow internal component — exclude |
-| `name NOT LIKE @now-par` | PAR visualization component — exclude |
-| `version != latest_version` | Actually stale (guards against a stale `update_available` flag) |
+| `hide_on_ui = false` | Not a hidden dependency (§6.6 shows these as *impact*, never as selectable rows) |
+
+### 8.1 The seven extra filters from the prior spec were wrong — measured, do not add them
+
+The earlier spec prescribed seven more conditions. Applying them would remove **8 of the 20 updatable apps (40%)** on `democrmfalectriae152010`, including `Platform AI Agents and Skills` — the app in the native *Review Installation Details* dialog that motivated §6.
+
+The load-bearing claim was that `static_content = true` apps *"accept installs but never bump version"*. **Falsified by the app's own install log:** of the last 400 `complete` rows, **110 are `static_content = true` apps, with 0 failures** — every one showing a real version bump (`Value Engine 6.0.8 → 6.0.10`, `Web Components Foundation 1.4.1 → 1.5.0`, `Webviews for mobile 36.2.0 → 36.2.8`). Excluding them would hide 30 currently-updatable apps for no reason.
+
+| Prior filter | Verdict |
+|---|---|
+| `static_content = false` | **Wrong.** 110 successful installs, 0 failures, on `static_content = true` apps |
+| `last_installed_from = 'store'` | **Too narrow.** 3 of the 20 read `out_of_band` and update normally; 676 rows instance-wide are non-`store` |
+| `install_date != ''` | **Redundant.** 0 of the 20 have it empty |
+| `version != latest_version` | **Redundant.** 0 of the 20 have them equal — `update_available` already covers it |
+| `name NOT LIKE @devsnc/` / `@servicenow/` | **Inert.** 0 matches among updatable apps on either instance |
+| `name NOT LIKE @now-par` | **1 match** (`@now-par-components/sn-par-visualization-controls-section`) out of 243 on Zurich — cosmetic at best |
+
+The genuine caveat is the one already in the README: a few platform-bundled apps that cannot update via the Store API may end as *Failed*. That is **accepted and visible**, not filtered away — filtering on these flags removes far more working apps than broken ones.
 
 ---
 
@@ -337,7 +353,7 @@ Table `u_plugin_updater_install_log`:
 | `u_store_app_id` | String(32) | sys_id from `sys_store_app` |
 | `u_previous_version` | String(40) | |
 | `u_target_version` | String(40) | |
-| `u_status` | Choice | `queued` · `installing` · `complete` · `failed` · `cancelled` (five values as implemented — **not** `in_progress`) |
+| `u_status` | Choice | code writes `queued` · `installing` · `complete` · `failed` · `cancelled`. **The choice list also still contains a legacy `in_progress`** entry that nothing writes — safe to delete |
 | `u_started_at` | **glide_date_time** | not String |
 | `u_completed_at` | **glide_date_time** | not String |
 | `u_triggered_by` | **Reference → sys_user** | not String |
@@ -347,7 +363,13 @@ Table `u_plugin_updater_install_log`:
 | `u_session_id` | String(32) | groups one wizard batch |
 | `u_product_category` | String(100) | from §13 mapping — **defined but unused** by the shipped code; keep or drop with §13 |
 
-ACLs: CRUD restricted to `admin`.
+### 9.1 Historical repair (v1.3.x → v1.4.0)
+
+`src/fix_scripts/repair_install_log_140.js` reclassifies log rows that claim `complete` for installs that never applied — the fallout of the `completion_code` bug (§10.1). Run **once** in Scripts - Background after upgrading from 1.3.x.
+
+It is a **dry run by default** (`DRY_RUN = true`): it prints what it would change without writing. Review, then set `DRY_RUN = false` and re-run. Rows whose application is no longer present are left untouched. It reclassifies a row to `failed` **only when the installed version is semantically lower than the target** — the same rule as §10.1, and it independently documents the two rejected criteria on the same 725-row measurement.
+
+ACLs: CRUD restricted to `admin`. **Verified on the instance:** four ACLs on the table (`create`, `read`, `write`, `delete`) plus one `read` ACL on `pgi_plugin_updater`, all `active=1` with `admin_overrides=1`. The table carries **20 fields** (14 custom + 6 `sys_*`), matching this list.
 
 ---
 
@@ -378,6 +400,15 @@ Two field-name traps on `sys_progress_worker`, both already paid for in v1.3.7 a
 
 On `state IN (failed, error, cancelled)` → **failed**, using the worker's own message. On `running` → *installing*; on `pending`/unknown → *queued*.
 
+### 10.2 The two Scheduled Jobs (verified on the instance)
+
+| Job | Type | Purpose |
+|---|---|---|
+| `Plugin Updater - Monitor Batches` | **periodically, every 1 minute**, `active=1` | calls `monitorBatches` — this is what lets the admin close the page after launch |
+| `Plugin Updater - Store Sync (once)` | **run once**, created on demand by `syncStore` | calls `sn_appclient.UpdateChecker` directly (§15.10); cleaned up by `_cleanupSyncJobs` |
+
+The monitor job runs as a **periodic** job, not on-demand: a batch left running with the browser closed is finalized within a minute of each worker completing.
+
 ---
 
 ## 11. Offering retry (client-side)
@@ -387,6 +418,8 @@ On the install `fetch`, if HTTP 400 with body containing `Offering plugin id mus
 - Parse the first id inside `[...]` in `result.error` (e.g. `[com.sn_hs_csc]` → `com.sn_hs_csc`); fallback to the `"offering":"…"` hint in the example text.
 - Retry the same endpoint with JSON body `{ "offering": "<id>" }`.
 - If the retry also fails, mark the app `failed` with the parsed reason.
+
+**Implemented** in the UI Page (`fire` / `handleTrigger`): the offering retry fires **once** with the parsed id, and is combined with backoff retries for transient enqueue/mutex collisions — the CICD install API being single-flight (§15.7).
 
 ---
 
@@ -400,7 +433,7 @@ On the install `fetch`, if HTTP 400 with body containing `Offering plugin id mus
 6. **Create the UI Page** `pgi_plugin_updater`: Jelly shell + HTML + design-token CSS + **vanilla-JS IIFE** (no Alpine, no petite-vue, no UI Script — see §18 decision 3). Implement Home, Wizard 1 (Discover), Wizard 2 (Select), Monitor, Guide as client-side views.
 7. **Wire reads** through GlideAjax; **wire installs** client-side (§7) with offering retry (§11), enqueued **one app at a time** with retry on a busy queue — the CICD install API is single-flight (§15.7).
 8. **Wire dependency impact** (§6): fold `getUpdateImpact` into the `getUpdatableApps` response, render the shared suite panel and the expandable per-row tree in Step 2, and the deduplicated union in the confirm dialog. Verify on an instance with **no installed suite** and on one with **deep dependency chains** — a single instance does not exercise the cycle guard or the dedup (§6.8).
-9. **Create application menu + module** → `pgi_plugin_updater.do`.
+9. **Create application menu + module** → `pgi_plugin_updater.do`. (On `democrmfalectriae152010` the UI Page exists with `category=general`; the module is reachable but was not found by a `name CONTAINS 'Plugin Updater'` query — confirm the menu record when packaging the update set.)
 10. **Restrict** page/module/table to `admin`.
 11. **Smoke test** against §16.
 12. **Package** all artifacts in the app update set.
@@ -470,7 +503,7 @@ Responsive: KPI cards wrap; wizard tables scroll horizontally on narrow viewport
 ## 16. Acceptance criteria
 
 - Home shows the correct friendly **version label**, active plugin count, up-to-date count, updates-available count, and in-progress count — matching live instance data.
-- Wizard Step 1 lists exactly the apps passing all §8 filters; no static-content / platform-bundled / `@devsnc|@servicenow|@now-par` entries appear.
+- Wizard Step 1 lists exactly the apps passing the **three** §8 filters — mirroring the Application Manager. `static_content` and `last_installed_from` are **not** used as exclusions (§8.1): a platform-bundled app that ends *Failed* is accepted and visible, not filtered away.
 - Selecting apps and starting updates triggers real CICD installs **with zero stored credentials** (new workers appear in `sys_progress_worker`).
 - Offering-required 400 is handled by an automatic offering retry.
 - Live progress reflects real worker state and survives the "worker not found" transient.
