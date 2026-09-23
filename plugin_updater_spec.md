@@ -707,6 +707,20 @@ Helpers: `pageSizeOf`, `pageCount`, `clampPage`, `paginate`, `resetPage`, `pageN
 
 **The filter and the current page both survive the 15-second poll.** The filter is re-applied on each render before pagination; the page is clamped (§18.4.2). The empty-state message distinguishes a filtered empty result ("No applications with status "queued" in this batch.") from a genuinely empty batch.
 
-### 18.4.4 Verification
+### 18.4.4 Pager label must name what it counts — regression caught in review
+
+**Reported on the shipped 1.6.5 by a colleague, with a screenshot:** the Monitor showed `Showing 1–2 of 2` above a table with **eight** visible rows — two applications (`Employee Center Pro`, `Employee Center Core`) and six `dependency` rows.
+
+**The count was correct and the label was still wrong.** §18.4.2 deliberately paginates on main rows only, because that is what keeps a dependency attached to its parent instead of splitting a family across two pages. That decision stands. The defect was letting an internal accounting rule surface as a user-facing sentence: `of 2` described the pagination unit, while the reader was counting rows on screen. A label that contradicts what the eye sees reads as a bug regardless of which number is technically defensible.
+
+**Fix:** the label now names its unit and declares the rest. `pagerHtml(view, pg, extraRows)` takes the number of rows rendered on the current page that do *not* consume a pagination slot, and renders `Showing 1–2 of 2 applications · 6 dependency rows`. With no dependencies on the page the second clause is omitted entirely, so the common case stays short. Singular forms are handled for both counts (`1 application`, `1 dependency row`). `renderMonitor` accumulates `depRowsShown` inside the parent loop, so the figure is **per page**, not per batch — on page 1 of a paginated batch it reports only the dependencies actually visible there.
+
+`Rows per page` became **`Applications per page`** in the same pass, for the same reason: it named the wrong unit, and with a page size of 25 over rows that expand into dependencies the old wording implied a cap the control does not enforce.
+
+**Step 1 and Step 2 were left alone.** Their expandable `tree-row` blocks are detail panels the user opens deliberately, not application rows in their own right, so `of N applications` remains accurate there.
+
+**Lesson to carry forward:** when a pagination unit differs from the visible row, the label must say which one it is counting. Verified on `democrmfalectriae152010` against four real batches — 9 apps + 3 dependency rows, 14 + 1 (singular), and two batches with none — and under a forced page size of 2, where the dependency note correctly appears only on the page that renders them.
+
+### 18.4.5 Verification
 
 Pagination helpers were extracted from the shipped UI Page and exercised in isolation — 21 assertions covering page counts at the 25/26/200 boundaries, first/last/partial-page slicing and `from`–`to` labels, clamping both when a list shrinks below the current page and when the page index exceeds the last page, empty lists, a page size larger than the list, per-view independence, and `pageNumbers` ellipsis windows at the first/middle/last page including a no-duplicates check. Browser verification against `democrmfalectriae152010` is recorded in §18.4.5.

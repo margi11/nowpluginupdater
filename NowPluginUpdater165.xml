@@ -2979,9 +2979,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 <category>customer</category>
 <comments/>
 <name>sys_ui_page_c14be11ceb310310a9e2f5b9bad0cde1</name>
-<payload>&lt;?xml version="1.0" encoding="UTF-8"?&gt;&lt;record_update table="sys_ui_page"&gt;&lt;sys_ui_page action="INSERT_OR_UPDATE"&gt;&lt;category&gt;general&lt;/category&gt;&lt;client_script/&gt;&lt;description&gt;Now Plugin Updater v1.6.4 — admin screen to discover, select, and install available updates for Store applications. Vanilla JS, no-build UI Page. No brand icon (removed — base64 inline did not render in this environment; sys_attachment cannot be embedded in a plain update-set XML). Author: Gianmario Marongiu.&lt;/description&gt;&lt;direct&gt;false&lt;/direct&gt;&lt;endpoint/&gt;&lt;html&gt;&lt;![CDATA[&lt;?xml version="1.0" encoding="utf-8" ?&gt;
-&lt;j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null"&gt;
-&lt;style&gt;
+<payload>&lt;?xml version="1.0" encoding="UTF-8"?&gt;&lt;record_update table="sys_ui_page"&gt;&lt;sys_ui_page action="INSERT_OR_UPDATE"&gt;&lt;category&gt;general&lt;/category&gt;&lt;client_script/&gt;&lt;description&gt;Now Plugin Updater v1.6.4 — admin screen to discover, select, and install available updates for Store applications. Vanilla JS, no-build UI Page. No brand icon (removed — base64 inline did not render in this environment; sys_attachment cannot be embedded in a plain update-set XML). Author: Gianmario Marongiu.&lt;/description&gt;&lt;direct&gt;false&lt;/direct&gt;&lt;endpoint/&gt;&lt;html&gt;&amp;lt;?xml version="1.0" encoding="utf-8" ?&amp;gt;
+&amp;lt;j:jelly trim="false" xmlns:j="jelly:core" xmlns:g="glide" xmlns:j2="null" xmlns:g2="null"&amp;gt;
+&amp;lt;style&amp;gt;
 /* =====================================================
    NOW PLUGIN UPDATER — Design Token CSS
    Apple-inspired: light neutrals, fine typography,
@@ -3236,167 +3236,167 @@ html,body{background:#f5f5f7;margin:0}
 #app tr.dep-row td{background:var(--surface-2)}
 #app tr.dep-row .col-name{padding-left:32px;font-weight:400;color:var(--text-2);font-size:12.5px}
 #app .badge-dep{background:rgba(0,113,227,.10);color:var(--accent);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:var(--r-pill);margin-right:8px;white-space:nowrap}
-&lt;/style&gt;
-&lt;div id="app"&gt;
+&amp;lt;/style&amp;gt;
+&amp;lt;div id="app"&amp;gt;
 
-  &lt;nav class="nav"&gt;
-    &lt;div class="nav-brand"&gt;
+  &amp;lt;nav class="nav"&amp;gt;
+    &amp;lt;div class="nav-brand"&amp;gt;
       Now Plugin Updater
-    &lt;/div&gt;
-    &lt;div class="nav-tabs"&gt;
-      &lt;button class="nav-tab active" data-tab="home" id="tab-home"&gt;Home&lt;/button&gt;
-      &lt;button class="nav-tab" data-tab="wizard" id="tab-wizard"&gt;Wizard&lt;/button&gt;
-      &lt;button class="nav-tab" data-tab="monitor" id="tab-monitor"&gt;Monitor&lt;/button&gt;
-      &lt;button class="nav-tab" data-tab="guide" id="tab-guide"&gt;Guide&lt;/button&gt;
-    &lt;/div&gt;
-    &lt;div class="nav-actions"&gt;
-      &lt;button class="btn btn-ghost btn-sm" id="btn-refresh"&gt;
-        &lt;svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"&gt;&lt;path d="M4 10a6 6 0 016-6 5.98 5.98 0 014.24 1.76L12 8h6V2l-2.05 2.05A8 8 0 102 10h2z"/&gt;&lt;/svg&gt;
+    &amp;lt;/div&amp;gt;
+    &amp;lt;div class="nav-tabs"&amp;gt;
+      &amp;lt;button class="nav-tab active" data-tab="home" id="tab-home"&amp;gt;Home&amp;lt;/button&amp;gt;
+      &amp;lt;button class="nav-tab" data-tab="wizard" id="tab-wizard"&amp;gt;Wizard&amp;lt;/button&amp;gt;
+      &amp;lt;button class="nav-tab" data-tab="monitor" id="tab-monitor"&amp;gt;Monitor&amp;lt;/button&amp;gt;
+      &amp;lt;button class="nav-tab" data-tab="guide" id="tab-guide"&amp;gt;Guide&amp;lt;/button&amp;gt;
+    &amp;lt;/div&amp;gt;
+    &amp;lt;div class="nav-actions"&amp;gt;
+      &amp;lt;button class="btn btn-ghost btn-sm" id="btn-refresh"&amp;gt;
+        &amp;lt;svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor"&amp;gt;&amp;lt;path d="M4 10a6 6 0 016-6 5.98 5.98 0 014.24 1.76L12 8h6V2l-2.05 2.05A8 8 0 102 10h2z"/&amp;gt;&amp;lt;/svg&amp;gt;
         Refresh
-      &lt;/button&gt;
-    &lt;/div&gt;
-  &lt;/nav&gt;
+      &amp;lt;/button&amp;gt;
+    &amp;lt;/div&amp;gt;
+  &amp;lt;/nav&amp;gt;
 
-  &lt;div class="content"&gt;
+  &amp;lt;div class="content"&amp;gt;
 
-    &lt;!-- HOME --&gt;
-    &lt;div class="view active" data-view="home"&gt;
-      &lt;div id="home-body"&gt;&lt;/div&gt;
-    &lt;/div&gt;
+    &amp;lt;!-- HOME --&amp;gt;
+    &amp;lt;div class="view active" data-view="home"&amp;gt;
+      &amp;lt;div id="home-body"&amp;gt;&amp;lt;/div&amp;gt;
+    &amp;lt;/div&amp;gt;
 
-    &lt;!-- WIZARD 1 — Discover --&gt;
-    &lt;div class="view" data-view="wizard1"&gt;
-      &lt;div class="wizard-steps"&gt;
-        &lt;div class="wstep active"&gt;&lt;div class="wstep-num"&gt;1&lt;/div&gt;Discover&lt;/div&gt;
-        &lt;div class="wstep-divider"&gt;&lt;/div&gt;
-        &lt;div class="wstep"&gt;&lt;div class="wstep-num"&gt;2&lt;/div&gt;Select&lt;/div&gt;
-        &lt;div class="wstep-divider"&gt;&lt;/div&gt;
-        &lt;div class="wstep"&gt;&lt;div class="wstep-num"&gt;3&lt;/div&gt;Install&lt;/div&gt;
-      &lt;/div&gt;
-      &lt;div class="section-title"&gt;Updatable Applications&lt;/div&gt;
-      &lt;div id="wizard1-body"&gt;&lt;/div&gt;
-    &lt;/div&gt;
+    &amp;lt;!-- WIZARD 1 — Discover --&amp;gt;
+    &amp;lt;div class="view" data-view="wizard1"&amp;gt;
+      &amp;lt;div class="wizard-steps"&amp;gt;
+        &amp;lt;div class="wstep active"&amp;gt;&amp;lt;div class="wstep-num"&amp;gt;1&amp;lt;/div&amp;gt;Discover&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep-divider"&amp;gt;&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep"&amp;gt;&amp;lt;div class="wstep-num"&amp;gt;2&amp;lt;/div&amp;gt;Select&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep-divider"&amp;gt;&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep"&amp;gt;&amp;lt;div class="wstep-num"&amp;gt;3&amp;lt;/div&amp;gt;Install&amp;lt;/div&amp;gt;
+      &amp;lt;/div&amp;gt;
+      &amp;lt;div class="section-title"&amp;gt;Updatable Applications&amp;lt;/div&amp;gt;
+      &amp;lt;div id="wizard1-body"&amp;gt;&amp;lt;/div&amp;gt;
+    &amp;lt;/div&amp;gt;
 
-    &lt;!-- WIZARD 2 — Select --&gt;
-    &lt;div class="view" data-view="wizard2"&gt;
-      &lt;div class="wizard-steps"&gt;
-        &lt;div class="wstep done"&gt;&lt;div class="wstep-num"&gt;&amp;#10003;&lt;/div&gt;Discover&lt;/div&gt;
-        &lt;div class="wstep-divider"&gt;&lt;/div&gt;
-        &lt;div class="wstep active"&gt;&lt;div class="wstep-num"&gt;2&lt;/div&gt;Select&lt;/div&gt;
-        &lt;div class="wstep-divider"&gt;&lt;/div&gt;
-        &lt;div class="wstep"&gt;&lt;div class="wstep-num"&gt;3&lt;/div&gt;Install&lt;/div&gt;
-      &lt;/div&gt;
-      &lt;div class="section-title"&gt;Select Applications to Update&lt;/div&gt;
-      &lt;div class="filter-bar"&gt;
-        &lt;input class="search" type="text" placeholder="Filter by name or scope..." id="sel-filter" aria-label="Filter applications by name or scope" /&gt;
-        &lt;select class="search" id="sel-scope" aria-label="Filter by scope"&gt;&lt;/select&gt;
-        &lt;button class="btn btn-secondary btn-sm" id="sel-all"&gt;Select All&lt;/button&gt;
-        &lt;button class="btn btn-ghost btn-sm" id="sel-none"&gt;Clear&lt;/button&gt;
-      &lt;/div&gt;
-      &lt;div class="top-actions"&gt;
-        &lt;button class="btn btn-primary" id="sel-install"&gt;Install Updates&lt;/button&gt;
-        &lt;button class="btn btn-secondary" id="sel-back"&gt;&amp;#8592; Back&lt;/button&gt;
-        &lt;button class="btn btn-ghost" id="sel-cancel"&gt;Cancel&lt;/button&gt;
-        &lt;span class="count-badge" id="sel-count"&gt;0 selected&lt;/span&gt;
-        &lt;span class="ta-hint" id="sel-hint"&gt;&lt;/span&gt;
-      &lt;/div&gt;
-      &lt;div id="sel-table"&gt;&lt;/div&gt;
-    &lt;/div&gt;
+    &amp;lt;!-- WIZARD 2 — Select --&amp;gt;
+    &amp;lt;div class="view" data-view="wizard2"&amp;gt;
+      &amp;lt;div class="wizard-steps"&amp;gt;
+        &amp;lt;div class="wstep done"&amp;gt;&amp;lt;div class="wstep-num"&amp;gt;&amp;amp;#10003;&amp;lt;/div&amp;gt;Discover&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep-divider"&amp;gt;&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep active"&amp;gt;&amp;lt;div class="wstep-num"&amp;gt;2&amp;lt;/div&amp;gt;Select&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep-divider"&amp;gt;&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep"&amp;gt;&amp;lt;div class="wstep-num"&amp;gt;3&amp;lt;/div&amp;gt;Install&amp;lt;/div&amp;gt;
+      &amp;lt;/div&amp;gt;
+      &amp;lt;div class="section-title"&amp;gt;Select Applications to Update&amp;lt;/div&amp;gt;
+      &amp;lt;div class="filter-bar"&amp;gt;
+        &amp;lt;input class="search" type="text" placeholder="Filter by name or scope..." id="sel-filter" aria-label="Filter applications by name or scope" /&amp;gt;
+        &amp;lt;select class="search" id="sel-scope" aria-label="Filter by scope"&amp;gt;&amp;lt;/select&amp;gt;
+        &amp;lt;button class="btn btn-secondary btn-sm" id="sel-all"&amp;gt;Select All&amp;lt;/button&amp;gt;
+        &amp;lt;button class="btn btn-ghost btn-sm" id="sel-none"&amp;gt;Clear&amp;lt;/button&amp;gt;
+      &amp;lt;/div&amp;gt;
+      &amp;lt;div class="top-actions"&amp;gt;
+        &amp;lt;button class="btn btn-primary" id="sel-install"&amp;gt;Install Updates&amp;lt;/button&amp;gt;
+        &amp;lt;button class="btn btn-secondary" id="sel-back"&amp;gt;&amp;amp;#8592; Back&amp;lt;/button&amp;gt;
+        &amp;lt;button class="btn btn-ghost" id="sel-cancel"&amp;gt;Cancel&amp;lt;/button&amp;gt;
+        &amp;lt;span class="count-badge" id="sel-count"&amp;gt;0 selected&amp;lt;/span&amp;gt;
+        &amp;lt;span class="ta-hint" id="sel-hint"&amp;gt;&amp;lt;/span&amp;gt;
+      &amp;lt;/div&amp;gt;
+      &amp;lt;div id="sel-table"&amp;gt;&amp;lt;/div&amp;gt;
+    &amp;lt;/div&amp;gt;
 
-    &lt;!-- WIZARD 3 — Launch --&gt;
-    &lt;div class="view" data-view="wizard3"&gt;
-      &lt;div class="wizard-steps"&gt;
-        &lt;div class="wstep done"&gt;&lt;div class="wstep-num"&gt;&amp;#10003;&lt;/div&gt;Discover&lt;/div&gt;
-        &lt;div class="wstep-divider"&gt;&lt;/div&gt;
-        &lt;div class="wstep done"&gt;&lt;div class="wstep-num"&gt;&amp;#10003;&lt;/div&gt;Select&lt;/div&gt;
-        &lt;div class="wstep-divider"&gt;&lt;/div&gt;
-        &lt;div class="wstep active"&gt;&lt;div class="wstep-num"&gt;3&lt;/div&gt;Launch&lt;/div&gt;
-      &lt;/div&gt;
-      &lt;div class="section-title"&gt;Launching Installs&lt;/div&gt;
-      &lt;div id="launch-body"&gt;&lt;/div&gt;
-      &lt;div class="mt16 row-gap" id="launch-actions" style="display:none"&gt;
-        &lt;button class="btn btn-primary" id="launch-monitor"&gt;Go to Monitor &amp;#8594;&lt;/button&gt;
-        &lt;button class="btn btn-secondary" id="launch-home"&gt;Home&lt;/button&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+    &amp;lt;!-- WIZARD 3 — Launch --&amp;gt;
+    &amp;lt;div class="view" data-view="wizard3"&amp;gt;
+      &amp;lt;div class="wizard-steps"&amp;gt;
+        &amp;lt;div class="wstep done"&amp;gt;&amp;lt;div class="wstep-num"&amp;gt;&amp;amp;#10003;&amp;lt;/div&amp;gt;Discover&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep-divider"&amp;gt;&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep done"&amp;gt;&amp;lt;div class="wstep-num"&amp;gt;&amp;amp;#10003;&amp;lt;/div&amp;gt;Select&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep-divider"&amp;gt;&amp;lt;/div&amp;gt;
+        &amp;lt;div class="wstep active"&amp;gt;&amp;lt;div class="wstep-num"&amp;gt;3&amp;lt;/div&amp;gt;Launch&amp;lt;/div&amp;gt;
+      &amp;lt;/div&amp;gt;
+      &amp;lt;div class="section-title"&amp;gt;Launching Installs&amp;lt;/div&amp;gt;
+      &amp;lt;div id="launch-body"&amp;gt;&amp;lt;/div&amp;gt;
+      &amp;lt;div class="mt16 row-gap" id="launch-actions" style="display:none"&amp;gt;
+        &amp;lt;button class="btn btn-primary" id="launch-monitor"&amp;gt;Go to Monitor &amp;amp;#8594;&amp;lt;/button&amp;gt;
+        &amp;lt;button class="btn btn-secondary" id="launch-home"&amp;gt;Home&amp;lt;/button&amp;gt;
+      &amp;lt;/div&amp;gt;
+    &amp;lt;/div&amp;gt;
 
-    &lt;!-- MONITOR (server-side, persistent) --&gt;
-    &lt;div class="view" data-view="monitor"&gt;
-      &lt;div class="section-title"&gt;Installation Monitor&lt;/div&gt;
-      &lt;div class="info-box"&gt;Installs run on the server. You can close this page and reopen it later &amp;#8212; this monitor reloads your most recent batch automatically.&lt;/div&gt;
-      &lt;div class="filter-bar"&gt;
-        &lt;label style="font-size:12px;color:var(--text-2);font-weight:500" for="mon-batch"&gt;Batch&lt;/label&gt;
-        &lt;select class="search" id="mon-batch" aria-label="Select install batch"&gt;&lt;/select&gt;
-        &lt;button class="btn btn-ghost btn-sm" id="mon-refresh"&gt;Refresh now&lt;/button&gt;
-        &lt;button class="btn btn-secondary btn-sm" id="mon-cancel" style="display:none"&gt;Cancel queued&lt;/button&gt;
-      &lt;/div&gt;
-      &lt;div id="mon-live" class="sr-only" role="status" aria-live="polite"&gt;&lt;/div&gt;
-      &lt;div id="mon-body"&gt;&lt;/div&gt;
-    &lt;/div&gt;
+    &amp;lt;!-- MONITOR (server-side, persistent) --&amp;gt;
+    &amp;lt;div class="view" data-view="monitor"&amp;gt;
+      &amp;lt;div class="section-title"&amp;gt;Installation Monitor&amp;lt;/div&amp;gt;
+      &amp;lt;div class="info-box"&amp;gt;Installs run on the server. You can close this page and reopen it later &amp;amp;#8212; this monitor reloads your most recent batch automatically.&amp;lt;/div&amp;gt;
+      &amp;lt;div class="filter-bar"&amp;gt;
+        &amp;lt;label style="font-size:12px;color:var(--text-2);font-weight:500" for="mon-batch"&amp;gt;Batch&amp;lt;/label&amp;gt;
+        &amp;lt;select class="search" id="mon-batch" aria-label="Select install batch"&amp;gt;&amp;lt;/select&amp;gt;
+        &amp;lt;button class="btn btn-ghost btn-sm" id="mon-refresh"&amp;gt;Refresh now&amp;lt;/button&amp;gt;
+        &amp;lt;button class="btn btn-secondary btn-sm" id="mon-cancel" style="display:none"&amp;gt;Cancel queued&amp;lt;/button&amp;gt;
+      &amp;lt;/div&amp;gt;
+      &amp;lt;div id="mon-live" class="sr-only" role="status" aria-live="polite"&amp;gt;&amp;lt;/div&amp;gt;
+      &amp;lt;div id="mon-body"&amp;gt;&amp;lt;/div&amp;gt;
+    &amp;lt;/div&amp;gt;
 
-    &lt;!-- GUIDE --&gt;
-    &lt;div class="view" data-view="guide"&gt;
-      &lt;div class="section-title"&gt;How to Use Now Plugin Updater&lt;/div&gt;
-      &lt;div class="card" style="padding:24px 28px"&gt;
-        &lt;div class="guide-section"&gt;
-          &lt;h3&gt;Overview&lt;/h3&gt;
-          &lt;p&gt;Now Plugin Updater lets a ServiceNow administrator discover, select, and install the available updates for Store applications on this instance from a single screen, replacing the per-app flow in the native Application Manager. It also shows the same dependency impact the native Application Manager surfaces &amp;#8212; which other applications will update alongside the ones you pick &amp;#8212; before you launch. You need the&amp;#160;&lt;code&gt;admin&lt;/code&gt;&amp;#160;role to use it.&lt;/p&gt;
-        &lt;/div&gt;
-        &lt;div class="guide-section mt16"&gt;
-          &lt;h3&gt;1 &amp;#183; Home&lt;/h3&gt;
-          &lt;p&gt;Shows the instance name and release, its data center and database, the signed-in admin, and the last upgrade date, plus four app indicators that reconcile:&amp;#160;&lt;strong&gt;Apps&lt;/strong&gt;&amp;#160;(total managed = up&amp;#8209;to&amp;#8209;date + updates available),&amp;#160;&lt;strong&gt;Up to Date&lt;/strong&gt;,&amp;#160;&lt;strong&gt;Updates Available&lt;/strong&gt;, and&amp;#160;&lt;strong&gt;Installing&lt;/strong&gt;&amp;#160;(running right now). Use&amp;#160;&lt;strong&gt;Start Wizard&lt;/strong&gt;&amp;#160;to begin,&amp;#160;&lt;strong&gt;Refresh Data&lt;/strong&gt;&amp;#160;to reload, or&amp;#160;&lt;strong&gt;Monitor installs&lt;/strong&gt;&amp;#160;to open the monitor. Clicking the&amp;#160;&lt;strong&gt;Installing&lt;/strong&gt;&amp;#160;card opens the batch currently running.&lt;/p&gt;
-        &lt;/div&gt;
-        &lt;div class="guide-section mt16"&gt;
-          &lt;h3&gt;2 &amp;#183; Wizard &amp;#8212; Discover&lt;/h3&gt;
-          &lt;p&gt;Lists every Store application with an available update (the same set the native Application Manager shows: active, visible, previously installed). Each row shows the scope and the current &amp;#8594; latest version. Click any column header to sort ascending/descending.&lt;/p&gt;
-          &lt;p&gt;If any updatable apps belong to the same platform suite (for example&amp;#160;&lt;em&gt;Now Assist&lt;/em&gt;), a banner above the table names the suite and how many apps in it will update together &amp;#8212; click&amp;#160;&lt;strong&gt;Show apps&lt;/strong&gt;&amp;#160;to see the full list. Independently, any row that will pull in other applications &amp;#8212; because it is a member of that suite, because installing it requires updating another app first, or both &amp;#8212; shows a&amp;#160;&lt;strong&gt;N&amp;#160;more&lt;/strong&gt;&amp;#160;link next to its name; click it to expand exactly which applications and versions that row brings with it. This is the same information the native Application Manager shows in its own&amp;#160;&lt;em&gt;Review Installation Details&lt;/em&gt;&amp;#160;dialog, surfaced here per row instead of one app at a time.&lt;/p&gt;
-        &lt;/div&gt;
-        &lt;div class="guide-section mt16"&gt;
-          &lt;h3&gt;3 &amp;#183; Wizard &amp;#8212; Select&lt;/h3&gt;
-          &lt;p&gt;Filter by name, narrow by&amp;#160;&lt;strong&gt;scope&lt;/strong&gt;, tick the applications to update (or use&amp;#160;&lt;strong&gt;Select All&lt;/strong&gt;), then click&amp;#160;&lt;strong&gt;Install&lt;/strong&gt;&amp;#160;and confirm. The buttons sit&amp;#160;&lt;strong&gt;above the list&lt;/strong&gt;, so you never have to scroll hundreds of rows to continue. Apps already being installed are shown as&amp;#160;&lt;em&gt;installing&lt;/em&gt;&amp;#160;and cannot be re-selected.&lt;/p&gt;
-          &lt;p&gt;Very long lists render the first 150 rows for speed &amp;#8212; use&amp;#160;&lt;strong&gt;show all&lt;/strong&gt;&amp;#160;or the filters to reach the rest.&amp;#160;&lt;strong&gt;Select All&lt;/strong&gt;&amp;#160;always applies to everything matching the current filter, not just the visible rows.&lt;/p&gt;
-          &lt;p&gt;The same suite banner and per-row&amp;#160;&lt;strong&gt;N&amp;#160;more&lt;/strong&gt;&amp;#160;links from Discover are shown here too, so the impact of a row stays visible while you're choosing what to install.&lt;/p&gt;
-        &lt;/div&gt;
-        &lt;div class="guide-section mt16"&gt;
-          &lt;h3&gt;4 &amp;#183; Confirm &amp;amp; Launch&lt;/h3&gt;
-          &lt;p&gt;Before anything installs, the confirmation dialog names the instance, lists the&amp;#160;&lt;strong&gt;selected applications&lt;/strong&gt;&amp;#160;you are about to install (expand&amp;#160;&lt;strong&gt;Show all&lt;/strong&gt;&amp;#160;on long lists), and separately shows how many&amp;#160;&lt;strong&gt;additional&lt;/strong&gt;&amp;#160;applications will update as a result of those selections &amp;#8212; a single deduplicated count, never a per-row sum, with its own&amp;#160;&lt;strong&gt;Show all&lt;/strong&gt;&amp;#160;link. The two lists are kept apart on purpose: one is what you chose, the other is what the platform adds on its own. Review both, then confirm to launch.&lt;/p&gt;
-        &lt;/div&gt;
-        &lt;div class="guide-section mt16"&gt;
-          &lt;h3&gt;5 &amp;#183; Launch &amp;amp; Monitor&lt;/h3&gt;
-          &lt;ul&gt;
-            &lt;li&gt;Installs are triggered with&amp;#160;&lt;strong&gt;your own admin session&lt;/strong&gt;&amp;#160;&amp;#8212; no credentials are stored.&lt;/li&gt;
-            &lt;li&gt;They are enqueued&amp;#160;&lt;strong&gt;one at a time&lt;/strong&gt;&amp;#160;(the platform's CICD install API is single-flight); a busy queue is retried automatically, and a 400 &amp;#8220;offering required&amp;#8221; error is retried with the offering id.&lt;/li&gt;
-            &lt;li&gt;Once launching finishes you can&amp;#160;&lt;strong&gt;close the page&lt;/strong&gt;: a scheduled job on the server tracks every install, verifies the installed version, and marks each&amp;#160;&lt;em&gt;Complete&lt;/em&gt;&amp;#160;or&amp;#160;&lt;em&gt;Failed&lt;/em&gt;.&lt;/li&gt;
-            &lt;li&gt;An install counts as&amp;#160;&lt;strong&gt;Complete&lt;/strong&gt;&amp;#160;only if the application actually reaches the target version. If the platform reports success but the version did not change, the row is marked&amp;#160;&lt;strong&gt;Failed&lt;/strong&gt;&amp;#160;with the version it stayed on.&lt;/li&gt;
-            &lt;li&gt;Whenever a row carries a message, a&amp;#160;&lt;strong&gt;Details&lt;/strong&gt;&amp;#160;(or&amp;#160;&lt;strong&gt;Why failed&lt;/strong&gt;) button appears in the last column. It opens the exact text reported by the platform underneath that row &amp;#8212; useful for telling apart an app that was rejected at launch from one whose install did not apply. If any application fails to launch, the wizard stays on the Launch step so you can read the reasons before moving on.&lt;/li&gt;
-            &lt;li&gt;The&amp;#160;&lt;strong&gt;Monitor&lt;/strong&gt;&amp;#160;tab shows the batch with five counters &amp;#8212; Total,&amp;#160;&lt;strong&gt;Installing&lt;/strong&gt;&amp;#160;(running right now),&amp;#160;&lt;strong&gt;Queued&lt;/strong&gt;&amp;#160;(waiting in the server queue), Complete, Failed &amp;#8212; and a sortable per-app table. When the batch ends a summary appears, with a shortcut to list only the failures.&lt;/li&gt;
-            &lt;li&gt;Underneath any application that pulled in dependencies, a&amp;#160;&lt;strong&gt;dependency&lt;/strong&gt;&amp;#160;badge marks the applications the platform actually installed alongside it &amp;#8212; this reflects what really happened, read directly from the platform's own installation tracker, not a prediction made before launch.&lt;/li&gt;
-            &lt;li&gt;&lt;strong&gt;Cancel queued&lt;/strong&gt;&amp;#160;drops the applications still waiting in the queue. Installs already running cannot be interrupted and will finish.&lt;/li&gt;
-            &lt;li&gt;Reopening the page reloads your most recent batch automatically; the batch selector lets you review earlier ones.&lt;/li&gt;
-          &lt;/ul&gt;
-        &lt;/div&gt;
-        &lt;div class="guide-section mt16"&gt;
-          &lt;h3&gt;Notes&lt;/h3&gt;
-          &lt;ul&gt;
-            &lt;li&gt;Because the list mirrors the Application Manager, a few platform-bundled apps that cannot be updated via the Store API will end as&amp;#160;&lt;strong&gt;Failed&lt;/strong&gt;&amp;#160;&amp;#8212; this is expected.&lt;/li&gt;
-            &lt;li&gt;Keep the page open only for the few seconds of launching; installs and monitoring then continue on the server.&lt;/li&gt;
-            &lt;li&gt;&lt;strong&gt;Sync with Store&lt;/strong&gt;&amp;#160;runs the same catalog check as the Application Manager and shows its real progress, then reloads the page when it finishes &amp;#8212; typically a couple of minutes. If it is still running after five minutes the page stops following it and says so: the sync keeps going on the server and does not need this page open.&lt;/li&gt;
-            &lt;li&gt;Dependency impact is informational: the batch installs exactly what you selected&amp;#160;&amp;#8212; the platform pulls in the rest by itself once an install runs. Apps shown as impact but marked&amp;#160;&lt;em&gt;not selectable&lt;/em&gt;&amp;#160;are hidden dependencies that update automatically and cannot be picked individually.&lt;/li&gt;
-          &lt;/ul&gt;
-        &lt;/div&gt;
-        &lt;div class="guide-section mt16"&gt;
-          &lt;h3&gt;Access Control&lt;/h3&gt;
-          &lt;p&gt;This page, its data, and the install log are restricted to the&amp;#160;&lt;code&gt;admin&lt;/code&gt;&amp;#160;role.&lt;/p&gt;
-        &lt;/div&gt;
-        &lt;div id="guide-foot" style="margin-top:26px;font-size:11px;color:var(--text-3)"&gt;&lt;/div&gt;
-      &lt;/div&gt;
-    &lt;/div&gt;
+    &amp;lt;!-- GUIDE --&amp;gt;
+    &amp;lt;div class="view" data-view="guide"&amp;gt;
+      &amp;lt;div class="section-title"&amp;gt;How to Use Now Plugin Updater&amp;lt;/div&amp;gt;
+      &amp;lt;div class="card" style="padding:24px 28px"&amp;gt;
+        &amp;lt;div class="guide-section"&amp;gt;
+          &amp;lt;h3&amp;gt;Overview&amp;lt;/h3&amp;gt;
+          &amp;lt;p&amp;gt;Now Plugin Updater lets a ServiceNow administrator discover, select, and install the available updates for Store applications on this instance from a single screen, replacing the per-app flow in the native Application Manager. It also shows the same dependency impact the native Application Manager surfaces &amp;amp;#8212; which other applications will update alongside the ones you pick &amp;amp;#8212; before you launch. You need the&amp;amp;#160;&amp;lt;code&amp;gt;admin&amp;lt;/code&amp;gt;&amp;amp;#160;role to use it.&amp;lt;/p&amp;gt;
+        &amp;lt;/div&amp;gt;
+        &amp;lt;div class="guide-section mt16"&amp;gt;
+          &amp;lt;h3&amp;gt;1 &amp;amp;#183; Home&amp;lt;/h3&amp;gt;
+          &amp;lt;p&amp;gt;Shows the instance name and release, its data center and database, the signed-in admin, and the last upgrade date, plus four app indicators that reconcile:&amp;amp;#160;&amp;lt;strong&amp;gt;Apps&amp;lt;/strong&amp;gt;&amp;amp;#160;(total managed = up&amp;amp;#8209;to&amp;amp;#8209;date + updates available),&amp;amp;#160;&amp;lt;strong&amp;gt;Up to Date&amp;lt;/strong&amp;gt;,&amp;amp;#160;&amp;lt;strong&amp;gt;Updates Available&amp;lt;/strong&amp;gt;, and&amp;amp;#160;&amp;lt;strong&amp;gt;Installing&amp;lt;/strong&amp;gt;&amp;amp;#160;(running right now). Use&amp;amp;#160;&amp;lt;strong&amp;gt;Start Wizard&amp;lt;/strong&amp;gt;&amp;amp;#160;to begin,&amp;amp;#160;&amp;lt;strong&amp;gt;Refresh Data&amp;lt;/strong&amp;gt;&amp;amp;#160;to reload, or&amp;amp;#160;&amp;lt;strong&amp;gt;Monitor installs&amp;lt;/strong&amp;gt;&amp;amp;#160;to open the monitor. Clicking the&amp;amp;#160;&amp;lt;strong&amp;gt;Installing&amp;lt;/strong&amp;gt;&amp;amp;#160;card opens the batch currently running.&amp;lt;/p&amp;gt;
+        &amp;lt;/div&amp;gt;
+        &amp;lt;div class="guide-section mt16"&amp;gt;
+          &amp;lt;h3&amp;gt;2 &amp;amp;#183; Wizard &amp;amp;#8212; Discover&amp;lt;/h3&amp;gt;
+          &amp;lt;p&amp;gt;Lists every Store application with an available update (the same set the native Application Manager shows: active, visible, previously installed). Each row shows the scope and the current &amp;amp;#8594; latest version. Click any column header to sort ascending/descending.&amp;lt;/p&amp;gt;
+          &amp;lt;p&amp;gt;If any updatable apps belong to the same platform suite (for example&amp;amp;#160;&amp;lt;em&amp;gt;Now Assist&amp;lt;/em&amp;gt;), a banner above the table names the suite and how many apps in it will update together &amp;amp;#8212; click&amp;amp;#160;&amp;lt;strong&amp;gt;Show apps&amp;lt;/strong&amp;gt;&amp;amp;#160;to see the full list. Independently, any row that will pull in other applications &amp;amp;#8212; because it is a member of that suite, because installing it requires updating another app first, or both &amp;amp;#8212; shows a&amp;amp;#160;&amp;lt;strong&amp;gt;N&amp;amp;#160;more&amp;lt;/strong&amp;gt;&amp;amp;#160;link next to its name; click it to expand exactly which applications and versions that row brings with it. This is the same information the native Application Manager shows in its own&amp;amp;#160;&amp;lt;em&amp;gt;Review Installation Details&amp;lt;/em&amp;gt;&amp;amp;#160;dialog, surfaced here per row instead of one app at a time.&amp;lt;/p&amp;gt;
+        &amp;lt;/div&amp;gt;
+        &amp;lt;div class="guide-section mt16"&amp;gt;
+          &amp;lt;h3&amp;gt;3 &amp;amp;#183; Wizard &amp;amp;#8212; Select&amp;lt;/h3&amp;gt;
+          &amp;lt;p&amp;gt;Filter by name, narrow by&amp;amp;#160;&amp;lt;strong&amp;gt;scope&amp;lt;/strong&amp;gt;, tick the applications to update (or use&amp;amp;#160;&amp;lt;strong&amp;gt;Select All&amp;lt;/strong&amp;gt;), then click&amp;amp;#160;&amp;lt;strong&amp;gt;Install&amp;lt;/strong&amp;gt;&amp;amp;#160;and confirm. The buttons sit&amp;amp;#160;&amp;lt;strong&amp;gt;above the list&amp;lt;/strong&amp;gt;, so you never have to scroll hundreds of rows to continue. Apps already being installed are shown as&amp;amp;#160;&amp;lt;em&amp;gt;installing&amp;lt;/em&amp;gt;&amp;amp;#160;and cannot be re-selected.&amp;lt;/p&amp;gt;
+          &amp;lt;p&amp;gt;Very long lists render the first 150 rows for speed &amp;amp;#8212; use&amp;amp;#160;&amp;lt;strong&amp;gt;show all&amp;lt;/strong&amp;gt;&amp;amp;#160;or the filters to reach the rest.&amp;amp;#160;&amp;lt;strong&amp;gt;Select All&amp;lt;/strong&amp;gt;&amp;amp;#160;always applies to everything matching the current filter, not just the visible rows.&amp;lt;/p&amp;gt;
+          &amp;lt;p&amp;gt;The same suite banner and per-row&amp;amp;#160;&amp;lt;strong&amp;gt;N&amp;amp;#160;more&amp;lt;/strong&amp;gt;&amp;amp;#160;links from Discover are shown here too, so the impact of a row stays visible while you're choosing what to install.&amp;lt;/p&amp;gt;
+        &amp;lt;/div&amp;gt;
+        &amp;lt;div class="guide-section mt16"&amp;gt;
+          &amp;lt;h3&amp;gt;4 &amp;amp;#183; Confirm &amp;amp;amp; Launch&amp;lt;/h3&amp;gt;
+          &amp;lt;p&amp;gt;Before anything installs, the confirmation dialog names the instance, lists the&amp;amp;#160;&amp;lt;strong&amp;gt;selected applications&amp;lt;/strong&amp;gt;&amp;amp;#160;you are about to install (expand&amp;amp;#160;&amp;lt;strong&amp;gt;Show all&amp;lt;/strong&amp;gt;&amp;amp;#160;on long lists), and separately shows how many&amp;amp;#160;&amp;lt;strong&amp;gt;additional&amp;lt;/strong&amp;gt;&amp;amp;#160;applications will update as a result of those selections &amp;amp;#8212; a single deduplicated count, never a per-row sum, with its own&amp;amp;#160;&amp;lt;strong&amp;gt;Show all&amp;lt;/strong&amp;gt;&amp;amp;#160;link. The two lists are kept apart on purpose: one is what you chose, the other is what the platform adds on its own. Review both, then confirm to launch.&amp;lt;/p&amp;gt;
+        &amp;lt;/div&amp;gt;
+        &amp;lt;div class="guide-section mt16"&amp;gt;
+          &amp;lt;h3&amp;gt;5 &amp;amp;#183; Launch &amp;amp;amp; Monitor&amp;lt;/h3&amp;gt;
+          &amp;lt;ul&amp;gt;
+            &amp;lt;li&amp;gt;Installs are triggered with&amp;amp;#160;&amp;lt;strong&amp;gt;your own admin session&amp;lt;/strong&amp;gt;&amp;amp;#160;&amp;amp;#8212; no credentials are stored.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;They are enqueued&amp;amp;#160;&amp;lt;strong&amp;gt;one at a time&amp;lt;/strong&amp;gt;&amp;amp;#160;(the platform's CICD install API is single-flight); a busy queue is retried automatically, and a 400 &amp;amp;#8220;offering required&amp;amp;#8221; error is retried with the offering id.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;Once launching finishes you can&amp;amp;#160;&amp;lt;strong&amp;gt;close the page&amp;lt;/strong&amp;gt;: a scheduled job on the server tracks every install, verifies the installed version, and marks each&amp;amp;#160;&amp;lt;em&amp;gt;Complete&amp;lt;/em&amp;gt;&amp;amp;#160;or&amp;amp;#160;&amp;lt;em&amp;gt;Failed&amp;lt;/em&amp;gt;.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;An install counts as&amp;amp;#160;&amp;lt;strong&amp;gt;Complete&amp;lt;/strong&amp;gt;&amp;amp;#160;only if the application actually reaches the target version. If the platform reports success but the version did not change, the row is marked&amp;amp;#160;&amp;lt;strong&amp;gt;Failed&amp;lt;/strong&amp;gt;&amp;amp;#160;with the version it stayed on.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;Whenever a row carries a message, a&amp;amp;#160;&amp;lt;strong&amp;gt;Details&amp;lt;/strong&amp;gt;&amp;amp;#160;(or&amp;amp;#160;&amp;lt;strong&amp;gt;Why failed&amp;lt;/strong&amp;gt;) button appears in the last column. It opens the exact text reported by the platform underneath that row &amp;amp;#8212; useful for telling apart an app that was rejected at launch from one whose install did not apply. If any application fails to launch, the wizard stays on the Launch step so you can read the reasons before moving on.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;The&amp;amp;#160;&amp;lt;strong&amp;gt;Monitor&amp;lt;/strong&amp;gt;&amp;amp;#160;tab shows the batch with five counters &amp;amp;#8212; Total,&amp;amp;#160;&amp;lt;strong&amp;gt;Installing&amp;lt;/strong&amp;gt;&amp;amp;#160;(running right now),&amp;amp;#160;&amp;lt;strong&amp;gt;Queued&amp;lt;/strong&amp;gt;&amp;amp;#160;(waiting in the server queue), Complete, Failed &amp;amp;#8212; and a sortable per-app table. When the batch ends a summary appears, with a shortcut to list only the failures.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;Underneath any application that pulled in dependencies, a&amp;amp;#160;&amp;lt;strong&amp;gt;dependency&amp;lt;/strong&amp;gt;&amp;amp;#160;badge marks the applications the platform actually installed alongside it &amp;amp;#8212; this reflects what really happened, read directly from the platform's own installation tracker, not a prediction made before launch.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;&amp;lt;strong&amp;gt;Cancel queued&amp;lt;/strong&amp;gt;&amp;amp;#160;drops the applications still waiting in the queue. Installs already running cannot be interrupted and will finish.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;Reopening the page reloads your most recent batch automatically; the batch selector lets you review earlier ones.&amp;lt;/li&amp;gt;
+          &amp;lt;/ul&amp;gt;
+        &amp;lt;/div&amp;gt;
+        &amp;lt;div class="guide-section mt16"&amp;gt;
+          &amp;lt;h3&amp;gt;Notes&amp;lt;/h3&amp;gt;
+          &amp;lt;ul&amp;gt;
+            &amp;lt;li&amp;gt;Because the list mirrors the Application Manager, a few platform-bundled apps that cannot be updated via the Store API will end as&amp;amp;#160;&amp;lt;strong&amp;gt;Failed&amp;lt;/strong&amp;gt;&amp;amp;#160;&amp;amp;#8212; this is expected.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;Keep the page open only for the few seconds of launching; installs and monitoring then continue on the server.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;&amp;lt;strong&amp;gt;Sync with Store&amp;lt;/strong&amp;gt;&amp;amp;#160;runs the same catalog check as the Application Manager and shows its real progress, then reloads the page when it finishes &amp;amp;#8212; typically a couple of minutes. If it is still running after five minutes the page stops following it and says so: the sync keeps going on the server and does not need this page open.&amp;lt;/li&amp;gt;
+            &amp;lt;li&amp;gt;Dependency impact is informational: the batch installs exactly what you selected&amp;amp;#160;&amp;amp;#8212; the platform pulls in the rest by itself once an install runs. Apps shown as impact but marked&amp;amp;#160;&amp;lt;em&amp;gt;not selectable&amp;lt;/em&amp;gt;&amp;amp;#160;are hidden dependencies that update automatically and cannot be picked individually.&amp;lt;/li&amp;gt;
+          &amp;lt;/ul&amp;gt;
+        &amp;lt;/div&amp;gt;
+        &amp;lt;div class="guide-section mt16"&amp;gt;
+          &amp;lt;h3&amp;gt;Access Control&amp;lt;/h3&amp;gt;
+          &amp;lt;p&amp;gt;This page, its data, and the install log are restricted to the&amp;amp;#160;&amp;lt;code&amp;gt;admin&amp;lt;/code&amp;gt;&amp;amp;#160;role.&amp;lt;/p&amp;gt;
+        &amp;lt;/div&amp;gt;
+        &amp;lt;div id="guide-foot" style="margin-top:26px;font-size:11px;color:var(--text-3)"&amp;gt;&amp;lt;/div&amp;gt;
+      &amp;lt;/div&amp;gt;
+    &amp;lt;/div&amp;gt;
 
-  &lt;/div&gt;
-  &lt;div id="modal-host"&gt;&lt;/div&gt;
-&lt;/div&gt;
+  &amp;lt;/div&amp;gt;
+  &amp;lt;div id="modal-host"&amp;gt;&amp;lt;/div&amp;gt;
+&amp;lt;/div&amp;gt;
 
-&lt;script&gt;
+&amp;lt;script&amp;gt;
 (function(){
   'use strict';
 
@@ -3428,7 +3428,7 @@ html,body{background:#f5f5f7;margin:0}
   };
 
   function $(id){ return document.getElementById(id); }
-  function esc(s){ s=(s==null?'':''+s); return s.replace(/&amp;/g,'&amp;amp;').replace(/&lt;/g,'&amp;lt;').replace(/&gt;/g,'&amp;gt;').replace(/"/g,'&amp;quot;'); }
+  function esc(s){ s=(s==null?'':''+s); return s.replace(/&amp;amp;/g,'&amp;amp;amp;').replace(/&amp;lt;/g,'&amp;amp;lt;').replace(/&amp;gt;/g,'&amp;amp;gt;').replace(/"/g,'&amp;amp;quot;'); }
   function num(v){ return (v==null||v==='')?'—':v; }
   function plural(n,one,many){ return n+' '+(n===1?one:many); }
 
@@ -3448,7 +3448,7 @@ html,body{background:#f5f5f7;margin:0}
   function statusPill(st){
     st=(st||'queued');
     var ico=STATUS_ICO[st]||'•';
-    return '&lt;span class="pill pill-'+esc(st)+' has-ico"&gt;&lt;span class="pico" aria-hidden="true"&gt;'+ico+'&lt;/span&gt;'+esc(st)+'&lt;/span&gt;';
+    return '&amp;lt;span class="pill pill-'+esc(st)+' has-ico"&amp;gt;&amp;lt;span class="pico" aria-hidden="true"&amp;gt;'+ico+'&amp;lt;/span&amp;gt;'+esc(st)+'&amp;lt;/span&amp;gt;';
   }
 
   // ---- Modal di conferma (nessuna dipendenza esterna) ----
@@ -3457,16 +3457,16 @@ html,body{background:#f5f5f7;margin:0}
     var host=$('modal-host'); if(!host){ if(opts.onConfirm) opts.onConfirm(); return; }
     var danger = !!opts.danger;
     host.innerHTML=''
-      + '&lt;div class="modal-back" id="modal-back"&gt;'
-      +   '&lt;div class="npu-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"&gt;'
-      +     '&lt;h3 id="modal-title"&gt;'+esc(opts.title||'Confirm')+'&lt;/h3&gt;'
-      +     '&lt;p&gt;'+(opts.bodyHtml||esc(opts.body||''))+'&lt;/p&gt;'
-      +     '&lt;div class="modal-btns"&gt;'
-      +       '&lt;button class="btn btn-secondary" id="modal-no"&gt;'+esc(opts.cancelLabel||'Cancel')+'&lt;/button&gt;'
-      +       '&lt;button class="btn '+(danger?'btn-danger':'btn-primary')+'" id="modal-yes"&gt;'+esc(opts.confirmLabel||'Confirm')+'&lt;/button&gt;'
-      +     '&lt;/div&gt;'
-      +   '&lt;/div&gt;'
-      + '&lt;/div&gt;';
+      + '&amp;lt;div class="modal-back" id="modal-back"&amp;gt;'
+      +   '&amp;lt;div class="npu-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"&amp;gt;'
+      +     '&amp;lt;h3 id="modal-title"&amp;gt;'+esc(opts.title||'Confirm')+'&amp;lt;/h3&amp;gt;'
+      +     '&amp;lt;p&amp;gt;'+(opts.bodyHtml||esc(opts.body||''))+'&amp;lt;/p&amp;gt;'
+      +     '&amp;lt;div class="modal-btns"&amp;gt;'
+      +       '&amp;lt;button class="btn btn-secondary" id="modal-no"&amp;gt;'+esc(opts.cancelLabel||'Cancel')+'&amp;lt;/button&amp;gt;'
+      +       '&amp;lt;button class="btn '+(danger?'btn-danger':'btn-primary')+'" id="modal-yes"&amp;gt;'+esc(opts.confirmLabel||'Confirm')+'&amp;lt;/button&amp;gt;'
+      +     '&amp;lt;/div&amp;gt;'
+      +   '&amp;lt;/div&amp;gt;'
+      + '&amp;lt;/div&amp;gt;';
     var yes=$('modal-yes'), no=$('modal-no'), back=$('modal-back');
     function bail(){ closeModal(); if(opts.onCancel) opts.onCancel(); }
     yes.onclick=function(){ closeModal(); if(opts.onConfirm) opts.onConfirm(); };
@@ -3494,11 +3494,11 @@ html,body{background:#f5f5f7;margin:0}
   // ---- View switching ----
   function showView(v){
     var views=document.querySelectorAll('.view'), i;
-    for(i=0;i&lt;views.length;i++){ views[i].classList.toggle('active', views[i].getAttribute('data-view')===v); }
+    for(i=0;i&amp;lt;views.length;i++){ views[i].classList.toggle('active', views[i].getAttribute('data-view')===v); }
     var tabs=document.querySelectorAll('.nav-tab');
-    for(i=0;i&lt;tabs.length;i++){
+    for(i=0;i&amp;lt;tabs.length;i++){
       var t=tabs[i].getAttribute('data-tab');
-      tabs[i].classList.toggle('active', t===v || (t==='wizard' &amp;&amp; v.indexOf('wizard')===0));
+      tabs[i].classList.toggle('active', t===v || (t==='wizard' &amp;amp;&amp;amp; v.indexOf('wizard')===0));
     }
   }
 
@@ -3507,7 +3507,7 @@ html,body{background:#f5f5f7;margin:0}
   // Una sola chiamata (getHomeData) invece di due: meno round-trip e un solo
   // esito d'errore da gestire, invece di due parziali con il secondo scartato.
   function loadHome(){
-    $('home-body').innerHTML='&lt;div class="loading"&gt;&lt;div class="spinner"&gt;&lt;/div&gt; Loading instance data&amp;#8230;&lt;/div&gt;';
+    $('home-body').innerHTML='&amp;lt;div class="loading"&amp;gt;&amp;lt;div class="spinner"&amp;gt;&amp;lt;/div&amp;gt; Loading instance data&amp;amp;#8230;&amp;lt;/div&amp;gt;';
     ajax('getHomeData',{},function(e,d){
       if(e || !d){ S.info={}; S.appData=normalizeApps(null); renderHome(e||'No data returned'); return; }
       S.info=d.info||{};
@@ -3529,38 +3529,38 @@ html,body{background:#f5f5f7;margin:0}
     var avail=(a.apps?a.apps.length:0);
     var utd=parseInt(a.appsUpToDate,10); if(isNaN(utd)){ utd=0; }
     var storeTotal=utd+avail;
-    var who=(window.g_user&amp;&amp;g_user.getFullName)?g_user.getFullName():'';
-    function mrow(k,v){ return v?('&lt;div class="meta-item"&gt;&lt;div class="meta-k"&gt;'+k+'&lt;/div&gt;&lt;div class="meta-v"&gt;'+esc(v)+'&lt;/div&gt;&lt;/div&gt;'):''; }
+    var who=(window.g_user&amp;amp;&amp;amp;g_user.getFullName)?g_user.getFullName():'';
+    function mrow(k,v){ return v?('&amp;lt;div class="meta-item"&amp;gt;&amp;lt;div class="meta-k"&amp;gt;'+k+'&amp;lt;/div&amp;gt;&amp;lt;div class="meta-v"&amp;gt;'+esc(v)+'&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;'):''; }
     var grid=mrow('Release',info.versionLabel)+mrow('Data Center',info.dataCenter)+mrow('Database',info.dbType)
       + mrow('Signed in',who)+mrow('Last Upgraded',info.lastUpgraded)+mrow('Store Synced',info.lastStoreSync);
     var h=''
-      + '&lt;div class="version-banner"&gt;'
-      +   '&lt;div class="version-label"&gt;'+esc(info.instanceName||info.versionLabel||'ServiceNow')+'&lt;/div&gt;'
-      +   '&lt;div class="meta-grid"&gt;'+grid+'&lt;/div&gt;'
-      + '&lt;/div&gt;'
-      + '&lt;div class="kpi-grid"&gt;'
-      +   kpi('Apps', storeTotal, 'managed (active &amp;amp; visible)','')
+      + '&amp;lt;div class="version-banner"&amp;gt;'
+      +   '&amp;lt;div class="version-label"&amp;gt;'+esc(info.instanceName||info.versionLabel||'ServiceNow')+'&amp;lt;/div&amp;gt;'
+      +   '&amp;lt;div class="meta-grid"&amp;gt;'+grid+'&amp;lt;/div&amp;gt;'
+      + '&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="kpi-grid"&amp;gt;'
+      +   kpi('Apps', storeTotal, 'managed (active &amp;amp;amp; visible)','')
       +   kpi('Up to Date', num(a.appsUpToDate), 'no update available','success')
-      +   kpi('Updates Available', avail, 'update pending', avail&gt;0?'warning':'')
-      +   '&lt;div class="kpi'+(inProg&gt;0?' accent clickable':'')+'" id="kpi-inprogress" title="'+(inProg&gt;0?'Open the running batch':'')+'"&gt;&lt;div class="kpi-label"&gt;Installing&lt;/div&gt;'
-      +     '&lt;div class="kpi-value"&gt;'+esc(inProg)+'&lt;/div&gt;&lt;div class="kpi-sub"&gt;'+(inProg&gt;0?'running now &amp;#8226; open monitor':'running now')+'&lt;/div&gt;&lt;/div&gt;'
-      + '&lt;/div&gt;'
-      + '&lt;div class="row-gap"&gt;'
-      +   '&lt;button class="btn btn-primary" id="home-start"'+(avail&gt;0?'':' disabled')+'&gt;Start Wizard&lt;/button&gt;'
-      +   '&lt;button class="btn btn-secondary" id="home-refresh"&gt;Refresh Data&lt;/button&gt;'
-      +   '&lt;button class="btn btn-secondary" id="home-sync"&gt;Sync with Store&lt;/button&gt;'
-      +   '&lt;button class="btn btn-secondary" id="home-monitor"&gt;Monitor installs&lt;/button&gt;'
-      + '&lt;/div&gt;'
-      + '&lt;div id="sync-status" style="margin-top:14px"&gt;&lt;/div&gt;'
-      + (err?'&lt;div class="alert alert-danger mt16"&gt;'+esc(err)+'&lt;/div&gt;':'')
-      + '&lt;div style="margin-top:28px;font-size:11px;color:var(--text-3)"&gt;Now Plugin Updater v'+S.version+' &amp;#183; by Gianmario Marongiu&lt;/div&gt;';
+      +   kpi('Updates Available', avail, 'update pending', avail&amp;gt;0?'warning':'')
+      +   '&amp;lt;div class="kpi'+(inProg&amp;gt;0?' accent clickable':'')+'" id="kpi-inprogress" title="'+(inProg&amp;gt;0?'Open the running batch':'')+'"&amp;gt;&amp;lt;div class="kpi-label"&amp;gt;Installing&amp;lt;/div&amp;gt;'
+      +     '&amp;lt;div class="kpi-value"&amp;gt;'+esc(inProg)+'&amp;lt;/div&amp;gt;&amp;lt;div class="kpi-sub"&amp;gt;'+(inProg&amp;gt;0?'running now &amp;amp;#8226; open monitor':'running now')+'&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;'
+      + '&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="row-gap"&amp;gt;'
+      +   '&amp;lt;button class="btn btn-primary" id="home-start"'+(avail&amp;gt;0?'':' disabled')+'&amp;gt;Start Wizard&amp;lt;/button&amp;gt;'
+      +   '&amp;lt;button class="btn btn-secondary" id="home-refresh"&amp;gt;Refresh Data&amp;lt;/button&amp;gt;'
+      +   '&amp;lt;button class="btn btn-secondary" id="home-sync"&amp;gt;Sync with Store&amp;lt;/button&amp;gt;'
+      +   '&amp;lt;button class="btn btn-secondary" id="home-monitor"&amp;gt;Monitor installs&amp;lt;/button&amp;gt;'
+      + '&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div id="sync-status" style="margin-top:14px"&amp;gt;&amp;lt;/div&amp;gt;'
+      + (err?'&amp;lt;div class="alert alert-danger mt16"&amp;gt;'+esc(err)+'&amp;lt;/div&amp;gt;':'')
+      + '&amp;lt;div style="margin-top:28px;font-size:11px;color:var(--text-3)"&amp;gt;Now Plugin Updater v'+S.version+' &amp;amp;#183; by Gianmario Marongiu&amp;lt;/div&amp;gt;';
     $('home-body').innerHTML=h;
     $('home-start').onclick=startWizard;
     $('home-refresh').onclick=refresh;
     $('home-sync').onclick=syncStore;
     $('home-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     var ip=$('kpi-inprogress');
-    if(ip &amp;&amp; inProg&gt;0){ ip.onclick=function(){ ajax('getActiveBatch',{},function(e,d){ openMonitor((d&amp;&amp;d.batch)||''); }); }; }
+    if(ip &amp;amp;&amp;amp; inProg&amp;gt;0){ ip.onclick=function(){ ajax('getActiveBatch',{},function(e,d){ openMonitor((d&amp;amp;&amp;amp;d.batch)||''); }); }; }
   }
   // `sub` arriva con entità HTML già pronte, quindi non va escapato; `label` sì,
   // per coerenza con `val` — così un domani un'etichetta dinamica resta sicura.
@@ -3570,17 +3570,17 @@ html,body{background:#f5f5f7;margin:0}
   // Un KPI a zero non e' cliccabile — filtrerebbe su una lista vuota.
   function kpi(label,val,sub,cls,filterKey){
     var n=parseInt(val,10);
-    var clickable = !!filterKey &amp;&amp; !isNaN(n) &amp;&amp; n&gt;0;
-    var active = !!filterKey &amp;&amp; S.monFilter===filterKey;
+    var clickable = !!filterKey &amp;amp;&amp;amp; !isNaN(n) &amp;amp;&amp;amp; n&amp;gt;0;
+    var active = !!filterKey &amp;amp;&amp;amp; S.monFilter===filterKey;
     var attrs='';
     if(clickable){
       attrs=' data-kpi="'+esc(filterKey)+'" role="button" tabindex="0"'
           + ' aria-pressed="'+(active?'true':'false')+'"'
           + ' title="'+(active?'Clear this filter':'Show only '+esc(label.toLowerCase()))+'"';
     }
-    return '&lt;div class="kpi '+cls+(clickable?' clickable':'')+(active?' kpi-active':'')+'"'+attrs+'&gt;'
-      + '&lt;div class="kpi-label"&gt;'+esc(label)+'&lt;/div&gt;'
-      + '&lt;div class="kpi-value"&gt;'+esc(val)+'&lt;/div&gt;&lt;div class="kpi-sub"&gt;'+(sub||'')+'&lt;/div&gt;&lt;/div&gt;';
+    return '&amp;lt;div class="kpi '+cls+(clickable?' clickable':'')+(active?' kpi-active':'')+'"'+attrs+'&amp;gt;'
+      + '&amp;lt;div class="kpi-label"&amp;gt;'+esc(label)+'&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="kpi-value"&amp;gt;'+esc(val)+'&amp;lt;/div&amp;gt;&amp;lt;div class="kpi-sub"&amp;gt;'+(sub||'')+'&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;';
   }
 
   function refresh(){ S.loadedHome=true; loadHome(); }
@@ -3603,16 +3603,16 @@ html,body{background:#f5f5f7;margin:0}
   function syncStore(){
     var btn=$('home-sync');
     if(!btn || S.syncing){ return; }
-    var prev=(S.info&amp;&amp;S.info.lastStoreSync)||'';
+    var prev=(S.info&amp;amp;&amp;amp;S.info.lastStoreSync)||'';
     S.syncing=true; btn.disabled=true; btn.textContent='Syncing…';
     renderSync(0,'Starting the sync job…');
 
     ajax('syncStore',{},function(e,d){
       if(e){ finishSync('Store sync could not be started: '+esc(e)); return; }
-      if(d &amp;&amp; d.error){ finishSync(esc(d.error)); return; }
-      if(d &amp;&amp; d.alreadyRunning){ renderSync(0,'A sync is already running — following it…'); }
+      if(d &amp;amp;&amp;amp; d.error){ finishSync(esc(d.error)); return; }
+      if(d &amp;amp;&amp;amp; d.alreadyRunning){ renderSync(0,'A sync is already running — following it…'); }
 
-      var startedAt=(d&amp;&amp;d.startedAt)||'';
+      var startedAt=(d&amp;amp;&amp;amp;d.startedAt)||'';
       var t0=new Date().getTime();
       var GIVE_UP_MS=300000;          // 5 minuti di osservazione
       var sawRunning=false;
@@ -3623,19 +3623,19 @@ html,body{background:#f5f5f7;margin:0}
         ajax('getSyncProgress',{},function(e2,p){
           if(!S.syncing){ return; }
           if(e2 || !p){
-            if(GIVE_UP_MS &gt; elapsed){ setTimeout(poll, 5000); } else { keepGoingInBackground(); }
+            if(GIVE_UP_MS &amp;gt; elapsed){ setTimeout(poll, 5000); } else { keepGoingInBackground(); }
             return;
           }
 
           if(p.running){
             sawRunning=true;
             renderSync(p.pct, 'Updating the application catalog…');
-            if(GIVE_UP_MS &gt; elapsed){ setTimeout(poll, 3000); } else { keepGoingInBackground(); }
+            if(GIVE_UP_MS &amp;gt; elapsed){ setTimeout(poll, 3000); } else { keepGoingInBackground(); }
             return;
           }
 
           // pct 0: idle oppure finita. È finita se il timestamp è avanzato.
-          var moved = !!(p.lastSync &amp;&amp; (p.lastSync!==prev || (startedAt &amp;&amp; p.lastSync&gt;=startedAt)));
+          var moved = !!(p.lastSync &amp;amp;&amp;amp; (p.lastSync!==prev || (startedAt &amp;amp;&amp;amp; p.lastSync&amp;gt;=startedAt)));
           if(moved){
             renderSync(100,'Finished');
             S.syncing=false;
@@ -3648,11 +3648,11 @@ html,body{background:#f5f5f7;margin:0}
           // toccare il timestamp: continuo a osservare. Il tempo trascorso è
           // mostrato esplicitamente — senza, un'attesa scheduler più lunga del
           // solito (osservato: pochi minuti, non i ~30s tipici) sembra un blocco.
-          if(GIVE_UP_MS &gt; elapsed){
+          if(GIVE_UP_MS &amp;gt; elapsed){
             var waitedS=Math.round(elapsed/1000);
             var waitMsg=sawRunning
               ? 'Finishing…'
-              : (waitedS&gt;90
+              : (waitedS&amp;gt;90
                   ? 'Still waiting for the scheduler to pick up the sync job ('+waitedS+'s — this is taking longer than usual)…'
                   : 'Waiting for the sync job to start… ('+waitedS+'s)');
             renderSync(p.pct, waitMsg);
@@ -3670,22 +3670,22 @@ html,body{background:#f5f5f7;margin:0}
     S.syncing=false;
     var btn=$('home-sync'); if(btn){ btn.disabled=false; btn.textContent='Sync with Store'; }
     var box=$('sync-status'); if(!box){ return; }
-    box.innerHTML='&lt;div class="sync-row"&gt;&lt;span class="sync-dot"&gt;&lt;/span&gt;&lt;span class="sync-msg"&gt;'
-      + '&lt;strong&gt;Still running after 5 minutes.&lt;/strong&gt; The sync continues on the server &amp;#8212; '
-      + 'it does not need this page. Reopen the app later, or use &lt;strong&gt;Refresh Data&lt;/strong&gt; to pick up the updated list.'
-      + '&lt;/span&gt;&lt;/div&gt;';
+    box.innerHTML='&amp;lt;div class="sync-row"&amp;gt;&amp;lt;span class="sync-dot"&amp;gt;&amp;lt;/span&amp;gt;&amp;lt;span class="sync-msg"&amp;gt;'
+      + '&amp;lt;strong&amp;gt;Still running after 5 minutes.&amp;lt;/strong&amp;gt; The sync continues on the server &amp;amp;#8212; '
+      + 'it does not need this page. Reopen the app later, or use &amp;lt;strong&amp;gt;Refresh Data&amp;lt;/strong&amp;gt; to pick up the updated list.'
+      + '&amp;lt;/span&amp;gt;&amp;lt;/div&amp;gt;';
   }
 
   function renderSync(pct,phase){
     var box=$('sync-status'); if(!box) return;
-    box.innerHTML='&lt;div class="sync-prog"&gt;'
-      + '&lt;div class="prog-wrap"&gt;&lt;div class="prog-bar" style="width:'+pct+'%"&gt;&lt;/div&gt;&lt;/div&gt;'
-      + '&lt;div class="sync-phase"&gt;'+esc(phase)+(pct&gt;0?(' &amp;#183; '+pct+'%'):'')+'&lt;/div&gt;&lt;/div&gt;';
+    box.innerHTML='&amp;lt;div class="sync-prog"&amp;gt;'
+      + '&amp;lt;div class="prog-wrap"&amp;gt;&amp;lt;div class="prog-bar" style="width:'+pct+'%"&amp;gt;&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="sync-phase"&amp;gt;'+esc(phase)+(pct&amp;gt;0?(' &amp;amp;#183; '+pct+'%'):'')+'&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;';
   }
   function finishSync(msgHtml){
     S.syncing=false;
     var btn=$('home-sync'); if(btn){ btn.disabled=false; btn.textContent='Sync with Store'; }
-    var box=$('sync-status'); if(box){ box.innerHTML='&lt;div class="sync-note"&gt;'+msgHtml+'&lt;/div&gt;'; }
+    var box=$('sync-status'); if(box){ box.innerHTML='&amp;lt;div class="sync-note"&amp;gt;'+msgHtml+'&amp;lt;/div&amp;gt;'; }
   }
 
   // ---- WIZARD 1 ----
@@ -3701,11 +3701,11 @@ html,body{background:#f5f5f7;margin:0}
     // Confronto invertito di proposito: nel sorgente Jelly evitiamo l'operatore
     // minore seguito da spazio, che il parser puo' leggere come apertura di tag.
     var age = S.appsFetchedAt ? (new Date().getTime()-S.appsFetchedAt) : 999999;
-    var fresh = S.appsFetchedAt &amp;&amp; (30000 &gt; age);
-    if(fresh &amp;&amp; S.appData &amp;&amp; S.appData.apps){ renderWizard1(); return; }
-    $('wizard1-body').innerHTML='&lt;div class="loading"&gt;&lt;div class="spinner"&gt;&lt;/div&gt; Scanning store applications&amp;#8230;&lt;/div&gt;';
+    var fresh = S.appsFetchedAt &amp;amp;&amp;amp; (30000 &amp;gt; age);
+    if(fresh &amp;amp;&amp;amp; S.appData &amp;amp;&amp;amp; S.appData.apps){ renderWizard1(); return; }
+    $('wizard1-body').innerHTML='&amp;lt;div class="loading"&amp;gt;&amp;lt;div class="spinner"&amp;gt;&amp;lt;/div&amp;gt; Scanning store applications&amp;amp;#8230;&amp;lt;/div&amp;gt;';
     ajax('getUpdatableApps',{},function(e,d){
-      if(e){ $('wizard1-body').innerHTML='&lt;div class="alert alert-danger"&gt;'+esc(e)+'&lt;/div&gt;'; return; }
+      if(e){ $('wizard1-body').innerHTML='&amp;lt;div class="alert alert-danger"&amp;gt;'+esc(e)+'&amp;lt;/div&amp;gt;'; return; }
       S.appData=normalizeApps(d);
       S.appsFetchedAt=new Date().getTime();
       renderWizard1();
@@ -3713,14 +3713,14 @@ html,body{background:#f5f5f7;margin:0}
   }
 
   function verCell(cur,latest){
-    return '&lt;span&gt;'+esc(cur)+'&lt;/span&gt;&lt;span class="arrow"&gt;&amp;#8594;&lt;/span&gt;&lt;span class="latest"&gt;'+esc(latest)+'&lt;/span&gt;';
+    return '&amp;lt;span&amp;gt;'+esc(cur)+'&amp;lt;/span&amp;gt;&amp;lt;span class="arrow"&amp;gt;&amp;amp;#8594;&amp;lt;/span&amp;gt;&amp;lt;span class="latest"&amp;gt;'+esc(latest)+'&amp;lt;/span&amp;gt;';
   }
 
-  // ---- shared wizard column sorting (step 1 &amp; 2) ----
+  // ---- shared wizard column sorting (step 1 &amp;amp; 2) ----
   function wizSortInd(k){ var s=S.wizSort; if(!s||s.k!==k) return ''; return s.dir===-1?' ▾':' ▴'; }
   function ariaSort(cur,k){ if(!cur||cur.k!==k) return ' aria-sort="none"'; return ' aria-sort="'+(cur.dir===-1?'descending':'ascending')+'"'; }
   function wth(k,label,extra){
-    return '&lt;th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.wizSort,k)+(extra||'')+'&gt;'+label+wizSortInd(k)+'&lt;/th&gt;';
+    return '&amp;lt;th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.wizSort,k)+(extra||'')+'&amp;gt;'+label+wizSortInd(k)+'&amp;lt;/th&amp;gt;';
   }
   function appSortRows(list){
     var s=S.wizSort; if(!s||!s.k) return list;
@@ -3728,7 +3728,7 @@ html,body{background:#f5f5f7;margin:0}
     out.sort(function(a,b){
       if(k==='status'){ if(!iff) iff=inFlightSet(); return ((iff[a.sysId]?1:0)-(iff[b.sysId]?1:0))*dir; }
       var x=(''+(a[k]||'')).toLowerCase(), y=(''+(b[k]||'')).toLowerCase();
-      if(x&lt;y) return -dir; if(x&gt;y) return dir; return 0;
+      if(x&amp;lt;y) return -dir; if(x&amp;gt;y) return dir; return 0;
     });
     return out;
   }
@@ -3736,11 +3736,11 @@ html,body{background:#f5f5f7;margin:0}
     var ths=$(containerId).querySelectorAll('th.sortable');
     function apply(th){
       var k=th.getAttribute('data-k');
-      if(S.wizSort &amp;&amp; S.wizSort.k===k){ S.wizSort.dir=(S.wizSort.dir===1?-1:1); }
+      if(S.wizSort &amp;amp;&amp;amp; S.wizSort.k===k){ S.wizSort.dir=(S.wizSort.dir===1?-1:1); }
       else { S.wizSort={k:k,dir:1}; }
       rerender();
     }
-    for(var j=0;j&lt;ths.length;j++){
+    for(var j=0;j&amp;lt;ths.length;j++){
       ths[j].onclick=function(){ apply(this); };
       // Ordinamento raggiungibile anche da tastiera.
       ths[j].onkeydown=function(e){ if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){ e.preventDefault(); apply(this); } };
@@ -3752,7 +3752,7 @@ html,body{background:#f5f5f7;margin:0}
   // per chiave di vista, cosi' ogni step ricorda la sua posizione senza che le
   // viste si influenzino a vicenda.
   function pageSizeOf(view){ return S.pageSize[view] || 25; }
-  function pageCount(total, view){ var ps=pageSizeOf(view); return (total&gt;0) ? Math.ceil(total/ps) : 1; }
+  function pageCount(total, view){ var ps=pageSizeOf(view); return (total&amp;gt;0) ? Math.ceil(total/ps) : 1; }
 
   // Il clamp e' il cuore della robustezza: le liste cambiano sotto i piedi
   // dell'utente (filtro digitato, refresh del polling nel Monitor che chiude
@@ -3761,8 +3761,8 @@ html,body{background:#f5f5f7;margin:0}
   function clampPage(total, view){
     var last=pageCount(total, view);
     var cur=S.page[view] || 1;
-    if(cur&lt;1) cur=1;
-    if(cur&gt;last) cur=last;
+    if(cur&amp;lt;1) cur=1;
+    if(cur&amp;gt;last) cur=last;
     S.page[view]=cur;
     return cur;
   }
@@ -3781,43 +3781,53 @@ html,body{background:#f5f5f7;margin:0}
   // corrente. Con 200 pagine una lista completa sarebbe illeggibile.
   function pageNumbers(cur, last){
     var out=[], i;
-    if(last&lt;=7){ for(i=1;i&lt;=last;i++){ out.push(i); } return out; }
+    if(last&amp;lt;=7){ for(i=1;i&amp;lt;=last;i++){ out.push(i); } return out; }
     out.push(1);
     var from=Math.max(2, cur-1), to=Math.min(last-1, cur+1);
-    if(cur&lt;=3){ from=2; to=4; }
-    if(cur&gt;=last-2){ from=last-3; to=last-1; }
-    if(from&gt;2){ out.push('gap-l'); }
-    for(i=from;i&lt;=to;i++){ out.push(i); }
-    if(to&lt;last-1){ out.push('gap-r'); }
+    if(cur&amp;lt;=3){ from=2; to=4; }
+    if(cur&amp;gt;=last-2){ from=last-3; to=last-1; }
+    if(from&amp;gt;2){ out.push('gap-l'); }
+    for(i=from;i&amp;lt;=to;i++){ out.push(i); }
+    if(to&amp;lt;last-1){ out.push('gap-r'); }
     out.push(last);
     return out;
   }
   // Il pager e' reso come HTML puro e agganciato per event delegation dal
   // chiamante (wirePager): coerente col resto dell'app, che non usa handler
   // inline ne' un handler per elemento.
-  function pagerHtml(view, pg){
+  // extraRows (v1.6.5 fix): numero di righe rese in pagina che NON consumano uno
+  // slot di paginazione — nel Monitor le righe "dependency", attaccate al loro
+  // genitore. Senza dichiararle, l'etichetta diceva "Showing 1-2 of 2" sopra una
+  // tabella con 8 righe visibili: un conteggio esatto sulle righe principali, ma
+  // che all'utente risultava semplicemente sbagliato (segnalato da un collega
+  // sulla 1.6.5). Il paging resta sulle righe principali: e' cio' che tiene le
+  // dipendenze accanto al genitore invece di spezzarle fra due pagine.
+  function pagerHtml(view, pg, extraRows){
     if(!pg.total){ return ''; }
     var sizes='', i, ps=pageSizeOf(view);
-    for(i=0;i&lt;S.PAGE_SIZES.length;i++){
+    for(i=0;i&amp;lt;S.PAGE_SIZES.length;i++){
       var v=S.PAGE_SIZES[i];
-      sizes+='&lt;option value="'+v+'"'+(v===ps?' selected':'')+'&gt;'+v+'&lt;/option&gt;';
+      sizes+='&amp;lt;option value="'+v+'"'+(v===ps?' selected':'')+'&amp;gt;'+v+'&amp;lt;/option&amp;gt;';
     }
     var nav='';
-    nav+='&lt;button class="npu-pg" data-pg="prev" '+(pg.page&lt;=1?'disabled':'')+' aria-label="Previous page"&gt;&amp;#8249;&lt;/button&gt;';
+    nav+='&amp;lt;button class="npu-pg" data-pg="prev" '+(pg.page&amp;lt;=1?'disabled':'')+' aria-label="Previous page"&amp;gt;&amp;amp;#8249;&amp;lt;/button&amp;gt;';
     var nums=pageNumbers(pg.page, pg.pages);
-    for(i=0;i&lt;nums.length;i++){
+    for(i=0;i&amp;lt;nums.length;i++){
       var n=nums[i];
-      if(n==='gap-l'||n==='gap-r'){ nav+='&lt;span class="npu-pg-gap"&gt;&amp;#8230;&lt;/span&gt;'; continue; }
+      if(n==='gap-l'||n==='gap-r'){ nav+='&amp;lt;span class="npu-pg-gap"&amp;gt;&amp;amp;#8230;&amp;lt;/span&amp;gt;'; continue; }
       var cur=(n===pg.page);
-      nav+='&lt;button class="npu-pg'+(cur?' current':'')+'" data-pg="'+n+'"'
-         + (cur?' aria-current="page" disabled':'')+' aria-label="Page '+n+'"&gt;'+n+'&lt;/button&gt;';
+      nav+='&amp;lt;button class="npu-pg'+(cur?' current':'')+'" data-pg="'+n+'"'
+         + (cur?' aria-current="page" disabled':'')+' aria-label="Page '+n+'"&amp;gt;'+n+'&amp;lt;/button&amp;gt;';
     }
-    nav+='&lt;button class="npu-pg" data-pg="next" '+(pg.page&gt;=pg.pages?'disabled':'')+' aria-label="Next page"&gt;&amp;#8250;&lt;/button&gt;';
-    return '&lt;div class="npu-pager"&gt;'
-      + '&lt;div class="npu-pager-size"&gt;&lt;label for="npu-size-'+view+'"&gt;Rows per page&lt;/label&gt;'
-      +   '&lt;select id="npu-size-'+view+'" data-pgsize="'+view+'"&gt;'+sizes+'&lt;/select&gt;&lt;/div&gt;'
-      + '&lt;div class="npu-pager-info"&gt;Showing '+pg.from+'&amp;#8211;'+pg.to+' of '+pg.total+'&lt;/div&gt;'
-      + '&lt;div class="npu-pager-nav"&gt;'+nav+'&lt;/div&gt;&lt;/div&gt;';
+    nav+='&amp;lt;button class="npu-pg" data-pg="next" '+(pg.page&amp;gt;=pg.pages?'disabled':'')+' aria-label="Next page"&amp;gt;&amp;amp;#8250;&amp;lt;/button&amp;gt;';
+    return '&amp;lt;div class="npu-pager"&amp;gt;'
+      + '&amp;lt;div class="npu-pager-size"&amp;gt;&amp;lt;label for="npu-size-'+view+'"&amp;gt;Applications per page&amp;lt;/label&amp;gt;'
+      +   '&amp;lt;select id="npu-size-'+view+'" data-pgsize="'+view+'"&amp;gt;'+sizes+'&amp;lt;/select&amp;gt;&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="npu-pager-info"&amp;gt;Showing '+pg.from+'&amp;amp;#8211;'+pg.to+' of '+pg.total
+      +   ' '+(pg.total===1?'application':'applications')
+      +   ((extraRows&amp;gt;0)?(' &amp;amp;#183; '+extraRows+' dependency '+(extraRows===1?'row':'rows')):'')
+      + '&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="npu-pager-nav"&amp;gt;'+nav+'&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;';
   }
   // Un solo handler per pager. rerender e' la funzione di disegno della vista.
   function wirePager(containerId, view, rerender){
@@ -3855,14 +3865,14 @@ html,body{background:#f5f5f7;margin:0}
   // with no dependency-branch impact but suite membership (e.g. "ServiceNow
   // Otto AI Agents") would otherwise show no expansion at all, even though
   // the native dialog for that exact app lists 8 siblings.
-  function impactData(){ return (S.appData&amp;&amp;S.appData.impact)||null; }
+  function impactData(){ return (S.appData&amp;amp;&amp;amp;S.appData.impact)||null; }
 
   function impactRowsHtml(apps){
     var rows='';
-    for(var i=0;i&lt;apps.length;i++){ var a=apps[i];
-      rows+='&lt;div class="impact-row"&gt;&lt;span class="impact-name"&gt;'+esc(a.name)
-          + (a.hidden?'&lt;span class="badge-hidden"&gt;not selectable&lt;/span&gt;':'')+'&lt;/span&gt;'
-          + '&lt;span class="impact-ver"&gt;'+esc(a.current)+' &amp;#8594; &lt;strong&gt;'+esc(a.target)+'&lt;/strong&gt;&lt;/span&gt;&lt;/div&gt;';
+    for(var i=0;i&amp;lt;apps.length;i++){ var a=apps[i];
+      rows+='&amp;lt;div class="impact-row"&amp;gt;&amp;lt;span class="impact-name"&amp;gt;'+esc(a.name)
+          + (a.hidden?'&amp;lt;span class="badge-hidden"&amp;gt;not selectable&amp;lt;/span&amp;gt;':'')+'&amp;lt;/span&amp;gt;'
+          + '&amp;lt;span class="impact-ver"&amp;gt;'+esc(a.current)+' &amp;amp;#8594; &amp;lt;strong&amp;gt;'+esc(a.target)+'&amp;lt;/strong&amp;gt;&amp;lt;/span&amp;gt;&amp;lt;/div&amp;gt;';
     }
     return rows;
   }
@@ -3871,16 +3881,16 @@ html,body{background:#f5f5f7;margin:0}
   // otherwise wiring both views' click handlers would clash on the same DOM id.
   function renderSuitePanel(panelId){
     var imp=impactData();
-    var suiteApps=(imp&amp;&amp;imp.suite&amp;&amp;imp.suite.apps)||[];
+    var suiteApps=(imp&amp;amp;&amp;amp;imp.suite&amp;amp;&amp;amp;imp.suite.apps)||[];
     if(!suiteApps.length) return '';
     var n=suiteApps.length, s=imp.suite;
-    return '&lt;div class="impact-panel"&gt;'
-      + '&lt;div class="impact-panel-head"&gt;'
-      +   '&lt;div class="impact-panel-title"&gt;'+esc(s.name)+' '+esc(s.version)+' &amp;#8212; &lt;span class="accent-num"&gt;'+n+'&lt;/span&gt; '+(n===1?'app':'apps')+' will be updated together&lt;/div&gt;'
-      +   '&lt;button class="tree-btn" id="'+panelId+'-suite-toggle" aria-expanded="false"&gt;Show apps &lt;span class="chev"&gt;&amp;#9660;&lt;/span&gt;&lt;/button&gt;'
-      + '&lt;/div&gt;'
-      + '&lt;div class="impact-list" id="'+panelId+'-suite-list"&gt;'+impactRowsHtml(suiteApps)+'&lt;/div&gt;'
-      + '&lt;/div&gt;';
+    return '&amp;lt;div class="impact-panel"&amp;gt;'
+      + '&amp;lt;div class="impact-panel-head"&amp;gt;'
+      +   '&amp;lt;div class="impact-panel-title"&amp;gt;'+esc(s.name)+' '+esc(s.version)+' &amp;amp;#8212; &amp;lt;span class="accent-num"&amp;gt;'+n+'&amp;lt;/span&amp;gt; '+(n===1?'app':'apps')+' will be updated together&amp;lt;/div&amp;gt;'
+      +   '&amp;lt;button class="tree-btn" id="'+panelId+'-suite-toggle" aria-expanded="false"&amp;gt;Show apps &amp;lt;span class="chev"&amp;gt;&amp;amp;#9660;&amp;lt;/span&amp;gt;&amp;lt;/button&amp;gt;'
+      + '&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="impact-list" id="'+panelId+'-suite-list"&amp;gt;'+impactRowsHtml(suiteApps)+'&amp;lt;/div&amp;gt;'
+      + '&amp;lt;/div&amp;gt;';
   }
   function wireToggle(id){
     var st=$(id+'-toggle');
@@ -3888,7 +3898,7 @@ html,body{background:#f5f5f7;margin:0}
       st.onclick=function(){
         var open=this.getAttribute('aria-expanded')==='true';
         this.setAttribute('aria-expanded', open?'false':'true');
-        this.innerHTML=(open?'Show apps':'Hide apps')+' &lt;span class="chev"&gt;&amp;#9660;&lt;/span&gt;';
+        this.innerHTML=(open?'Show apps':'Hide apps')+' &amp;lt;span class="chev"&amp;gt;&amp;amp;#9660;&amp;lt;/span&amp;gt;';
         var l=$(id+'-list'); if(l){ l.className='impact-list'+(open?'':' open'); }
       };
     }
@@ -3909,15 +3919,15 @@ html,body{background:#f5f5f7;margin:0}
   //    8 suite siblings (v1.5.4 fix).
   function rowImpactList(scope){
     var imp=impactData();
-    var list=((imp&amp;&amp;imp.dependenciesByRoot&amp;&amp;imp.dependenciesByRoot[scope])||[]).slice();
-    var suiteApps=(imp&amp;&amp;imp.suite&amp;&amp;imp.suite.apps)||[];
+    var list=((imp&amp;amp;&amp;amp;imp.dependenciesByRoot&amp;amp;&amp;amp;imp.dependenciesByRoot[scope])||[]).slice();
+    var suiteApps=(imp&amp;amp;&amp;amp;imp.suite&amp;amp;&amp;amp;imp.suite.apps)||[];
     // Only add suite siblings when THIS row is itself a suite member —
     // otherwise every non-suite row (e.g. Theme Builder) wrongly inherited
     // the entire suite list (v1.5.4 bug, caught in smoke test before ship).
     var isMember=false;
-    for(var j=0;j&lt;suiteApps.length;j++){ if(suiteApps[j].scope===scope){ isMember=true; break; } }
+    for(var j=0;j&amp;lt;suiteApps.length;j++){ if(suiteApps[j].scope===scope){ isMember=true; break; } }
     if(isMember){
-      for(var i=0;i&lt;suiteApps.length;i++){
+      for(var i=0;i&amp;lt;suiteApps.length;i++){
         if(suiteApps[i].scope!==scope){ list.push(suiteApps[i]); }
       }
     }
@@ -3925,41 +3935,41 @@ html,body{background:#f5f5f7;margin:0}
   }
   function rowDepCount(scope){ return rowImpactList(scope).length; }
   function rowDepTreeHtml(scope){
-    return '&lt;div class="tree-box"&gt;'+impactRowsHtml(rowImpactList(scope))+'&lt;/div&gt;';
+    return '&amp;lt;div class="tree-box"&amp;gt;'+impactRowsHtml(rowImpactList(scope))+'&amp;lt;/div&amp;gt;';
   }
 
   function renderWizard1(){
     var apps=S.appData.apps||[];
     if(apps.length===0){
-      $('wizard1-body').innerHTML='&lt;div class="empty"&gt;All store applications are up to date.&lt;/div&gt;'
-        + '&lt;div class="top-actions" style="margin-top:18px"&gt;&lt;button class="btn btn-secondary" id="w1-cancel"&gt;&amp;#8592; Home&lt;/button&gt;&lt;/div&gt;';
+      $('wizard1-body').innerHTML='&amp;lt;div class="empty"&amp;gt;All store applications are up to date.&amp;lt;/div&amp;gt;'
+        + '&amp;lt;div class="top-actions" style="margin-top:18px"&amp;gt;&amp;lt;button class="btn btn-secondary" id="w1-cancel"&amp;gt;&amp;amp;#8592; Home&amp;lt;/button&amp;gt;&amp;lt;/div&amp;gt;';
       $('w1-cancel').onclick=function(){ showView('home'); };
       return;
     }
-    var base=apps.slice().sort(function(a,b){ var x=(a.name||'').toLowerCase(), y=(b.name||'').toLowerCase(); return x&lt;y?-1:(x&gt;y?1:0); });
+    var base=apps.slice().sort(function(a,b){ var x=(a.name||'').toLowerCase(), y=(b.name||'').toLowerCase(); return x&amp;lt;y?-1:(x&amp;gt;y?1:0); });
     var sorted=appSortRows(base);
     var pg=paginate(sorted, 'w1');
     var rows='';
-    for(var i=0;i&lt;pg.rows.length;i++){ var ap=pg.rows[i];
+    for(var i=0;i&amp;lt;pg.rows.length;i++){ var ap=pg.rows[i];
       var dn=rowDepCount(ap.scope), open=!!S.treeOpenW1[ap.scope];
-      rows+='&lt;tr&gt;&lt;td class="col-name"&gt;'+esc(ap.name)
-          +   (dn?' &lt;button class="tree-btn tree-row-btn" data-id="'+esc(ap.scope)+'" aria-expanded="'+(open?'true':'false')+'"&gt;'+dn+' more &lt;span class="chev"&gt;&amp;#9660;&lt;/span&gt;&lt;/button&gt;':'')
-          + '&lt;/td&gt;&lt;td class="col-scope"&gt;'+esc(ap.scope)+'&lt;/td&gt;'
-          + '&lt;td class="col-ver"&gt;'+verCell(ap.current,ap.latest)+'&lt;/td&gt;&lt;/tr&gt;';
-      if(open){ rows+='&lt;tr class="tree-row"&gt;&lt;td colspan="3"&gt;'+rowDepTreeHtml(ap.scope)+'&lt;/td&gt;&lt;/tr&gt;'; }
+      rows+='&amp;lt;tr&amp;gt;&amp;lt;td class="col-name"&amp;gt;'+esc(ap.name)
+          +   (dn?' &amp;lt;button class="tree-btn tree-row-btn" data-id="'+esc(ap.scope)+'" aria-expanded="'+(open?'true':'false')+'"&amp;gt;'+dn+' more &amp;lt;span class="chev"&amp;gt;&amp;amp;#9660;&amp;lt;/span&amp;gt;&amp;lt;/button&amp;gt;':'')
+          + '&amp;lt;/td&amp;gt;&amp;lt;td class="col-scope"&amp;gt;'+esc(ap.scope)+'&amp;lt;/td&amp;gt;'
+          + '&amp;lt;td class="col-ver"&amp;gt;'+verCell(ap.current,ap.latest)+'&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;';
+      if(open){ rows+='&amp;lt;tr class="tree-row"&amp;gt;&amp;lt;td colspan="3"&amp;gt;'+rowDepTreeHtml(ap.scope)+'&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;'; }
     }
     // I pulsanti stanno SOPRA la tabella, subito sotto il messaggio: con centinaia
     // di applicazioni l'utente non deve scorrere l'intera lista per procedere.
-    var h='&lt;div class="info-box"&gt;Found &lt;strong&gt;'+apps.length+'&lt;/strong&gt; application(s) with available updates. Click &lt;strong&gt;Next: Select&lt;/strong&gt; to choose which to install.&lt;/div&gt;'
-      + '&lt;div class="top-actions"&gt;'
-      +   '&lt;button class="btn btn-primary" id="w1-next"&gt;Next: Select &amp;#8594;&lt;/button&gt;'
-      +   '&lt;button class="btn btn-secondary" id="w1-cancel"&gt;Cancel&lt;/button&gt;'
-      + '&lt;/div&gt;'
+    var h='&amp;lt;div class="info-box"&amp;gt;Found &amp;lt;strong&amp;gt;'+apps.length+'&amp;lt;/strong&amp;gt; application(s) with available updates. Click &amp;lt;strong&amp;gt;Next: Select&amp;lt;/strong&amp;gt; to choose which to install.&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="top-actions"&amp;gt;'
+      +   '&amp;lt;button class="btn btn-primary" id="w1-next"&amp;gt;Next: Select &amp;amp;#8594;&amp;lt;/button&amp;gt;'
+      +   '&amp;lt;button class="btn btn-secondary" id="w1-cancel"&amp;gt;Cancel&amp;lt;/button&amp;gt;'
+      + '&amp;lt;/div&amp;gt;'
       + renderSuitePanel('w1-suite')
-      + '&lt;div class="card"&gt;&lt;div class="tbl-wrap"&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;'
-      + wth('name','Application')+wth('scope','Scope')+wth('current','Current &amp;#8594; Latest')
-      + '&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;'+rows+'&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;'
-      + pagerHtml('w1', pg)+'&lt;/div&gt;';
+      + '&amp;lt;div class="card"&amp;gt;&amp;lt;div class="tbl-wrap"&amp;gt;&amp;lt;table&amp;gt;&amp;lt;thead&amp;gt;&amp;lt;tr&amp;gt;'
+      + wth('name','Application')+wth('scope','Scope')+wth('current','Current &amp;amp;#8594; Latest')
+      + '&amp;lt;/tr&amp;gt;&amp;lt;/thead&amp;gt;&amp;lt;tbody&amp;gt;'+rows+'&amp;lt;/tbody&amp;gt;&amp;lt;/table&amp;gt;&amp;lt;/div&amp;gt;'
+      + pagerHtml('w1', pg)+'&amp;lt;/div&amp;gt;';
     $('wizard1-body').innerHTML=h;
     $('w1-next').onclick=function(){ openSelect(); };
     $('w1-cancel').onclick=function(){ showView('home'); };
@@ -3978,15 +3988,15 @@ html,body{background:#f5f5f7;margin:0}
   // ---- WIZARD 2 (Select) ----
   function inFlightSet(){
     var s={}; var f=S.appData.inFlight||[];
-    for(var i=0;i&lt;f.length;i++){ s[f[i].sys_id||f[i].sysId]=true; } return s;
+    for(var i=0;i&amp;lt;f.length;i++){ s[f[i].sys_id||f[i].sysId]=true; } return s;
   }
   function filteredApps(){
     var txt=($('sel-filter').value||'').toLowerCase();
-    var scope=($('sel-scope')&amp;&amp;$('sel-scope').value)||'';
+    var scope=($('sel-scope')&amp;amp;&amp;amp;$('sel-scope').value)||'';
     var apps=S.appData.apps||[];
     return apps.filter(function(a){
-      if(scope &amp;&amp; (a.scope||'')!==scope){ return false; }
-      return !txt || (a.name||'').toLowerCase().indexOf(txt)&gt;-1 || (a.scope||'').toLowerCase().indexOf(txt)&gt;-1;
+      if(scope &amp;amp;&amp;amp; (a.scope||'')!==scope){ return false; }
+      return !txt || (a.name||'').toLowerCase().indexOf(txt)&amp;gt;-1 || (a.scope||'').toLowerCase().indexOf(txt)&amp;gt;-1;
     });
   }
   // Gli aggiornamenti arrivano tipicamente a famiglie (sn_csm_*, sn_itom_*):
@@ -3995,10 +4005,10 @@ html,body{background:#f5f5f7;margin:0}
     var sel=$('sel-scope'); if(!sel) return;
     var keep=sel.value||'';
     var apps=S.appData.apps||[], seen={}, list=[];
-    for(var i=0;i&lt;apps.length;i++){ var s=apps[i].scope||''; if(s&amp;&amp;!seen[s]){ seen[s]=1; list.push(s); } }
+    for(var i=0;i&amp;lt;apps.length;i++){ var s=apps[i].scope||''; if(s&amp;amp;&amp;amp;!seen[s]){ seen[s]=1; list.push(s); } }
     list.sort();
-    var html='&lt;option value=""&gt;All scopes ('+apps.length+')&lt;/option&gt;';
-    for(var j=0;j&lt;list.length;j++){ html+='&lt;option value="'+esc(list[j])+'"&gt;'+esc(list[j])+'&lt;/option&gt;'; }
+    var html='&amp;lt;option value=""&amp;gt;All scopes ('+apps.length+')&amp;lt;/option&amp;gt;';
+    for(var j=0;j&amp;lt;list.length;j++){ html+='&amp;lt;option value="'+esc(list[j])+'"&amp;gt;'+esc(list[j])+'&amp;lt;/option&amp;gt;'; }
     sel.innerHTML=html;
     if(keep){ sel.value=keep; }
   }
@@ -4013,25 +4023,25 @@ html,body{background:#f5f5f7;margin:0}
   function renderSelect(){
     var all=appSortRows(filteredApps()), iff=inFlightSet(), rows='';
     var pg=paginate(all, 'sel');
-    for(var i=0;i&lt;pg.rows.length;i++){ var a=pg.rows[i]; var dis=iff[a.sysId];
+    for(var i=0;i&amp;lt;pg.rows.length;i++){ var a=pg.rows[i]; var dis=iff[a.sysId];
       var dn=rowDepCount(a.scope), open=!!S.treeOpenSel[a.scope];
-      rows+='&lt;tr&gt;&lt;td&gt;&lt;input class="check sel-cb" type="checkbox" data-id="'+esc(a.sysId)+'"'
+      rows+='&amp;lt;tr&amp;gt;&amp;lt;td&amp;gt;&amp;lt;input class="check sel-cb" type="checkbox" data-id="'+esc(a.sysId)+'"'
           + ' aria-label="Select '+esc(a.name)+'"'
-          + (S.selected[a.sysId]?' checked':'') + (dis?' disabled':'') + ' /&gt;&lt;/td&gt;'
-          + '&lt;td class="col-name"&gt;'+esc(a.name)
-          +   (dn?' &lt;button class="tree-btn tree-row-btn" data-id="'+esc(a.scope)+'" aria-expanded="'+(open?'true':'false')+'"&gt;'+dn+' more &lt;span class="chev"&gt;&amp;#9660;&lt;/span&gt;&lt;/button&gt;':'')
-          + '&lt;/td&gt;&lt;td class="col-scope"&gt;'+esc(a.scope)+'&lt;/td&gt;'
-          + '&lt;td class="col-ver"&gt;'+verCell(a.current,a.latest)+'&lt;/td&gt;'
-          + '&lt;td&gt;'+(dis?statusPill('installing'):'&lt;span class="pill pill-pending has-ico"&gt;&lt;span class="pico" aria-hidden="true"&gt;•&lt;/span&gt;pending&lt;/span&gt;')+'&lt;/td&gt;&lt;/tr&gt;';
-      if(open){ rows+='&lt;tr class="tree-row"&gt;&lt;td colspan="5"&gt;'+rowDepTreeHtml(a.scope)+'&lt;/td&gt;&lt;/tr&gt;'; }
+          + (S.selected[a.sysId]?' checked':'') + (dis?' disabled':'') + ' /&amp;gt;&amp;lt;/td&amp;gt;'
+          + '&amp;lt;td class="col-name"&amp;gt;'+esc(a.name)
+          +   (dn?' &amp;lt;button class="tree-btn tree-row-btn" data-id="'+esc(a.scope)+'" aria-expanded="'+(open?'true':'false')+'"&amp;gt;'+dn+' more &amp;lt;span class="chev"&amp;gt;&amp;amp;#9660;&amp;lt;/span&amp;gt;&amp;lt;/button&amp;gt;':'')
+          + '&amp;lt;/td&amp;gt;&amp;lt;td class="col-scope"&amp;gt;'+esc(a.scope)+'&amp;lt;/td&amp;gt;'
+          + '&amp;lt;td class="col-ver"&amp;gt;'+verCell(a.current,a.latest)+'&amp;lt;/td&amp;gt;'
+          + '&amp;lt;td&amp;gt;'+(dis?statusPill('installing'):'&amp;lt;span class="pill pill-pending has-ico"&amp;gt;&amp;lt;span class="pico" aria-hidden="true"&amp;gt;•&amp;lt;/span&amp;gt;pending&amp;lt;/span&amp;gt;')+'&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;';
+      if(open){ rows+='&amp;lt;tr class="tree-row"&amp;gt;&amp;lt;td colspan="5"&amp;gt;'+rowDepTreeHtml(a.scope)+'&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;'; }
     }
-    if(all.length===0){ rows='&lt;tr&gt;&lt;td colspan="5" class="empty"&gt;No applications match your filter.&lt;/td&gt;&lt;/tr&gt;'; }
+    if(all.length===0){ rows='&amp;lt;tr&amp;gt;&amp;lt;td colspan="5" class="empty"&amp;gt;No applications match your filter.&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;'; }
     var h=renderSuitePanel('sel-suite')
-      + '&lt;div class="card"&gt;&lt;div class="tbl-wrap"&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;'
-      + '&lt;th style="width:36px"&gt;&lt;input class="check" type="checkbox" id="sel-allcheck" aria-label="Select all matching applications" /&gt;&lt;/th&gt;'
-      + wth('name','Application')+wth('scope','Scope')+wth('current','Current &amp;#8594; Latest')+wth('status','Status')
-      + '&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;'+rows+'&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;'
-      + pagerHtml('sel', pg)+'&lt;/div&gt;';
+      + '&amp;lt;div class="card"&amp;gt;&amp;lt;div class="tbl-wrap"&amp;gt;&amp;lt;table&amp;gt;&amp;lt;thead&amp;gt;&amp;lt;tr&amp;gt;'
+      + '&amp;lt;th style="width:36px"&amp;gt;&amp;lt;input class="check" type="checkbox" id="sel-allcheck" aria-label="Select all matching applications" /&amp;gt;&amp;lt;/th&amp;gt;'
+      + wth('name','Application')+wth('scope','Scope')+wth('current','Current &amp;amp;#8594; Latest')+wth('status','Status')
+      + '&amp;lt;/tr&amp;gt;&amp;lt;/thead&amp;gt;&amp;lt;tbody&amp;gt;'+rows+'&amp;lt;/tbody&amp;gt;&amp;lt;/table&amp;gt;&amp;lt;/div&amp;gt;'
+      + pagerHtml('sel', pg)+'&amp;lt;/div&amp;gt;';
     $('sel-table').innerHTML=h;
 
     // Event delegation: un solo handler sul tbody invece di uno per checkbox.
@@ -4041,7 +4051,7 @@ html,body{background:#f5f5f7;margin:0}
     if(tb){
       tb.onchange=function(e){
         var cb=e.target;
-        if(cb &amp;&amp; cb.className &amp;&amp; cb.className.indexOf('sel-cb')&gt;-1){
+        if(cb &amp;amp;&amp;amp; cb.className &amp;amp;&amp;amp; cb.className.indexOf('sel-cb')&amp;gt;-1){
           toggleApp(cb.getAttribute('data-id'));
         }
       };
@@ -4057,7 +4067,7 @@ html,body{background:#f5f5f7;margin:0}
       // non di selezione (v1.6.5 — invariato rispetto al vecchio cap).
       ac.onchange=function(){
         var ck=this.checked, l=filteredApps(), f=inFlightSet();
-        for(var x=0;x&lt;l.length;x++){ if(f[l[x].sysId]) continue; if(ck) S.selected[l[x].sysId]=true; else delete S.selected[l[x].sysId]; }
+        for(var x=0;x&amp;lt;l.length;x++){ if(f[l[x].sysId]) continue; if(ck) S.selected[l[x].sysId]=true; else delete S.selected[l[x].sysId]; }
         renderSelect();
       };
     }
@@ -4098,28 +4108,28 @@ html,body{background:#f5f5f7;margin:0}
       // Unione suite + dependency branch, deduplicata per scope; "N more"
       // esclude le app già selezionate direttamente dal wizard.
       var merged={}, order=[];
-      (res.suite&amp;&amp;res.suite.apps||[]).concat(res.dependencies||[]).forEach(function(a){
+      (res.suite&amp;amp;&amp;amp;res.suite.apps||[]).concat(res.dependencies||[]).forEach(function(a){
         if(selectedScopeSet[a.scope] || merged[a.scope]){ return; }
         merged[a.scope]=a; order.push(a);
       });
       var n=order.length;
       if(!n){ cb(''); return; }
       var rows='';
-      for(var i=0;i&lt;Math.min(order.length,150);i++){ var it=order[i];
-        rows+='&lt;div class="impact-row"&gt;&lt;span class="impact-name"&gt;'+esc(it.name)
-            + (it.hidden?'&lt;span class="badge-hidden"&gt;not selectable&lt;/span&gt;':'')+'&lt;/span&gt;'
-            + '&lt;span class="impact-ver"&gt;'+esc(it.current)+' &amp;#8594; '+esc(it.target)+'&lt;/span&gt;&lt;/div&gt;';
+      for(var i=0;i&amp;lt;Math.min(order.length,150);i++){ var it=order[i];
+        rows+='&amp;lt;div class="impact-row"&amp;gt;&amp;lt;span class="impact-name"&amp;gt;'+esc(it.name)
+            + (it.hidden?'&amp;lt;span class="badge-hidden"&amp;gt;not selectable&amp;lt;/span&amp;gt;':'')+'&amp;lt;/span&amp;gt;'
+            + '&amp;lt;span class="impact-ver"&amp;gt;'+esc(it.current)+' &amp;amp;#8594; '+esc(it.target)+'&amp;lt;/span&amp;gt;&amp;lt;/div&amp;gt;';
       }
       // Nota di troncamento: senza questo, oltre 150 dipendenze aggregate
       // sparivano dalla vista espansa senza alcun avviso — un troncamento
       // silenzioso, incoerente col resto dell'app (Step 1/2 usano sempre un
       // "showing N of M" esplicito quando tagliano una lista, v1.6 fix).
-      if(n&gt;150){ rows+='&lt;div class="cap-note-inline"&gt;Showing 150 of '+n+' &amp;#8212; refine your selection to see the rest.&lt;/div&gt;'; }
-      cb('&lt;div class="confirm-union"&gt;'
-        + '&lt;strong&gt;'+n+'&lt;/strong&gt; more '+(n===1?'application':'applications')+' will be updated as a result.'
-        + ' &lt;button class="tree-btn" id="confirm-union-toggle" aria-expanded="false"&gt;Show all &lt;span class="chev"&gt;&amp;#9660;&lt;/span&gt;&lt;/button&gt;'
-        + '&lt;div class="impact-list confirm-union-list" id="confirm-union-list"&gt;'+rows+'&lt;/div&gt;'
-        + '&lt;/div&gt;');
+      if(n&amp;gt;150){ rows+='&amp;lt;div class="cap-note-inline"&amp;gt;Showing 150 of '+n+' &amp;amp;#8212; refine your selection to see the rest.&amp;lt;/div&amp;gt;'; }
+      cb('&amp;lt;div class="confirm-union"&amp;gt;'
+        + '&amp;lt;strong&amp;gt;'+n+'&amp;lt;/strong&amp;gt; more '+(n===1?'application':'applications')+' will be updated as a result.'
+        + ' &amp;lt;button class="tree-btn" id="confirm-union-toggle" aria-expanded="false"&amp;gt;Show all &amp;lt;span class="chev"&amp;gt;&amp;amp;#9660;&amp;lt;/span&amp;gt;&amp;lt;/button&amp;gt;'
+        + '&amp;lt;div class="impact-list confirm-union-list" id="confirm-union-list"&amp;gt;'+rows+'&amp;lt;/div&amp;gt;'
+        + '&amp;lt;/div&amp;gt;');
     });
   }
 
@@ -4129,25 +4139,25 @@ html,body{background:#f5f5f7;margin:0}
   // installare, solo quante app extra la piattaforma avrebbe aggiunto.
   function selectedListHtml(){
     var ids=selectedIds(), byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
-    var apps=[]; for(var i=0;i&lt;ids.length;i++){ var a=byId[ids[i]]; if(a){ apps.push({name:a.name,current:a.current,target:a.latest}); } }
+    var apps=[]; for(var i=0;i&amp;lt;ids.length;i++){ var a=byId[ids[i]]; if(a){ apps.push({name:a.name,current:a.current,target:a.latest}); } }
     var n=apps.length, rows='';
-    for(var j=0;j&lt;Math.min(apps.length,150);j++){ var it=apps[j];
-      rows+='&lt;div class="impact-row"&gt;&lt;span class="impact-name"&gt;'+esc(it.name)+'&lt;/span&gt;'
-          + '&lt;span class="impact-ver"&gt;'+esc(it.current)+' &amp;#8594; '+esc(it.target)+'&lt;/span&gt;&lt;/div&gt;';
+    for(var j=0;j&amp;lt;Math.min(apps.length,150);j++){ var it=apps[j];
+      rows+='&amp;lt;div class="impact-row"&amp;gt;&amp;lt;span class="impact-name"&amp;gt;'+esc(it.name)+'&amp;lt;/span&amp;gt;'
+          + '&amp;lt;span class="impact-ver"&amp;gt;'+esc(it.current)+' &amp;amp;#8594; '+esc(it.target)+'&amp;lt;/span&amp;gt;&amp;lt;/div&amp;gt;';
     }
-    if(n&gt;150){ rows+='&lt;div class="cap-note-inline"&gt;Showing 150 of '+n+' &amp;#8212; refine your selection to see the rest.&lt;/div&gt;'; }
-    return '&lt;div class="confirm-union"&gt;'
-      + '&lt;strong&gt;'+n+'&lt;/strong&gt; selected '+(n===1?'application':'applications')+' will be installed.'
-      + ' &lt;button class="tree-btn" id="confirm-selected-toggle" aria-expanded="false"&gt;Show all &lt;span class="chev"&gt;&amp;#9660;&lt;/span&gt;&lt;/button&gt;'
-      + '&lt;div class="impact-list confirm-union-list" id="confirm-selected-list"&gt;'+rows+'&lt;/div&gt;'
-      + '&lt;/div&gt;';
+    if(n&amp;gt;150){ rows+='&amp;lt;div class="cap-note-inline"&amp;gt;Showing 150 of '+n+' &amp;amp;#8212; refine your selection to see the rest.&amp;lt;/div&amp;gt;'; }
+    return '&amp;lt;div class="confirm-union"&amp;gt;'
+      + '&amp;lt;strong&amp;gt;'+n+'&amp;lt;/strong&amp;gt; selected '+(n===1?'application':'applications')+' will be installed.'
+      + ' &amp;lt;button class="tree-btn" id="confirm-selected-toggle" aria-expanded="false"&amp;gt;Show all &amp;lt;span class="chev"&amp;gt;&amp;amp;#9660;&amp;lt;/span&amp;gt;&amp;lt;/button&amp;gt;'
+      + '&amp;lt;div class="impact-list confirm-union-list" id="confirm-selected-list"&amp;gt;'+rows+'&amp;lt;/div&amp;gt;'
+      + '&amp;lt;/div&amp;gt;';
   }
 
   function confirmInstalls(){
     var n=selectedIds().length;
     if(!n) return;
-    var baseHtml='You are about to update &lt;strong&gt;'+n+'&lt;/strong&gt; '+(n===1?'application':'applications')+' on &lt;strong&gt;'+esc(S.info.instanceName||'this instance')+'&lt;/strong&gt;.'
-      + '&lt;br/&gt;&lt;br/&gt;Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going.';
+    var baseHtml='You are about to update &amp;lt;strong&amp;gt;'+n+'&amp;lt;/strong&amp;gt; '+(n===1?'application':'applications')+' on &amp;lt;strong&amp;gt;'+esc(S.info.instanceName||'this instance')+'&amp;lt;/strong&amp;gt;.'
+      + '&amp;lt;br/&amp;gt;&amp;lt;br/&amp;gt;Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going.';
     var selectedHtml=selectedListHtml();
     confirmUnionHtml(null, function(unionHtml){
       confirmModal({
@@ -4162,7 +4172,7 @@ html,body{background:#f5f5f7;margin:0}
         st.onclick=function(){
           var open=this.getAttribute('aria-expanded')==='true';
           this.setAttribute('aria-expanded', open?'false':'true');
-          this.innerHTML=(open?'Show all':'Hide')+' &lt;span class="chev"&gt;&amp;#9660;&lt;/span&gt;';
+          this.innerHTML=(open?'Show all':'Hide')+' &amp;lt;span class="chev"&amp;gt;&amp;amp;#9660;&amp;lt;/span&amp;gt;';
           var l=$('confirm-selected-list'); if(l){ l.className='impact-list confirm-union-list'+(open?'':' open'); }
         };
       }
@@ -4171,7 +4181,7 @@ html,body{background:#f5f5f7;margin:0}
         ut.onclick=function(){
           var open=this.getAttribute('aria-expanded')==='true';
           this.setAttribute('aria-expanded', open?'false':'true');
-          this.innerHTML=(open?'Show all':'Hide')+' &lt;span class="chev"&gt;&amp;#9660;&lt;/span&gt;';
+          this.innerHTML=(open?'Show all':'Hide')+' &amp;lt;span class="chev"&amp;gt;&amp;amp;#9660;&amp;lt;/span&amp;gt;';
           var l=$('confirm-union-list'); if(l){ l.className='impact-list confirm-union-list'+(open?'':' open'); }
         };
       }
@@ -4181,7 +4191,7 @@ html,body{background:#f5f5f7;margin:0}
   function startInstalls(){
     var ids=selectedIds(), byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
     var apps=[];
-    for(var i=0;i&lt;ids.length;i++){ var a=byId[ids[i]]; if(a){
+    for(var i=0;i&amp;lt;ids.length;i++){ var a=byId[ids[i]]; if(a){
       // Snapshot delle versioni "current" delle dipendenze previste da
       // getUpdateImpact — sys_execution_tracker (v1.6, §10.3) porta solo la
       // versione target di ciò che GlideAppLoader installa, non quella di
@@ -4197,14 +4207,14 @@ html,body{background:#f5f5f7;margin:0}
     S.launchTotal=apps.length; S.launchTriggered=0; S.launchFailed=0; S.launching=true;
     S.launchErrors=[]; S.launchWhyOpen={};   // motivi dei mancati avvii, mostrati in wizard3
     showView('wizard3'); $('launch-actions').style.display='none';
-    renderLaunch('Creating batch&amp;#8230;');
+    renderLaunch('Creating batch&amp;amp;#8230;');
     ajax('createBatch',{ apps: JSON.stringify(apps) }, function(e,d){
       if(e || !d || !d.batch){ renderLaunch('Error creating batch: '+(e||'unknown')); S.launching=false; return; }
       S.currentBatch=d.batch;
       var map={}; (d.rows||[]).forEach(function(r){ map[r.sysId]=r.logSysId; });
       var queue=apps.slice(), active=0, POOL=1; // sequential: CICD app_repo install is single-flight (mutex)
       function pump(){
-        while(active&lt;POOL &amp;&amp; queue.length){
+        while(active&amp;lt;POOL &amp;amp;&amp;amp; queue.length){
           var a=queue.shift(); active++;
           // once() + watchdog: se una callback di rete non tornasse mai, la coda
           // si fermerebbe a metà senza alcun segnale. Qui avanza in ogni caso.
@@ -4217,7 +4227,7 @@ html,body{background:#f5f5f7;margin:0}
             triggerOne(app, logId, function(){ clearTimeout(guard); advance(); });
           })(a, map[a.sysId], step);
         }
-        if(active===0 &amp;&amp; queue.length===0 &amp;&amp; S.launching){
+        if(active===0 &amp;amp;&amp;amp; queue.length===0 &amp;amp;&amp;amp; S.launching){
           S.launching=false;
           renderLaunch();
           $('launch-actions').style.display='flex';
@@ -4232,45 +4242,45 @@ html,body{background:#f5f5f7;margin:0}
 
   function renderLaunch(msg){
     var pct=S.launchTotal? Math.round((S.launchTriggered/S.launchTotal)*100):0;
-    var head=S.launching? ('Launching&amp;#8230; '+S.launchTriggered+' / '+S.launchTotal) : ('Launched '+S.launchTriggered+' / '+S.launchTotal);
+    var head=S.launching? ('Launching&amp;amp;#8230; '+S.launchTriggered+' / '+S.launchTotal) : ('Launched '+S.launchTriggered+' / '+S.launchTotal);
     var errs=S.launchErrors||[];
-    var h='&lt;div class="info-box"&gt;Launching &lt;strong&gt;'+S.launchTotal+'&lt;/strong&gt; install(s) with your session. When launching completes you can close the tab &amp;#8212; installs continue on the server and are tracked on the Monitor page.&lt;/div&gt;'
-      + '&lt;div class="card"&gt;&lt;div class="card-body"&gt;'
-      + '&lt;div style="font-size:15px;font-weight:600;margin-bottom:8px"&gt;'+head+(S.launchFailed?(' &amp;#183; '+S.launchFailed+' failed to launch'):'')+'&lt;/div&gt;'
-      + '&lt;div class="prog-wrap"&gt;&lt;div class="prog-bar" style="width:'+pct+'%"&gt;&lt;/div&gt;&lt;/div&gt;'
-      + (msg?('&lt;div style="margin-top:10px;font-size:12px;color:var(--text-2)"&gt;'+msg+'&lt;/div&gt;'):'')
-      + '&lt;/div&gt;&lt;/div&gt;';
+    var h='&amp;lt;div class="info-box"&amp;gt;Launching &amp;lt;strong&amp;gt;'+S.launchTotal+'&amp;lt;/strong&amp;gt; install(s) with your session. When launching completes you can close the tab &amp;amp;#8212; installs continue on the server and are tracked on the Monitor page.&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="card"&amp;gt;&amp;lt;div class="card-body"&amp;gt;'
+      + '&amp;lt;div style="font-size:15px;font-weight:600;margin-bottom:8px"&amp;gt;'+head+(S.launchFailed?(' &amp;amp;#183; '+S.launchFailed+' failed to launch'):'')+'&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="prog-wrap"&amp;gt;&amp;lt;div class="prog-bar" style="width:'+pct+'%"&amp;gt;&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;'
+      + (msg?('&amp;lt;div style="margin-top:10px;font-size:12px;color:var(--text-2)"&amp;gt;'+msg+'&amp;lt;/div&amp;gt;'):'')
+      + '&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;';
 
     // Elenco dei mancati avvii: compare solo se ce n'è almeno uno, e ogni motivo
     // si apre su richiesta — così non invade la vista durante un lancio riuscito.
     if(errs.length){
       var rows='';
-      for(var i=0;i&lt;errs.length;i++){
+      for(var i=0;i&amp;lt;errs.length;i++){
         var e=errs[i], open=!!S.launchWhyOpen[e.key];
-        rows+='&lt;tr&gt;&lt;td class="col-name"&gt;'+esc(e.name)+'&lt;/td&gt;'
-            + '&lt;td class="col-scope"&gt;'+esc(e.scope)+'&lt;/td&gt;'
-            + '&lt;td&gt;'+statusPill('failed')+'&lt;/td&gt;'
-            + '&lt;td&gt;&lt;button class="why-btn" data-lwhy="'+esc(e.key)+'" aria-expanded="'+(open?'true':'false')+'"&gt;'
-            +   'Why failed&lt;span class="chev" aria-hidden="true"&gt;&amp;#9660;&lt;/span&gt;&lt;/button&gt;&lt;/td&gt;&lt;/tr&gt;';
+        rows+='&amp;lt;tr&amp;gt;&amp;lt;td class="col-name"&amp;gt;'+esc(e.name)+'&amp;lt;/td&amp;gt;'
+            + '&amp;lt;td class="col-scope"&amp;gt;'+esc(e.scope)+'&amp;lt;/td&amp;gt;'
+            + '&amp;lt;td&amp;gt;'+statusPill('failed')+'&amp;lt;/td&amp;gt;'
+            + '&amp;lt;td&amp;gt;&amp;lt;button class="why-btn" data-lwhy="'+esc(e.key)+'" aria-expanded="'+(open?'true':'false')+'"&amp;gt;'
+            +   'Why failed&amp;lt;span class="chev" aria-hidden="true"&amp;gt;&amp;amp;#9660;&amp;lt;/span&amp;gt;&amp;lt;/button&amp;gt;&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;';
         if(open){
-          rows+='&lt;tr class="why-row"&gt;&lt;td colspan="4"&gt;&lt;div class="why-box"&gt;'
-              + '&lt;div class="why-label"&gt;Reason reported by the platform&lt;/div&gt;'
-              + '&lt;div class="why-msg"&gt;'+esc(e.message)+'&lt;/div&gt;'
-              + (e.target?('&lt;div class="why-meta"&gt;Target version '+esc(e.target)+'&lt;/div&gt;'):'')
-              + '&lt;/div&gt;&lt;/td&gt;&lt;/tr&gt;';
+          rows+='&amp;lt;tr class="why-row"&amp;gt;&amp;lt;td colspan="4"&amp;gt;&amp;lt;div class="why-box"&amp;gt;'
+              + '&amp;lt;div class="why-label"&amp;gt;Reason reported by the platform&amp;lt;/div&amp;gt;'
+              + '&amp;lt;div class="why-msg"&amp;gt;'+esc(e.message)+'&amp;lt;/div&amp;gt;'
+              + (e.target?('&amp;lt;div class="why-meta"&amp;gt;Target version '+esc(e.target)+'&amp;lt;/div&amp;gt;'):'')
+              + '&amp;lt;/div&amp;gt;&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;';
         }
       }
-      h+='&lt;div class="mt16"&gt;&lt;div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px"&gt;'
-        + plural(errs.length,'application','applications')+' could not be started&lt;/div&gt;'
-        + '&lt;div class="card"&gt;&lt;div class="tbl-wrap"&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;'
-        + '&lt;th&gt;Application&lt;/th&gt;&lt;th&gt;Scope&lt;/th&gt;&lt;th&gt;Status&lt;/th&gt;&lt;th style="width:110px"&gt;Details&lt;/th&gt;'
-        + '&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;'+rows+'&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;';
+      h+='&amp;lt;div class="mt16"&amp;gt;&amp;lt;div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px"&amp;gt;'
+        + plural(errs.length,'application','applications')+' could not be started&amp;lt;/div&amp;gt;'
+        + '&amp;lt;div class="card"&amp;gt;&amp;lt;div class="tbl-wrap"&amp;gt;&amp;lt;table&amp;gt;&amp;lt;thead&amp;gt;&amp;lt;tr&amp;gt;'
+        + '&amp;lt;th&amp;gt;Application&amp;lt;/th&amp;gt;&amp;lt;th&amp;gt;Scope&amp;lt;/th&amp;gt;&amp;lt;th&amp;gt;Status&amp;lt;/th&amp;gt;&amp;lt;th style="width:110px"&amp;gt;Details&amp;lt;/th&amp;gt;'
+        + '&amp;lt;/tr&amp;gt;&amp;lt;/thead&amp;gt;&amp;lt;tbody&amp;gt;'+rows+'&amp;lt;/tbody&amp;gt;&amp;lt;/table&amp;gt;&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;';
     }
 
     $('launch-body').innerHTML=h;
 
     var lb=$('launch-body').querySelectorAll('.why-btn');
-    for(var j=0;j&lt;lb.length;j++){
+    for(var j=0;j&amp;lt;lb.length;j++){
       lb[j].onclick=function(){
         var k=this.getAttribute('data-lwhy');
         if(S.launchWhyOpen[k]){ delete S.launchWhyOpen[k]; } else { S.launchWhyOpen[k]=true; }
@@ -4280,7 +4290,7 @@ html,body{background:#f5f5f7;margin:0}
   }
 
   function cicdUrl(row){
-    return '/api/sn_cicd/app_repo/install?sys_id='+encodeURIComponent(row.sysId)+'&amp;version='+encodeURIComponent(row.latest);
+    return '/api/sn_cicd/app_repo/install?sys_id='+encodeURIComponent(row.sysId)+'&amp;amp;version='+encodeURIComponent(row.latest);
   }
   function headers(){
     return { 'X-UserToken': (window.g_ck||''), 'Accept':'application/json', 'Content-Type':'application/json' };
@@ -4293,37 +4303,37 @@ html,body{background:#f5f5f7;margin:0}
   function triggerOne(a, logSysId, done){ fire(a, logSysId, done, 0, false, null); }
   function fire(a, logSysId, done, attempt, withOffering, offeringId){
     var opts={ method:'POST', credentials:'same-origin', headers:headers() };
-    if(withOffering &amp;&amp; offeringId){ opts.body=JSON.stringify({ offering:offeringId }); }
+    if(withOffering &amp;amp;&amp;amp; offeringId){ opts.body=JSON.stringify({ offering:offeringId }); }
     fetch(cicdUrl(a), opts)
       .then(function(resp){ return resp.json().then(function(b){ return {status:resp.status, body:b}; }); })
       .then(function(r){ handleTrigger(a, logSysId, r, done, attempt, withOffering); })
       .catch(function(err){ retryOrFail(a, logSysId, done, attempt, 'Fetch error: '+err.message); });
   }
-  function trigErr(r){ return (r.body&amp;&amp;r.body.result&amp;&amp;r.body.result.error) || (r.body&amp;&amp;r.body.error&amp;&amp;(r.body.error.message||r.body.error.detail)) || ('HTTP '+r.status); }
+  function trigErr(r){ return (r.body&amp;amp;&amp;amp;r.body.result&amp;amp;&amp;amp;r.body.result.error) || (r.body&amp;amp;&amp;amp;r.body.error&amp;amp;&amp;amp;(r.body.error.message||r.body.error.detail)) || ('HTTP '+r.status); }
   function isTransient(status, msg){
     if(status===409||status===429||status===503) return true;
     var m=(''+msg).toLowerCase();
-    return m.indexOf('enqueue')&gt;-1 || m.indexOf('mutex')&gt;-1 || m.indexOf('in progress')&gt;-1 || m.indexOf('try again')&gt;-1 || m.indexOf('another')&gt;-1;
+    return m.indexOf('enqueue')&amp;gt;-1 || m.indexOf('mutex')&amp;gt;-1 || m.indexOf('in progress')&amp;gt;-1 || m.indexOf('try again')&amp;gt;-1 || m.indexOf('another')&amp;gt;-1;
   }
   function handleTrigger(a, logSysId, r, done, attempt, withOffering){
     if(r.status===200||r.status===201){
-      var pid=r.body&amp;&amp;r.body.result&amp;&amp;r.body.result.links&amp;&amp;r.body.result.links.progress&amp;&amp;r.body.result.links.progress.id;
+      var pid=r.body&amp;amp;&amp;amp;r.body.result&amp;amp;&amp;amp;r.body.result.links&amp;amp;&amp;amp;r.body.result.links.progress&amp;amp;&amp;amp;r.body.result.links.progress.id;
       if(pid){ ajax('attachWorker',{ log_sys_id:logSysId, progress_id:pid }, function(){ done(); }); return; }
       failTrigger(a, logSysId,'The install was accepted but no progress ID was returned, so it cannot be tracked.', done); return;
     }
     var msg=trigErr(r);
-    if(r.status===400 &amp;&amp; !withOffering){
+    if(r.status===400 &amp;amp;&amp;amp; !withOffering){
       var m1=(''+msg).match(/\[([^\]]+)\]/), m2=(''+msg).match(/"offering"\s*:\s*"([^"]+)"/);
-      var offering=(m1&amp;&amp;m1[1])||(m2&amp;&amp;m2[1])||null;
-      if(offering &amp;&amp; (''+msg).toLowerCase().indexOf('offering')&gt;-1){ fire(a, logSysId, done, attempt, true, offering); return; }
+      var offering=(m1&amp;amp;&amp;amp;m1[1])||(m2&amp;amp;&amp;amp;m2[1])||null;
+      if(offering &amp;amp;&amp;amp; (''+msg).toLowerCase().indexOf('offering')&amp;gt;-1){ fire(a, logSysId, done, attempt, true, offering); return; }
     }
     if(isTransient(r.status, msg)){ retryOrFail(a, logSysId, done, attempt, msg); return; }
     failTrigger(a, logSysId, 'HTTP ' + r.status + ' — ' + msg, done);
   }
   function retryOrFail(a, logSysId, done, attempt, msg){
     var MAX=8;
-    if(attempt&lt;MAX){
-      renderLaunch('Waiting for the CICD queue&amp;#8230; (retry '+(attempt+1)+'/'+MAX+')');
+    if(attempt&amp;lt;MAX){
+      renderLaunch('Waiting for the CICD queue&amp;amp;#8230; (retry '+(attempt+1)+'/'+MAX+')');
       setTimeout(function(){ fire(a, logSysId, done, attempt+1, false, null); }, 2000 + attempt*800);
     } else {
       failTrigger(a, logSysId, 'Still rejected after '+MAX+' retries — ' + msg, done);
@@ -4336,30 +4346,30 @@ html,body{background:#f5f5f7;margin:0}
     if(!S.launchErrors){ S.launchErrors=[]; }
     S.launchErrors.push({
       key:   logSysId || ('e'+S.launchErrors.length),
-      name:  (a &amp;&amp; a.name) || '(unknown application)',
-      scope: (a &amp;&amp; a.scope) || '',
-      target:(a &amp;&amp; a.latest) || '',
+      name:  (a &amp;amp;&amp;amp; a.name) || '(unknown application)',
+      scope: (a &amp;amp;&amp;amp; a.scope) || '',
+      target:(a &amp;amp;&amp;amp; a.latest) || '',
       message: message
     });
     ajax('failRow',{ log_sys_id:logSysId, message:message }, function(){ done(); });
   }
 
   // ---- MONITOR (server-side, persistent across close/reopen) ----
-  function monitorActive(){ var el=document.querySelector('.view[data-view="monitor"]'); return !!(el &amp;&amp; el.classList.contains('active')); }
+  function monitorActive(){ var el=document.querySelector('.view[data-view="monitor"]'); return !!(el &amp;amp;&amp;amp; el.classList.contains('active')); }
   function openMonitor(batch){
     showView('monitor');
     if(batch){ S.currentBatch=batch; loadBatchList(batch); startMonitorPolling(); }
-    else { ajax('getMyLatestBatch',{},function(e,d){ S.currentBatch=(d&amp;&amp;d.batch)||''; loadBatchList(S.currentBatch); if(S.currentBatch){ startMonitorPolling(); } else { renderMonitorEmpty(); } }); }
+    else { ajax('getMyLatestBatch',{},function(e,d){ S.currentBatch=(d&amp;amp;&amp;amp;d.batch)||''; loadBatchList(S.currentBatch); if(S.currentBatch){ startMonitorPolling(); } else { renderMonitorEmpty(); } }); }
   }
-  function renderMonitorEmpty(){ $('mon-body').innerHTML='&lt;div class="empty"&gt;No install batches yet. Launch updates from the Wizard.&lt;/div&gt;'; var s=$('mon-batch'); if(s){ s.innerHTML='&lt;option value=""&gt;(no batches)&lt;/option&gt;'; } }
+  function renderMonitorEmpty(){ $('mon-body').innerHTML='&amp;lt;div class="empty"&amp;gt;No install batches yet. Launch updates from the Wizard.&amp;lt;/div&amp;gt;'; var s=$('mon-batch'); if(s){ s.innerHTML='&amp;lt;option value=""&amp;gt;(no batches)&amp;lt;/option&amp;gt;'; } }
   function loadBatchList(selected){
     ajax('listBatches',{},function(e,d){
-      var batches=(d&amp;&amp;d.batches)||[]; var sel=$('mon-batch'); if(!sel) return;
+      var batches=(d&amp;amp;&amp;amp;d.batches)||[]; var sel=$('mon-batch'); if(!sel) return;
       sel.innerHTML='';
       if(!batches.length){ var o0=document.createElement('option'); o0.value=''; o0.textContent='(no batches)'; sel.appendChild(o0); return; }
       // Con più batch nello stesso giorno la sola data non li distingue: mostro
       // anche conteggio ed esito.
-      for(var i=0;i&lt;batches.length;i++){
+      for(var i=0;i&amp;lt;batches.length;i++){
         var b=batches[i], o=document.createElement('option');
         var bits=[];
         if(b.total){ bits.push(b.total+' apps'); }
@@ -4377,28 +4387,28 @@ html,body{background:#f5f5f7;margin:0}
     if(!monitorActive()) return;
     if(!S.currentBatch){ renderMonitorEmpty(); return; }
     ajax('getBatchStatus',{ batch:S.currentBatch }, function(e,d){
-      if(!e &amp;&amp; d &amp;&amp; !d.error){ renderMonitor(d); }
+      if(!e &amp;amp;&amp;amp; d &amp;amp;&amp;amp; !d.error){ renderMonitor(d); }
       // Il server espone 'installing', non 'running': con la chiave sbagliata il
       // polling si fermava appena l'ultima app usciva dalla coda, congelando il
       // monitor su uno stato non definitivo.
-      var c=(d&amp;&amp;d.counts)||{};
-      var act = ((c.installing||0)&gt;0) || ((c.queued||0)&gt;0);
+      var c=(d&amp;amp;&amp;amp;d.counts)||{};
+      var act = ((c.installing||0)&amp;gt;0) || ((c.queued||0)&amp;gt;0);
       if(S.monTimer){ clearTimeout(S.monTimer); S.monTimer=null; }
       if(act){ S.monTimer=setTimeout(pollMonitor, 15000); }
     });
   }
   function cancelQueued(){
     if(!S.currentBatch) return;
-    var c=(S.monData&amp;&amp;S.monData.counts)||{}, q=c.queued||0;
+    var c=(S.monData&amp;amp;&amp;amp;S.monData.counts)||{}, q=c.queued||0;
     if(!q) return;
     confirmModal({
       title:'Cancel '+plural(q,'queued install','queued installs')+'?',
-      bodyHtml:'The '+q+' '+(q===1?'application':'applications')+' still waiting in the queue will be marked &lt;strong&gt;cancelled&lt;/strong&gt;.'
-        + '&lt;br/&gt;&lt;br/&gt;Installs already running cannot be interrupted and will finish.',
+      bodyHtml:'The '+q+' '+(q===1?'application':'applications')+' still waiting in the queue will be marked &amp;lt;strong&amp;gt;cancelled&amp;lt;/strong&amp;gt;.'
+        + '&amp;lt;br/&amp;gt;&amp;lt;br/&amp;gt;Installs already running cannot be interrupted and will finish.',
       confirmLabel:'Cancel '+q, cancelLabel:'Keep queued', danger:true,
       onConfirm:function(){
         ajax('cancelRemaining',{ batch:S.currentBatch }, function(e,d){
-          if(!e &amp;&amp; d &amp;&amp; d.ok){ announce(d.cancelled+' queued installs cancelled'); }
+          if(!e &amp;amp;&amp;amp; d &amp;amp;&amp;amp; d.ok){ announce(d.cancelled+' queued installs cancelled'); }
           startMonitorPolling();
         });
       }
@@ -4411,7 +4421,7 @@ html,body{background:#f5f5f7;margin:0}
     out.sort(function(a,b){
       if(k==='pct'){ return ((a.pct||0)-(b.pct||0))*dir; }
       var x=(''+(a[k]||'')).toLowerCase(), y=(''+(b[k]||'')).toLowerCase();
-      if(x&lt;y) return -dir; if(x&gt;y) return dir; return 0;
+      if(x&amp;lt;y) return -dir; if(x&amp;gt;y) return dir; return 0;
     });
     return out;
   }
@@ -4431,10 +4441,10 @@ html,body{background:#f5f5f7;margin:0}
     else if(bs==='partial'){ cls='summary-warn'; ico='!'; title='Finished with failures'; }
     else if(bs==='failed'){ cls='summary-bad'; ico='✕'; title='All updates failed'; }
     else { cls='summary-warn'; ico='⊘'; title='Batch cancelled'; }
-    var extra = c.failed ? ' &lt;button class="link-btn" id="mon-onlyfailed"&gt;Show only failures&lt;/button&gt;' : '';
-    return '&lt;div class="summary '+cls+'"&gt;&lt;div class="summary-ico" aria-hidden="true"&gt;'+ico+'&lt;/div&gt;'
-      + '&lt;div&gt;&lt;div class="summary-title"&gt;'+esc(title)+'&lt;/div&gt;'
-      + '&lt;div class="summary-text"&gt;'+esc(text.join(' · '))+'.'+extra+'&lt;/div&gt;&lt;/div&gt;&lt;/div&gt;';
+    var extra = c.failed ? ' &amp;lt;button class="link-btn" id="mon-onlyfailed"&amp;gt;Show only failures&amp;lt;/button&amp;gt;' : '';
+    return '&amp;lt;div class="summary '+cls+'"&amp;gt;&amp;lt;div class="summary-ico" aria-hidden="true"&amp;gt;'+ico+'&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div&amp;gt;&amp;lt;div class="summary-title"&amp;gt;'+esc(title)+'&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="summary-text"&amp;gt;'+esc(text.join(' · '))+'.'+extra+'&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;';
   }
 
   function renderMonitor(d){
@@ -4451,32 +4461,32 @@ html,body{background:#f5f5f7;margin:0}
     // dentro l'iterazione del genitore, quindi non consumano slot di pagina.
     var pg=paginate(sortedRows, 'mon');
     var list=pg.rows;
-    var rows='';
-    for(var i=0;i&lt;list.length;i++){ var r=list[i]; var st=r.status||'queued'; var pct=r.pct||0;
+    var rows='', depRowsShown=0;
+    for(var i=0;i&amp;lt;list.length;i++){ var r=list[i]; var st=r.status||'queued'; var pct=r.pct||0;
       var key=r.logSysId||('row'+i);
-      var hasMsg=!!(r.message &amp;&amp; (''+r.message).trim());
+      var hasMsg=!!(r.message &amp;amp;&amp;amp; (''+r.message).trim());
       var open=!!S.whyOpen[key];
       // Colonna "Details": pulsante solo dove c'è davvero qualcosa da leggere.
       var detail='';
       if(hasMsg){
-        detail='&lt;button class="why-btn" data-why="'+esc(key)+'" aria-expanded="'+(open?'true':'false')+'"&gt;'
-             + (st==='failed'?'Why failed':'Details')+'&lt;span class="chev" aria-hidden="true"&gt;&amp;#9660;&lt;/span&gt;&lt;/button&gt;';
+        detail='&amp;lt;button class="why-btn" data-why="'+esc(key)+'" aria-expanded="'+(open?'true':'false')+'"&amp;gt;'
+             + (st==='failed'?'Why failed':'Details')+'&amp;lt;span class="chev" aria-hidden="true"&amp;gt;&amp;amp;#9660;&amp;lt;/span&amp;gt;&amp;lt;/button&amp;gt;';
       } else {
-        detail='&lt;span style="color:var(--text-3);font-size:12px"&gt;&amp;#8212;&lt;/span&gt;';
+        detail='&amp;lt;span style="color:var(--text-3);font-size:12px"&amp;gt;&amp;amp;#8212;&amp;lt;/span&amp;gt;';
       }
-      rows+='&lt;tr&gt;&lt;td class="col-name"&gt;'+esc(r.name)+'&lt;/td&gt;&lt;td class="col-scope"&gt;'+esc(r.scope)+'&lt;/td&gt;'
-          + '&lt;td class="col-ver"&gt;'+verCell(r.current,r.latest)+'&lt;/td&gt;'
-          + '&lt;td&gt;'+statusPill(st)+'&lt;/td&gt;'
-          + '&lt;td&gt;&lt;div style="font-size:11px;color:var(--text-2);margin-bottom:2px"&gt;'+pct+'%&lt;/div&gt;'
-          + '&lt;div class="prog-wrap"&gt;&lt;div class="prog-bar'+(st==='complete'?' success':(st==='failed'?' failed':''))+'" style="width:'+pct+'%"&gt;&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;'
-          + '&lt;td&gt;'+detail+'&lt;/td&gt;&lt;/tr&gt;';
+      rows+='&amp;lt;tr&amp;gt;&amp;lt;td class="col-name"&amp;gt;'+esc(r.name)+'&amp;lt;/td&amp;gt;&amp;lt;td class="col-scope"&amp;gt;'+esc(r.scope)+'&amp;lt;/td&amp;gt;'
+          + '&amp;lt;td class="col-ver"&amp;gt;'+verCell(r.current,r.latest)+'&amp;lt;/td&amp;gt;'
+          + '&amp;lt;td&amp;gt;'+statusPill(st)+'&amp;lt;/td&amp;gt;'
+          + '&amp;lt;td&amp;gt;&amp;lt;div style="font-size:11px;color:var(--text-2);margin-bottom:2px"&amp;gt;'+pct+'%&amp;lt;/div&amp;gt;'
+          + '&amp;lt;div class="prog-wrap"&amp;gt;&amp;lt;div class="prog-bar'+(st==='complete'?' success':(st==='failed'?' failed':''))+'" style="width:'+pct+'%"&amp;gt;&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;&amp;lt;/td&amp;gt;'
+          + '&amp;lt;td&amp;gt;'+detail+'&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;';
       // Riga di dettaglio a piena larghezza, resa solo se aperta.
-      if(hasMsg &amp;&amp; open){
-        rows+='&lt;tr class="why-row"&gt;&lt;td colspan="6"&gt;&lt;div class="why-box"&gt;'
-            + '&lt;div class="why-label"&gt;'+(st==='failed'?'Reason reported by the platform':'Message')+'&lt;/div&gt;'
-            + '&lt;div class="why-msg"&gt;'+esc(r.message)+'&lt;/div&gt;'
-            + (r.startedAt?('&lt;div class="why-meta"&gt;Started '+esc(r.startedAt)+'&lt;/div&gt;'):'')
-            + '&lt;/div&gt;&lt;/td&gt;&lt;/tr&gt;';
+      if(hasMsg &amp;amp;&amp;amp; open){
+        rows+='&amp;lt;tr class="why-row"&amp;gt;&amp;lt;td colspan="6"&amp;gt;&amp;lt;div class="why-box"&amp;gt;'
+            + '&amp;lt;div class="why-label"&amp;gt;'+(st==='failed'?'Reason reported by the platform':'Message')+'&amp;lt;/div&amp;gt;'
+            + '&amp;lt;div class="why-msg"&amp;gt;'+esc(r.message)+'&amp;lt;/div&amp;gt;'
+            + (r.startedAt?('&amp;lt;div class="why-meta"&amp;gt;Started '+esc(r.startedAt)+'&amp;lt;/div&amp;gt;'):'')
+            + '&amp;lt;/div&amp;gt;&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;';
       }
       // Righe dipendenza (v1.6, §10.3): app che la piattaforma ha davvero
       // installato insieme a questa, letto da sys_execution_tracker — non
@@ -4485,51 +4495,52 @@ html,body{background:#f5f5f7;margin:0}
       // il tracker non porta un messaggio d'errore leggibile come le nostre
       // righe (solo stato/percentuale).
       var deps=r.deps||[];
-      for(var di=0;di&lt;deps.length;di++){ var dep=deps[di]; var dpct=dep.pct||0;
+      depRowsShown+=deps.length;   // dichiarate nell'etichetta del pager (v1.6.5 fix)
+      for(var di=0;di&amp;lt;deps.length;di++){ var dep=deps[di]; var dpct=dep.pct||0;
         // dep.current arriva dallo snapshot preso al lancio (v1.6.1) — assente
         // solo per batch lanciati prima di questo fix, che restano "→ target".
-        var depVerHtml=dep.current?verCell(dep.current,dep.version):('&amp;#8594; '+esc(dep.version));
-        rows+='&lt;tr class="dep-row"&gt;&lt;td class="col-name"&gt;&lt;span class="badge-dep"&gt;dependency&lt;/span&gt;'+esc(dep.name)+'&lt;/td&gt;'
-            + '&lt;td class="col-scope"&gt;'+esc(dep.scope)+'&lt;/td&gt;'
-            + '&lt;td class="col-ver"&gt;'+depVerHtml+'&lt;/td&gt;'
-            + '&lt;td&gt;'+statusPill(dep.status)+'&lt;/td&gt;'
-            + '&lt;td&gt;&lt;div style="font-size:11px;color:var(--text-2);margin-bottom:2px"&gt;'+dpct+'%&lt;/div&gt;'
-            + '&lt;div class="prog-wrap"&gt;&lt;div class="prog-bar'+(dep.status==='complete'?' success':(dep.status==='failed'?' failed':''))+'" style="width:'+dpct+'%"&gt;&lt;/div&gt;&lt;/div&gt;&lt;/td&gt;'
-            + '&lt;td&gt;&lt;span style="color:var(--text-3);font-size:12px"&gt;&amp;#8212;&lt;/span&gt;&lt;/td&gt;&lt;/tr&gt;';
+        var depVerHtml=dep.current?verCell(dep.current,dep.version):('&amp;amp;#8594; '+esc(dep.version));
+        rows+='&amp;lt;tr class="dep-row"&amp;gt;&amp;lt;td class="col-name"&amp;gt;&amp;lt;span class="badge-dep"&amp;gt;dependency&amp;lt;/span&amp;gt;'+esc(dep.name)+'&amp;lt;/td&amp;gt;'
+            + '&amp;lt;td class="col-scope"&amp;gt;'+esc(dep.scope)+'&amp;lt;/td&amp;gt;'
+            + '&amp;lt;td class="col-ver"&amp;gt;'+depVerHtml+'&amp;lt;/td&amp;gt;'
+            + '&amp;lt;td&amp;gt;'+statusPill(dep.status)+'&amp;lt;/td&amp;gt;'
+            + '&amp;lt;td&amp;gt;&amp;lt;div style="font-size:11px;color:var(--text-2);margin-bottom:2px"&amp;gt;'+dpct+'%&amp;lt;/div&amp;gt;'
+            + '&amp;lt;div class="prog-wrap"&amp;gt;&amp;lt;div class="prog-bar'+(dep.status==='complete'?' success':(dep.status==='failed'?' failed':''))+'" style="width:'+dpct+'%"&amp;gt;&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;&amp;lt;/td&amp;gt;'
+            + '&amp;lt;td&amp;gt;&amp;lt;span style="color:var(--text-3);font-size:12px"&amp;gt;&amp;amp;#8212;&amp;lt;/span&amp;gt;&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;';
       }
     }
     if(!list.length){
-      rows='&lt;tr&gt;&lt;td colspan="6" class="empty"&gt;'
-        + (S.monFilter ? ('No applications with status &amp;#8220;'+esc(S.monFilter)+'&amp;#8221; in this batch.')
+      rows='&amp;lt;tr&amp;gt;&amp;lt;td colspan="6" class="empty"&amp;gt;'
+        + (S.monFilter ? ('No applications with status &amp;amp;#8220;'+esc(S.monFilter)+'&amp;amp;#8221; in this batch.')
                        : 'No apps in this batch.')
-        + '&lt;/td&gt;&lt;/tr&gt;';
+        + '&amp;lt;/td&amp;gt;&amp;lt;/tr&amp;gt;';
     }
     var bs=d.status||'running';
     function th(k,label,extra){
-      return '&lt;th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.monSort,k)+(extra||'')+'&gt;'+label+sortInd(k)+'&lt;/th&gt;';
+      return '&amp;lt;th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.monSort,k)+(extra||'')+'&amp;gt;'+label+sortInd(k)+'&amp;lt;/th&amp;gt;';
     }
     var h=batchSummary(d)
-      + '&lt;div class="kpi-grid"&gt;'
-      + kpi('Total', c.total||0, S.monFilter?'in this batch &amp;#8226; clear filter':'in this batch','','__all__')
-      + kpi('Installing', c.installing||0, 'running now', (c.installing&gt;0)?'accent':'', 'installing')
+      + '&amp;lt;div class="kpi-grid"&amp;gt;'
+      + kpi('Total', c.total||0, S.monFilter?'in this batch &amp;amp;#8226; clear filter':'in this batch','','__all__')
+      + kpi('Installing', c.installing||0, 'running now', (c.installing&amp;gt;0)?'accent':'', 'installing')
       + kpi('Queued', c.queued||0, 'waiting in queue','', 'queued')
       + kpi('Complete', c.complete||0, 'installed','success', 'complete')
-      + kpi('Failed', c.failed||0, 'see message', (c.failed&gt;0)?'warning':'', 'failed')
-      + '&lt;/div&gt;'
-      + '&lt;div class="actions-bar"&gt;&lt;div style="font-size:13px;color:var(--text-2)"&gt;Batch status: '+statusPill(bs)
-      +   (S.monFilter?' &amp;#183; filtered by &lt;strong&gt;'+esc(S.monFilter)+'&lt;/strong&gt; &lt;button class="link-btn" id="mon-showall-rows"&gt;show all&lt;/button&gt;':'')+'&lt;/div&gt;'
-      +   '&lt;div style="font-size:12px;color:var(--text-3)"&gt;Last refreshed '+esc(new Date().toLocaleString())+'&lt;/div&gt;&lt;/div&gt;'
-      + '&lt;div class="card"&gt;&lt;div class="tbl-wrap"&gt;&lt;table&gt;&lt;thead&gt;&lt;tr&gt;'
+      + kpi('Failed', c.failed||0, 'see message', (c.failed&amp;gt;0)?'warning':'', 'failed')
+      + '&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="actions-bar"&amp;gt;&amp;lt;div style="font-size:13px;color:var(--text-2)"&amp;gt;Batch status: '+statusPill(bs)
+      +   (S.monFilter?' &amp;amp;#183; filtered by &amp;lt;strong&amp;gt;'+esc(S.monFilter)+'&amp;lt;/strong&amp;gt; &amp;lt;button class="link-btn" id="mon-showall-rows"&amp;gt;show all&amp;lt;/button&amp;gt;':'')+'&amp;lt;/div&amp;gt;'
+      +   '&amp;lt;div style="font-size:12px;color:var(--text-3)"&amp;gt;Last refreshed '+esc(new Date().toLocaleString())+'&amp;lt;/div&amp;gt;&amp;lt;/div&amp;gt;'
+      + '&amp;lt;div class="card"&amp;gt;&amp;lt;div class="tbl-wrap"&amp;gt;&amp;lt;table&amp;gt;&amp;lt;thead&amp;gt;&amp;lt;tr&amp;gt;'
       + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')
-      + '&lt;th style="width:110px"&gt;Details&lt;/th&gt;'
-      + '&lt;/tr&gt;&lt;/thead&gt;&lt;tbody&gt;'+rows+'&lt;/tbody&gt;&lt;/table&gt;&lt;/div&gt;'
-      + pagerHtml('mon', pg)+'&lt;/div&gt;';
+      + '&amp;lt;th style="width:110px"&amp;gt;Details&amp;lt;/th&amp;gt;'
+      + '&amp;lt;/tr&amp;gt;&amp;lt;/thead&amp;gt;&amp;lt;tbody&amp;gt;'+rows+'&amp;lt;/tbody&amp;gt;&amp;lt;/table&amp;gt;&amp;lt;/div&amp;gt;'
+      + pagerHtml('mon', pg, depRowsShown)+'&amp;lt;/div&amp;gt;';
     $('mon-body').innerHTML=h;
 
     // Espansione/chiusura del dettaglio: lo stato vive in S.whyOpen, quindi
     // sopravvive ai refresh del polling e all'ordinamento.
     var wb=$('mon-body').querySelectorAll('.why-btn');
-    for(var w=0;w&lt;wb.length;w++){
+    for(var w=0;w&amp;lt;wb.length;w++){
       wb[w].onclick=function(){
         var k=this.getAttribute('data-why');
         if(S.whyOpen[k]){ delete S.whyOpen[k]; } else { S.whyOpen[k]=true; }
@@ -4569,7 +4580,7 @@ html,body{background:#f5f5f7;margin:0}
 
     // "Cancel queued" solo quando c'è effettivamente qualcosa da annullare.
     var cb=$('mon-cancel');
-    if(cb){ cb.style.display=((c.queued||0)&gt;0)?'inline-flex':'none'; }
+    if(cb){ cb.style.display=((c.queued||0)&amp;gt;0)?'inline-flex':'none'; }
 
     // Annuncio per screen reader: il polling cambia il DOM senza che l'utente
     // non vedente se ne accorga.
@@ -4579,12 +4590,12 @@ html,body{background:#f5f5f7;margin:0}
     var ths=$('mon-body').querySelectorAll('th.sortable');
     function applyMon(th2){
       var k=th2.getAttribute('data-k');
-      if(S.monSort &amp;&amp; S.monSort.k===k){ S.monSort.dir=(S.monSort.dir===1?-1:1); }
+      if(S.monSort &amp;amp;&amp;amp; S.monSort.k===k){ S.monSort.dir=(S.monSort.dir===1?-1:1); }
       else { S.monSort={k:k,dir:1}; }
       resetPage('mon');
       renderMonitor(S.monData);
     }
-    for(var j=0;j&lt;ths.length;j++){
+    for(var j=0;j&amp;lt;ths.length;j++){
       ths[j].onclick=function(){ applyMon(this); };
       ths[j].onkeydown=function(e){ if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){ e.preventDefault(); applyMon(this); } };
     }
@@ -4610,7 +4621,7 @@ html,body{background:#f5f5f7;margin:0}
     // Debounce: senza, ogni carattere digitato ricostruisce l'intera tabella.
     $('sel-filter').oninput=debounce(function(){ resetPage('sel'); renderSelect(); }, 150);
     $('sel-scope').onchange=function(){ resetPage('sel'); renderSelect(); };
-    $('sel-all').onclick=function(){ var l=filteredApps(), iff=inFlightSet(); for(var i=0;i&lt;l.length;i++){ if(!iff[l[i].sysId]) S.selected[l[i].sysId]=true; } renderSelect(); };
+    $('sel-all').onclick=function(){ var l=filteredApps(), iff=inFlightSet(); for(var i=0;i&amp;lt;l.length;i++){ if(!iff[l[i].sysId]) S.selected[l[i].sysId]=true; } renderSelect(); };
     $('sel-none').onclick=function(){ S.selected={}; renderSelect(); };
     $('sel-install').onclick=confirmInstalls;
     $('sel-back').onclick=function(){ showView('wizard1'); };
@@ -4627,19 +4638,19 @@ html,body{background:#f5f5f7;margin:0}
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', init); }
   else { init(); }
 })();
-&lt;/script&gt;
-&lt;/j:jelly&gt;
-]]&gt;&lt;/html&gt;&lt;name&gt;pgi_plugin_updater&lt;/name&gt;&lt;processing_script/&gt;&lt;sys_class_name&gt;sys_ui_page&lt;/sys_class_name&gt;&lt;sys_created_by&gt;admin&lt;/sys_created_by&gt;&lt;sys_created_on&gt;2026-06-26 15:29:19&lt;/sys_created_on&gt;&lt;sys_id&gt;c14be11ceb310310a9e2f5b9bad0cde1&lt;/sys_id&gt;&lt;sys_mod_count&gt;136&lt;/sys_mod_count&gt;&lt;sys_name&gt;pgi_plugin_updater&lt;/sys_name&gt;&lt;sys_package display_value="Global" source="global"&gt;global&lt;/sys_package&gt;&lt;sys_policy/&gt;&lt;sys_scope display_value="Global"&gt;global&lt;/sys_scope&gt;&lt;sys_update_name&gt;sys_ui_page_c14be11ceb310310a9e2f5b9bad0cde1&lt;/sys_update_name&gt;&lt;sys_updated_by&gt;admin&lt;/sys_updated_by&gt;&lt;sys_updated_on&gt;2026-09-23 08:22:25&lt;/sys_updated_on&gt;&lt;/sys_ui_page&gt;&lt;/record_update&gt;</payload>
+&amp;lt;/script&amp;gt;
+&amp;lt;/j:jelly&amp;gt;
+&lt;/html&gt;&lt;name&gt;pgi_plugin_updater&lt;/name&gt;&lt;processing_script/&gt;&lt;sys_class_name&gt;sys_ui_page&lt;/sys_class_name&gt;&lt;sys_created_by&gt;admin&lt;/sys_created_by&gt;&lt;sys_created_on&gt;2026-06-26 15:29:19&lt;/sys_created_on&gt;&lt;sys_id&gt;c14be11ceb310310a9e2f5b9bad0cde1&lt;/sys_id&gt;&lt;sys_mod_count&gt;136&lt;/sys_mod_count&gt;&lt;sys_name&gt;pgi_plugin_updater&lt;/sys_name&gt;&lt;sys_package display_value="Global" source="global"&gt;global&lt;/sys_package&gt;&lt;sys_policy/&gt;&lt;sys_scope display_value="Global"&gt;global&lt;/sys_scope&gt;&lt;sys_update_name&gt;sys_ui_page_c14be11ceb310310a9e2f5b9bad0cde1&lt;/sys_update_name&gt;&lt;sys_updated_by&gt;admin&lt;/sys_updated_by&gt;&lt;sys_updated_on&gt;2026-09-23 08:22:25&lt;/sys_updated_on&gt;&lt;/sys_ui_page&gt;&lt;/record_update&gt;</payload>
 <payload_hash>971869695</payload_hash>
 <remote_update_set>0ce5e33970d64ec686c04c8b8b734f01</remote_update_set>
 <replace_on_upgrade>false</replace_on_upgrade>
 <sys_created_by>system</sys_created_by>
 <sys_created_on>2026-09-23 08:16:41</sys_created_on>
 <sys_id>6bbd5e78eba3c710a9e2f5b9bad0cdee</sys_id>
-<sys_mod_count>1</sys_mod_count>
+<sys_mod_count>2</sys_mod_count>
 <sys_recorded_at>1a0cd6d25ba0000001</sys_recorded_at>
 <sys_updated_by>system</sys_updated_by>
-<sys_updated_on>2026-09-23 08:41:17</sys_updated_on>
+<sys_updated_on>2026-09-23 13:00:46</sys_updated_on>
 <table/>
 <target_name>pgi_plugin_updater</target_name>
 <type>UI Page</type>

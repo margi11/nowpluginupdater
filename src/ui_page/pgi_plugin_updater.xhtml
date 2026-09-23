@@ -814,7 +814,14 @@ html,body{background:#f5f5f7;margin:0}
   // Il pager e' reso come HTML puro e agganciato per event delegation dal
   // chiamante (wirePager): coerente col resto dell'app, che non usa handler
   // inline ne' un handler per elemento.
-  function pagerHtml(view, pg){
+  // extraRows (v1.6.5 fix): numero di righe rese in pagina che NON consumano uno
+  // slot di paginazione — nel Monitor le righe "dependency", attaccate al loro
+  // genitore. Senza dichiararle, l'etichetta diceva "Showing 1-2 of 2" sopra una
+  // tabella con 8 righe visibili: un conteggio esatto sulle righe principali, ma
+  // che all'utente risultava semplicemente sbagliato (segnalato da un collega
+  // sulla 1.6.5). Il paging resta sulle righe principali: e' cio' che tiene le
+  // dipendenze accanto al genitore invece di spezzarle fra due pagine.
+  function pagerHtml(view, pg, extraRows){
     if(!pg.total){ return ''; }
     var sizes='', i, ps=pageSizeOf(view);
     for(i=0;i<S.PAGE_SIZES.length;i++){
@@ -833,9 +840,12 @@ html,body{background:#f5f5f7;margin:0}
     }
     nav+='<button class="npu-pg" data-pg="next" '+(pg.page>=pg.pages?'disabled':'')+' aria-label="Next page">&#8250;</button>';
     return '<div class="npu-pager">'
-      + '<div class="npu-pager-size"><label for="npu-size-'+view+'">Rows per page</label>'
+      + '<div class="npu-pager-size"><label for="npu-size-'+view+'">Applications per page</label>'
       +   '<select id="npu-size-'+view+'" data-pgsize="'+view+'">'+sizes+'</select></div>'
-      + '<div class="npu-pager-info">Showing '+pg.from+'&#8211;'+pg.to+' of '+pg.total+'</div>'
+      + '<div class="npu-pager-info">Showing '+pg.from+'&#8211;'+pg.to+' of '+pg.total
+      +   ' '+(pg.total===1?'application':'applications')
+      +   ((extraRows>0)?(' &#183; '+extraRows+' dependency '+(extraRows===1?'row':'rows')):'')
+      + '</div>'
       + '<div class="npu-pager-nav">'+nav+'</div></div>';
   }
   // Un solo handler per pager. rerender e' la funzione di disegno della vista.
@@ -1470,7 +1480,7 @@ html,body{background:#f5f5f7;margin:0}
     // dentro l'iterazione del genitore, quindi non consumano slot di pagina.
     var pg=paginate(sortedRows, 'mon');
     var list=pg.rows;
-    var rows='';
+    var rows='', depRowsShown=0;
     for(var i=0;i<list.length;i++){ var r=list[i]; var st=r.status||'queued'; var pct=r.pct||0;
       var key=r.logSysId||('row'+i);
       var hasMsg=!!(r.message && (''+r.message).trim());
@@ -1504,6 +1514,7 @@ html,body{background:#f5f5f7;margin:0}
       // il tracker non porta un messaggio d'errore leggibile come le nostre
       // righe (solo stato/percentuale).
       var deps=r.deps||[];
+      depRowsShown+=deps.length;   // dichiarate nell'etichetta del pager (v1.6.5 fix)
       for(var di=0;di<deps.length;di++){ var dep=deps[di]; var dpct=dep.pct||0;
         // dep.current arriva dallo snapshot preso al lancio (v1.6.1) — assente
         // solo per batch lanciati prima di questo fix, che restano "→ target".
@@ -1542,7 +1553,7 @@ html,body{background:#f5f5f7;margin:0}
       + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')
       + '<th style="width:110px">Details</th>'
       + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
-      + pagerHtml('mon', pg)+'</div>';
+      + pagerHtml('mon', pg, depRowsShown)+'</div>';
     $('mon-body').innerHTML=h;
 
     // Espansione/chiusura del dettaglio: lo stato vive in S.whyOpen, quindi
