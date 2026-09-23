@@ -8,7 +8,12 @@
    Author: Gianmario Marongiu
    No framework — vanilla JS only.
    ===================================================== */
-/* All rules scoped under #app to stay isolated from the host platform CSS. */
+/* All rules scoped under #app to stay isolated from the host platform CSS.
+   UNICA ECCEZIONE (v1.6.5): html/body vanno tinti fuori da #app. Il contenitore
+   della UI Page non copre la viewport quando il contenuto e' corto, e sotto #app
+   restava una banda bianca. Il valore e' ripetuto letteralmente perche' --bg e'
+   dichiarato su #app e non e' visibile da body: se cambi --bg, cambia anche qui. */
+html,body{background:#f5f5f7;margin:0}
 #app{
   --bg:#f5f5f7; --surface:#ffffff; --surface-2:#fbfbfd; --border:#e8e8ed; --border-2:#d2d2d7;
   --text:#1d1d1f; --text-2:#6e6e73; --text-3:#a1a1a6;
@@ -20,7 +25,7 @@
   --font:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Segoe UI',Helvetica,Arial,sans-serif;
   background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.47;
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
-  display:flex;flex-direction:column;min-height:600px;border-radius:14px;overflow:hidden;
+  display:flex;flex-direction:column;min-height:100vh;border-radius:0;overflow:hidden;
 }
 #app *,#app *::before,#app *::after{box-sizing:border-box;margin:0;padding:0}
 #app .view{display:none}
@@ -135,6 +140,23 @@
 #app .top-actions .count-badge{margin-left:4px}
 
 /* --- Rendering cap notice --- */
+/* ---- Paginazione (v1.6.5) — Step 1, Step 2 e Monitor.
+   Sostituisce il vecchio cap di rendering a 150 righe + "show all". ---- */
+#app .npu-pager{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--border);background:var(--surface-2)}
+#app .npu-pager-info{font-size:12px;color:var(--text-2)}
+#app .npu-pager-size{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-2)}
+#app .npu-pager-size select{padding:5px 8px;border:1px solid var(--border-2);border-radius:var(--r-sm);font:inherit;font-size:12px;background:var(--surface);color:var(--text);outline:none}
+#app .npu-pager-size select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+#app .npu-pager-nav{display:flex;align-items:center;gap:4px}
+#app .npu-pg{min-width:30px;height:30px;padding:0 8px;border:1px solid var(--border-2);border-radius:var(--r-sm);background:var(--surface);font:inherit;font-size:12px;font-weight:500;color:var(--text);cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+#app .npu-pg:hover:not(:disabled){background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+#app .npu-pg:disabled{opacity:.4;cursor:default}
+#app .npu-pg.current{background:var(--accent);border-color:var(--accent);color:#fff;cursor:default}
+#app .npu-pg-gap{min-width:18px;text-align:center;font-size:12px;color:var(--text-3);user-select:none}
+/* KPI attivo come filtro (v1.6.5): lo stato va letto a colpo d'occhio, perche'
+   una tabella filtrata senza indicazione visiva sembra una tabella incompleta. */
+#app .kpi-active{box-shadow:0 0 0 2px var(--accent),var(--sh-md)}
+#app .kpi-active .kpi-label{color:var(--accent)}
 #app .cap-note{display:flex;align-items:center;gap:10px;justify-content:center;padding:14px;font-size:13px;color:var(--text-2);background:var(--surface-2);border-top:1px solid var(--border)}
 #app .link-btn{background:none;border:none;font:inherit;font-size:13px;font-weight:500;color:var(--accent);cursor:pointer;padding:0;text-decoration:underline}
 #app .link-btn:hover{color:var(--accent-h)}
@@ -400,16 +422,24 @@
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.6.1',
+    version:'1.6.5',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
-    // Numero massimo di righe rese in una volta. Oltre questa soglia il resto è
-    // disponibile con "show all": il paging classico è stato scartato perché
-    // spezzerebbe la selezione multipla su più pagine.
-    RENDER_CAP:150, showAllSel:false, showAllW1:false,
+    // Paginazione (v1.6.5). Sostituisce il cap di rendering a 150 righe: il
+    // paging era stato scartato temendo di spezzare la selezione multipla, ma
+    // S.selected e' indicizzato per sysId e vive fuori dal rendering, quindi la
+    // selezione attraversa le pagine senza perdersi. Pagina e page size sono
+    // indipendenti per vista (w1 = Step 1, sel = Step 2, mon = Monitor).
+    page:{w1:1,sel:1,mon:1},
+    pageSize:{w1:25,sel:25,mon:25},
+    PAGE_SIZES:[25,50,100,150,200],
     // Righe di dettaglio aperte, per chiave: sopravvive ai refresh del polling.
     whyOpen:{}, launchWhyOpen:{},
+    // Filtro per status guidato dai KPI del Monitor (v1.6.5). Stringa vuota =
+    // nessun filtro. Assorbe il precedente monOnlyFailed, che faceva la stessa
+    // cosa per il solo stato 'failed' con uno stato separato da mantenere.
+    monFilter:'',
     // Alberi di dipendenza per-riga aperti (v1.5.2, §6), per scope — separati
     // tra Step 1 e Step 2 così aprirne uno in una vista non apre l'altro.
     treeOpenW1:{}, treeOpenSel:{},
@@ -553,8 +583,22 @@
   }
   // `sub` arriva con entità HTML già pronte, quindi non va escapato; `label` sì,
   // per coerenza con `val` — così un domani un'etichetta dinamica resta sicura.
-  function kpi(label,val,sub,cls){
-    return '<div class="kpi '+cls+'"><div class="kpi-label">'+esc(label)+'</div>'
+  // filterKey (v1.6.5) rende il KPI un controllo di filtro nel Monitor. E'
+  // opzionale: la Dashboard continua a chiamare kpi() con 4 argomenti e ottiene
+  // la stessa scheda statica di prima.
+  // Un KPI a zero non e' cliccabile — filtrerebbe su una lista vuota.
+  function kpi(label,val,sub,cls,filterKey){
+    var n=parseInt(val,10);
+    var clickable = !!filterKey && !isNaN(n) && n>0;
+    var active = !!filterKey && S.monFilter===filterKey;
+    var attrs='';
+    if(clickable){
+      attrs=' data-kpi="'+esc(filterKey)+'" role="button" tabindex="0"'
+          + ' aria-pressed="'+(active?'true':'false')+'"'
+          + ' title="'+(active?'Clear this filter':'Show only '+esc(label.toLowerCase()))+'"';
+    }
+    return '<div class="kpi '+cls+(clickable?' clickable':'')+(active?' kpi-active':'')+'"'+attrs+'>'
+      + '<div class="kpi-label">'+esc(label)+'</div>'
       + '<div class="kpi-value">'+esc(val)+'</div><div class="kpi-sub">'+(sub||'')+'</div></div>';
   }
 
@@ -722,15 +766,99 @@
     }
   }
 
-  // Applica il cap di rendering e restituisce la fetta da disegnare + il resto.
-  function capped(list, showAll){
-    if(showAll || (S.RENDER_CAP >= list.length)){ return { rows:list, hidden:0 }; }
-    return { rows:list.slice(0,S.RENDER_CAP), hidden:list.length-S.RENDER_CAP };
+  // ---- Paginazione condivisa (v1.6.5) — Step 1, Step 2, Monitor ----
+  // Una sola implementazione per le tre viste: page e pageSize sono indicizzati
+  // per chiave di vista, cosi' ogni step ricorda la sua posizione senza che le
+  // viste si influenzino a vicenda.
+  function pageSizeOf(view){ return S.pageSize[view] || 25; }
+  function pageCount(total, view){ var ps=pageSizeOf(view); return (total>0) ? Math.ceil(total/ps) : 1; }
+
+  // Il clamp e' il cuore della robustezza: le liste cambiano sotto i piedi
+  // dell'utente (filtro digitato, refresh del polling nel Monitor che chiude
+  // righe). Senza clamp l'utente resterebbe su una pagina 7 che non esiste piu'
+  // e vedrebbe una tabella vuota senza capire perche'.
+  function clampPage(total, view){
+    var last=pageCount(total, view);
+    var cur=S.page[view] || 1;
+    if(cur<1) cur=1;
+    if(cur>last) cur=last;
+    S.page[view]=cur;
+    return cur;
   }
-  function capNote(hidden, total, btnId){
-    if(!hidden) return '';
-    return '<div class="cap-note">Showing '+(total-hidden)+' of '+total
-      + ' — refine the filter or <button class="link-btn" id="'+btnId+'">show all</button></div>';
+  function paginate(list, view){
+    var total=list.length, ps=pageSizeOf(view), cur=clampPage(total, view);
+    var from=(cur-1)*ps;
+    return { rows:list.slice(from, from+ps), total:total, page:cur,
+             pages:pageCount(total, view), from:total?(from+1):0,
+             to:Math.min(from+ps, total) };
+  }
+  // Ogni cambio che riordina o riduce la lista riporta a pagina 1: restare a
+  // pagina 5 dopo aver digitato un filtro mostrerebbe il nulla.
+  function resetPage(view){ S.page[view]=1; }
+
+  // Numeri di pagina con ellissi: prima, ultima, e una finestra intorno alla
+  // corrente. Con 200 pagine una lista completa sarebbe illeggibile.
+  function pageNumbers(cur, last){
+    var out=[], i;
+    if(last<=7){ for(i=1;i<=last;i++){ out.push(i); } return out; }
+    out.push(1);
+    var from=Math.max(2, cur-1), to=Math.min(last-1, cur+1);
+    if(cur<=3){ from=2; to=4; }
+    if(cur>=last-2){ from=last-3; to=last-1; }
+    if(from>2){ out.push('gap-l'); }
+    for(i=from;i<=to;i++){ out.push(i); }
+    if(to<last-1){ out.push('gap-r'); }
+    out.push(last);
+    return out;
+  }
+  // Il pager e' reso come HTML puro e agganciato per event delegation dal
+  // chiamante (wirePager): coerente col resto dell'app, che non usa handler
+  // inline ne' un handler per elemento.
+  function pagerHtml(view, pg){
+    if(!pg.total){ return ''; }
+    var sizes='', i, ps=pageSizeOf(view);
+    for(i=0;i<S.PAGE_SIZES.length;i++){
+      var v=S.PAGE_SIZES[i];
+      sizes+='<option value="'+v+'"'+(v===ps?' selected':'')+'>'+v+'</option>';
+    }
+    var nav='';
+    nav+='<button class="npu-pg" data-pg="prev" '+(pg.page<=1?'disabled':'')+' aria-label="Previous page">&#8249;</button>';
+    var nums=pageNumbers(pg.page, pg.pages);
+    for(i=0;i<nums.length;i++){
+      var n=nums[i];
+      if(n==='gap-l'||n==='gap-r'){ nav+='<span class="npu-pg-gap">&#8230;</span>'; continue; }
+      var cur=(n===pg.page);
+      nav+='<button class="npu-pg'+(cur?' current':'')+'" data-pg="'+n+'"'
+         + (cur?' aria-current="page" disabled':'')+' aria-label="Page '+n+'">'+n+'</button>';
+    }
+    nav+='<button class="npu-pg" data-pg="next" '+(pg.page>=pg.pages?'disabled':'')+' aria-label="Next page">&#8250;</button>';
+    return '<div class="npu-pager">'
+      + '<div class="npu-pager-size"><label for="npu-size-'+view+'">Rows per page</label>'
+      +   '<select id="npu-size-'+view+'" data-pgsize="'+view+'">'+sizes+'</select></div>'
+      + '<div class="npu-pager-info">Showing '+pg.from+'&#8211;'+pg.to+' of '+pg.total+'</div>'
+      + '<div class="npu-pager-nav">'+nav+'</div></div>';
+  }
+  // Un solo handler per pager. rerender e' la funzione di disegno della vista.
+  function wirePager(containerId, view, rerender){
+    var root=$(containerId); if(!root) return;
+    var pager=root.querySelector('.npu-pager'); if(!pager) return;
+    var sizeSel=pager.querySelector('select[data-pgsize]');
+    if(sizeSel){
+      sizeSel.onchange=function(){
+        S.pageSize[view]=parseInt(this.value,10)||25;
+        resetPage(view);   // cambiare la dimensione rimescola i confini di pagina
+        rerender();
+      };
+    }
+    pager.onclick=function(e){
+      var b=e.target.closest?e.target.closest('.npu-pg'):null;
+      if(!b || b.disabled) return;
+      var v=b.getAttribute('data-pg');
+      if(v==='prev'){ S.page[view]=(S.page[view]||1)-1; }
+      else if(v==='next'){ S.page[view]=(S.page[view]||1)+1; }
+      else { S.page[view]=parseInt(v,10)||1; }
+      rerender();
+    };
   }
 
   // ---- Dependency impact (v1.5.4, §6) — two branches, same certainty. See
@@ -829,9 +957,9 @@
     }
     var base=apps.slice().sort(function(a,b){ var x=(a.name||'').toLowerCase(), y=(b.name||'').toLowerCase(); return x<y?-1:(x>y?1:0); });
     var sorted=appSortRows(base);
-    var cap=capped(sorted, S.showAllW1);
+    var pg=paginate(sorted, 'w1');
     var rows='';
-    for(var i=0;i<cap.rows.length;i++){ var ap=cap.rows[i];
+    for(var i=0;i<pg.rows.length;i++){ var ap=pg.rows[i];
       var dn=rowDepCount(ap.scope), open=!!S.treeOpenW1[ap.scope];
       rows+='<tr><td class="col-name">'+esc(ap.name)
           +   (dn?' <button class="tree-btn tree-row-btn" data-id="'+esc(ap.scope)+'" aria-expanded="'+(open?'true':'false')+'">'+dn+' more <span class="chev">&#9660;</span></button>':'')
@@ -850,11 +978,10 @@
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + wth('name','Application')+wth('scope','Scope')+wth('current','Current &#8594; Latest')
       + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
-      + capNote(cap.hidden, sorted.length, 'w1-showall')+'</div>';
+      + pagerHtml('w1', pg)+'</div>';
     $('wizard1-body').innerHTML=h;
     $('w1-next').onclick=function(){ openSelect(); };
     $('w1-cancel').onclick=function(){ showView('home'); };
-    var sa=$('w1-showall'); if(sa){ sa.onclick=function(){ S.showAllW1=true; renderWizard1(); }; }
     var tb1=$('wizard1-body').querySelector('tbody');
     if(tb1){
       tb1.onclick=function(e){
@@ -863,7 +990,8 @@
       };
     }
     wireSuitePanel('w1-suite');
-    wireWizSort('wizard1-body', renderWizard1);
+    wireWizSort('wizard1-body', function(){ resetPage('w1'); renderWizard1(); });
+    wirePager('wizard1-body', 'w1', renderWizard1);
   }
 
   // ---- WIZARD 2 (Select) ----
@@ -895,7 +1023,7 @@
   }
   function openSelect(){
     showView('wizard2');
-    S.showAllSel=false;   // il cap riparte a ogni ingresso nello step
+    resetPage('sel');     // ogni ingresso nello step riparte da pagina 1
     S.treeOpenSel={};     // gli alberi di dipendenza per-riga ripartono chiusi (v1.5.2, §6)
     buildScopeFilter();
     renderSelect();
@@ -903,8 +1031,8 @@
 
   function renderSelect(){
     var all=appSortRows(filteredApps()), iff=inFlightSet(), rows='';
-    var cap=capped(all, S.showAllSel);
-    for(var i=0;i<cap.rows.length;i++){ var a=cap.rows[i]; var dis=iff[a.sysId];
+    var pg=paginate(all, 'sel');
+    for(var i=0;i<pg.rows.length;i++){ var a=pg.rows[i]; var dis=iff[a.sysId];
       var dn=rowDepCount(a.scope), open=!!S.treeOpenSel[a.scope];
       rows+='<tr><td><input class="check sel-cb" type="checkbox" data-id="'+esc(a.sysId)+'"'
           + ' aria-label="Select '+esc(a.name)+'"'
@@ -919,10 +1047,10 @@
     if(all.length===0){ rows='<tr><td colspan="5" class="empty">No applications match your filter.</td></tr>'; }
     var h=renderSuitePanel('sel-suite')
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
-      + '<th style="width:36px"><input class="check" type="checkbox" id="sel-allcheck" aria-label="Select all shown applications" /></th>'
+      + '<th style="width:36px"><input class="check" type="checkbox" id="sel-allcheck" aria-label="Select all matching applications" /></th>'
       + wth('name','Application')+wth('scope','Scope')+wth('current','Current &#8594; Latest')+wth('status','Status')
       + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
-      + capNote(cap.hidden, all.length, 'sel-showall')+'</div>';
+      + pagerHtml('sel', pg)+'</div>';
     $('sel-table').innerHTML=h;
 
     // Event delegation: un solo handler sul tbody invece di uno per checkbox.
@@ -941,11 +1069,11 @@
         if(b){ var sc=b.getAttribute('data-id'); S.treeOpenSel[sc]=!S.treeOpenSel[sc]; renderSelect(); }
       };
     }
-    var sa=$('sel-showall'); if(sa){ sa.onclick=function(){ S.showAllSel=true; renderSelect(); }; }
     var ac=$('sel-allcheck');
     if(ac){
       // "Select all" agisce su tutte le righe che passano il filtro, non solo su
-      // quelle rese: il cap è un limite di rendering, non di selezione.
+      // quelle della pagina corrente: la paginazione e' un limite di rendering,
+      // non di selezione (v1.6.5 — invariato rispetto al vecchio cap).
       ac.onchange=function(){
         var ck=this.checked, l=filteredApps(), f=inFlightSet();
         for(var x=0;x<l.length;x++){ if(f[l[x].sysId]) continue; if(ck) S.selected[l[x].sysId]=true; else delete S.selected[l[x].sysId]; }
@@ -953,7 +1081,8 @@
       };
     }
     wireSuitePanel('sel-suite');
-    wireWizSort('sel-table', renderSelect);
+    wireWizSort('sel-table', function(){ resetPage('sel'); renderSelect(); });
+    wirePager('sel-table', 'sel', renderSelect);
     updateSelCount();
   }
   // Non ridisegna la tabella: aggiorna solo lo stato e la barra. È ciò che rende
@@ -1330,7 +1459,17 @@
   function renderMonitor(d){
     S.monData=d;
     var c=d.counts||{}, all=d.rows||[];
-    var list=monSortRows(S.monOnlyFailed ? all.filter(function(r){ return r.status==='failed'; }) : all);
+    // Filtro KPI (v1.6.5): guarda SOLO lo status della riga principale. Le righe
+    // dipendenza seguono il genitore — una dipendenza 'complete' sotto un padre
+    // 'installing' resta visibile col padre, e non compare mai orfana sotto il
+    // filtro 'Complete'. I conteggi dei KPI vengono da d.counts (server) e
+    // contano le sole righe principali, quindi filtro e KPI restano allineati.
+    var filtered = S.monFilter ? all.filter(function(r){ return (r.status||'queued')===S.monFilter; }) : all;
+    var sortedRows=monSortRows(filtered);
+    // Il page size conta le sole righe principali: le dipendenze sono rese
+    // dentro l'iterazione del genitore, quindi non consumano slot di pagina.
+    var pg=paginate(sortedRows, 'mon');
+    var list=pg.rows;
     var rows='';
     for(var i=0;i<list.length;i++){ var r=list[i]; var st=r.status||'queued'; var pct=r.pct||0;
       var key=r.logSysId||('row'+i);
@@ -1378,26 +1517,32 @@
             + '<td><span style="color:var(--text-3);font-size:12px">&#8212;</span></td></tr>';
       }
     }
-    if(!list.length){ rows='<tr><td colspan="6" class="empty">'+(S.monOnlyFailed?'No failures in this batch.':'No apps in this batch.')+'</td></tr>'; }
+    if(!list.length){
+      rows='<tr><td colspan="6" class="empty">'
+        + (S.monFilter ? ('No applications with status &#8220;'+esc(S.monFilter)+'&#8221; in this batch.')
+                       : 'No apps in this batch.')
+        + '</td></tr>';
+    }
     var bs=d.status||'running';
     function th(k,label,extra){
       return '<th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.monSort,k)+(extra||'')+'>'+label+sortInd(k)+'</th>';
     }
     var h=batchSummary(d)
       + '<div class="kpi-grid">'
-      + kpi('Total', c.total||0, 'in this batch','')
-      + kpi('Installing', c.installing||0, 'running now', (c.installing>0)?'accent':'')
-      + kpi('Queued', c.queued||0, 'waiting in queue','')
-      + kpi('Complete', c.complete||0, 'installed','success')
-      + kpi('Failed', c.failed||0, 'see message', (c.failed>0)?'warning':'')
+      + kpi('Total', c.total||0, S.monFilter?'in this batch &#8226; clear filter':'in this batch','','__all__')
+      + kpi('Installing', c.installing||0, 'running now', (c.installing>0)?'accent':'', 'installing')
+      + kpi('Queued', c.queued||0, 'waiting in queue','', 'queued')
+      + kpi('Complete', c.complete||0, 'installed','success', 'complete')
+      + kpi('Failed', c.failed||0, 'see message', (c.failed>0)?'warning':'', 'failed')
       + '</div>'
       + '<div class="actions-bar"><div style="font-size:13px;color:var(--text-2)">Batch status: '+statusPill(bs)
-      +   (S.monOnlyFailed?' <button class="link-btn" id="mon-showall-rows">show all</button>':'')+'</div>'
+      +   (S.monFilter?' &#183; filtered by <strong>'+esc(S.monFilter)+'</strong> <button class="link-btn" id="mon-showall-rows">show all</button>':'')+'</div>'
       +   '<div style="font-size:12px;color:var(--text-3)">Last refreshed '+esc(new Date().toLocaleString())+'</div></div>'
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')
       + '<th style="width:110px">Details</th>'
-      + '</tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+      + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
+      + pagerHtml('mon', pg)+'</div>';
     $('mon-body').innerHTML=h;
 
     // Espansione/chiusura del dettaglio: lo stato vive in S.whyOpen, quindi
@@ -1411,8 +1556,35 @@
       };
     }
 
-    var of=$('mon-onlyfailed'); if(of){ of.onclick=function(){ S.monOnlyFailed=true; renderMonitor(S.monData); }; }
-    var sr=$('mon-showall-rows'); if(sr){ sr.onclick=function(){ S.monOnlyFailed=false; renderMonitor(S.monData); }; }
+    // Filtro per status. Un solo punto di verita' (S.monFilter): "Show only
+    // failures" del riquadro conclusivo e il KPI Failed sono lo stesso stato,
+    // cosi' il KPI si illumina anche quando il filtro parte dal riquadro.
+    function setMonFilter(k){
+      if(k==='__all__' || S.monFilter===k){ S.monFilter=''; }   // Total = reset, ri-click = toggle-off
+      else { S.monFilter=k; }
+      resetPage('mon');            // il filtro cambia la lista: si riparte da pagina 1
+      renderMonitor(S.monData);
+    }
+    var of=$('mon-onlyfailed'); if(of){ of.onclick=function(){ S.monFilter='failed'; resetPage('mon'); renderMonitor(S.monData); }; }
+    var sr=$('mon-showall-rows'); if(sr){ sr.onclick=function(){ setMonFilter('__all__'); }; }
+
+    // Un solo handler per l'intera griglia KPI (event delegation), come il
+    // resto dell'app. I KPI a zero non portano data-kpi e restano inerti.
+    var kg=$('mon-body').querySelector('.kpi-grid');
+    if(kg){
+      kg.onclick=function(e){
+        var card=e.target.closest?e.target.closest('[data-kpi]'):null;
+        if(card){ setMonFilter(card.getAttribute('data-kpi')); }
+      };
+      // Stessa azione da tastiera: le schede sono role="button".
+      kg.onkeydown=function(e){
+        if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){
+          var card=e.target.closest?e.target.closest('[data-kpi]'):null;
+          if(card){ e.preventDefault(); setMonFilter(card.getAttribute('data-kpi')); }
+        }
+      };
+    }
+    wirePager('mon-body', 'mon', function(){ renderMonitor(S.monData); });
 
     // "Cancel queued" solo quando c'è effettivamente qualcosa da annullare.
     var cb=$('mon-cancel');
@@ -1428,6 +1600,7 @@
       var k=th2.getAttribute('data-k');
       if(S.monSort && S.monSort.k===k){ S.monSort.dir=(S.monSort.dir===1?-1:1); }
       else { S.monSort={k:k,dir:1}; }
+      resetPage('mon');
       renderMonitor(S.monData);
     }
     for(var j=0;j<ths.length;j++){
@@ -1454,8 +1627,8 @@
     var gf=$('guide-foot'); if(gf){ gf.textContent='Now Plugin Updater v'+S.version+' · by Gianmario Marongiu'; }
     $('btn-refresh').onclick=refresh;
     // Debounce: senza, ogni carattere digitato ricostruisce l'intera tabella.
-    $('sel-filter').oninput=debounce(function(){ S.showAllSel=false; renderSelect(); }, 150);
-    $('sel-scope').onchange=function(){ S.showAllSel=false; renderSelect(); };
+    $('sel-filter').oninput=debounce(function(){ resetPage('sel'); renderSelect(); }, 150);
+    $('sel-scope').onchange=function(){ resetPage('sel'); renderSelect(); };
     $('sel-all').onclick=function(){ var l=filteredApps(), iff=inFlightSet(); for(var i=0;i<l.length;i++){ if(!iff[l[i].sysId]) S.selected[l[i].sysId]=true; } renderSelect(); };
     $('sel-none').onclick=function(){ S.selected={}; renderSelect(); };
     $('sel-install').onclick=confirmInstalls;
@@ -1464,7 +1637,7 @@
     // w1-next / w1-cancel sono resi dentro renderWizard1(): agganciati là.
     $('launch-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     $('launch-home').onclick=function(){ showView('home'); refresh(); };
-    $('mon-batch').onchange=function(){ S.currentBatch=this.value; S.monOnlyFailed=false; startMonitorPolling(); };
+    $('mon-batch').onchange=function(){ S.currentBatch=this.value; S.monFilter=''; resetPage('mon'); startMonitorPolling(); };
     $('mon-refresh').onclick=function(){ startMonitorPolling(); };
     $('mon-cancel').onclick=cancelQueued;
     refresh();

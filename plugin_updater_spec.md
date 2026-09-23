@@ -8,7 +8,9 @@
 
 > This spec supersedes the previous `SPECS.md`. The **domain logic** in that document was correct and is preserved here almost verbatim (filters, offering retry, version verification, progress polling, lessons learned). What changed is the **delivery architecture**, which was the actual cause of failure. Read §2 before building — it explains what to *not* repeat.
 >
-> **Sync status (v1.6.1 shipped).**
+> **Sync status (v1.6.5 shipped).**
+>
+> - **v1.6.5 replaces the 150-row render cap with real pagination in Step 1, Step 2 and the Monitor, makes the Monitor's KPI cards filter the table, and fixes the page background** — see §18.4. The `capped()`/`capNote()` + "show all" mechanism described elsewhere in this spec is **gone**; `RENDER_CAP`, `showAllW1`, `showAllSel` and `monOnlyFailed` no longer exist in the code. The confirm dialog's own 150-row cap notes (§18.3.3) are **unchanged** — they cap a dialog list, not a paginated table.
 >
 > - **§1–§18 describe the shipped application**, reconciled against `src/script_include/PluginUpdaterAjax.js` and `src/ui_page/pgi_plugin_updater.xhtml`, and **verified live on `democrmfalectriae152010`**: Scheduled Jobs (§10.2), install-log dictionary and ACLs (§9), filter behaviour (§8.1), dependency impact (§6), per-row dependency tracking from `sys_execution_tracker` (§10.3).
 > - **v1.6.1 fixes a real bug found via a user-run install test**: the Monitor's dependency rows showed only the target version (`→ 4.0.8`), never what the dependency was upgraded *from* — read at a glance as a placeholder because several dependencies legitimately share the same target. `sys_execution_tracker` never carried a starting version, and `sys_store_app.version` is already the target by the time the Monitor reads it, so the fix snapshots each dependency's pre-install version client-side (from `getUpdateImpact`, already computed for the confirm dialog) into a new `u_dependency_snapshot` field at `createBatch` time — see §10.3.1.
@@ -654,3 +656,57 @@ Asked directly: *is this version of Now Plugin Updater compatible with the Zuric
 The **original** dependency-impact design (the one superseded in §18.3, before the `sys_app_version` rebuild) had been validated on a Zurich instance per the original §6.8. That code path **no longer exists** — §6.1–§6.10 describe a different mechanism (`sys_app_version` target-version constraints, `sys_suite_config` suite branch), built and verified only against `democrmfalectriae152010`, which runs the Australia release family. The v1.6 tracker mechanism (§10.3, `sys_execution_tracker`) is newer still and has never run against anything but that same instance.
 
 **Decision (explicit, not a default): document the gap rather than claim compatibility.** Neither the current `sys_app_version`/`sys_suite_config` dependency-impact mechanism nor the `sys_execution_tracker` tracking mechanism has been verified on Zurich. Nothing in the tables or APIs involved (`sys_app_version`, `sys_suite_config`, `sys_suite_config_app_version_m2m`, `sys_execution_tracker`) is documented public API — they are internal platform tables the app reads because they're what `AppUpgrader`/`DependencyProcessor` itself reads, and their presence, shape, or population behaviour could differ across release families in ways that have not been checked. Do not represent this build as Zurich-verified in any customer-facing material until that verification is actually run.
+
+---
+
+## 19. v1.6.5 — pagination, KPI filtering, background (§18.4)
+
+### 18.4.1 Uniform page background — the one rule that lives outside `#app`
+
+**Symptom:** the page rendered `#f5f5f7` down to the end of the app content and plain white below it, a visible horizontal seam whenever the content was shorter than the viewport.
+
+**Cause:** every rule in this UI Page is scoped under `#app` (a deliberate constraint — see the CSS header comment and CLAUDE.md), and `#app` carried `min-height:600px`. On a tall viewport with a short view (Step 3, an empty Monitor) `#app` stopped at its content and the platform's own `html`/`body`, which the app had never styled, showed through white.
+
+**Fix, and why it breaks the scoping rule on purpose:** a single unscoped rule, `html,body{background:#f5f5f7;margin:0}`, plus `#app{min-height:100vh;border-radius:0}`. Tinting `body` is the only way to cover the area *outside* the app container; no `#app`-scoped rule can reach it. `border-radius` drops to 0 because a rounded container against an identically-coloured backdrop only produced four faintly clipped corners.
+
+**The colour is duplicated literally, and that is deliberate:** `--bg` is declared *on* `#app`, so it is not in scope on `body` — `body{background:var(--bg)}` would silently resolve to nothing. The CSS carries a comment tying the two values together: if `--bg` changes, the `html,body` literal must change with it.
+
+### 18.4.2 Pagination replaces the render cap — and why the original objection no longer holds
+
+Before v1.6.5, Step 1 and Step 2 rendered at most `RENDER_CAP` (150) rows and offered a one-way `show all`; the Monitor rendered every row unconditionally. The in-code comment justified this by stating that classic paging "spezzerebbe la selezione multipla su più pagine" (would break multi-select across pages).
+
+**That objection was unfounded, and the code already proved it.** `S.selected` is a map keyed by `sysId`, mutated by `toggleApp()` and read by `selectedIds()`; it is entirely independent of what is rendered. `toggleApp()` deliberately does *not* re-render the table. So selection already survived re-renders, filter changes and sorting — it survives page changes for exactly the same reason. Verified live: items selected on page 1 remain selected and counted after navigating to page 3 and back.
+
+**Design:** one implementation serves all three views, keyed by view (`w1` = Step 1, `sel` = Step 2, `mon` = Monitor), with `S.page` and `S.pageSize` indexed per key so each view keeps its own position and size independently (an explicit requirement — page size is *not* shared across steps). Page sizes offered: **25 / 50 / 100 / 150 / 200**, default **25**.
+
+Helpers: `pageSizeOf`, `pageCount`, `clampPage`, `paginate`, `resetPage`, `pageNumbers`, `pagerHtml`, `wirePager`. The pager markup is built as a string and wired by event delegation (one handler per pager, one per page-size select), consistent with the rest of the app — no inline handlers, no handler-per-element.
+
+**`clampPage` is the load-bearing piece.** These lists change underneath the user: a filter is typed in Step 2, and the Monitor re-renders on a 15-second poll as rows change state. Without a clamp, a user sitting on page 7 of a list that shrinks to 2 pages would see an empty table with no explanation. `clampPage` pins the current page into `[1, lastPage]` on every render, so the view degrades to the last valid page instead of to nothing.
+
+**Reset-to-page-1 is applied on every change that reorders or shrinks a list** — text filter, scope filter, column sort, page-size change, re-entering Step 2, switching batch, changing the Monitor's KPI filter. Staying on page 5 after typing a filter would show an empty table that reads as "no results".
+
+**`pageNumbers` emits numbered pages with ellipses** (first, last, and a window around the current page). With 200 rows at a page size of 25 a full list of page numbers is short, but at the 25-row size over a large batch it is not — and the window keeps the control a fixed width either way.
+
+**Step 2's "Select all" was already correct and is unchanged:** it iterates `filteredApps()`, i.e. the whole filtered set across all pages, not the rendered rows — pagination was always a rendering limit, never a selection limit. Only its `aria-label` changed, from "Select all shown applications" (which described the cap's behaviour inaccurately even before v1.6.5) to "Select all matching applications".
+
+**In the Monitor, page size counts main rows only.** Dependency rows (§10.3) are rendered *inside* their parent's loop iteration, so they consume no page slot and always stay attached to their parent. Slicing a flat row list would have stranded a `dependency` row at the top of a page with its parent on the previous one.
+
+**Not paginated:** the Step 3 launch view's "could not be started" table. It lists launch failures only — normally empty, and a launch large enough to produce 25+ failures is a different problem than a paging one.
+
+### 18.4.3 Monitor KPI cards as a status filter
+
+**Requirement as stated:** clicking a KPI should "sort by status and bring focus to the relevant plugins". **Resolved to a hard filter instead of a sort**, on the user's explicit decision — a sort that floats the chosen status to the top still leaves every other row on the page, so the admin still has to find where the group ends. A filter answers "show me the queued ones" directly.
+
+**Where:** the `Total / Installing / Queued / Complete / Failed` KPI row lives in `renderMonitor()`, on the **Monitor tab** — not in the wizard's Step 3, which has no KPI row and no plugin table (only the launch progress bar and the launch-failure list). This was confirmed before implementing rather than assumed.
+
+**Behaviour:** `Installing / Queued / Complete / Failed` filter to that status; clicking the active card again clears it (toggle-off); `Total` clears it. **A KPI showing 0 is not clickable** — no `data-kpi`, no pointer, no focus stop; filtering to an empty list is a dead end. The active card is marked visually (`.kpi-active`: accent ring + accent label) and with `aria-pressed`, because a filtered table with no indication of *why* reads as an incomplete table. Cards are `role="button"`, keyboard-activated with Enter/Space, matching the existing sortable-header pattern.
+
+**The filter matches the main row's status only; dependency rows follow their parent.** A parent `installing` with a `complete` dependency appears under `Installing`, dependency included, and never under `Complete`. This keeps the filter consistent with §18.4.2's paging rule and guarantees a dependency row is never shown orphaned. It also keeps the filter aligned with the KPI numbers themselves, which come from the server's `d.counts` and count main rows only.
+
+**`monOnlyFailed` was absorbed, not kept alongside.** The batch-summary panel's existing "Show only failures" link did the same job for one status through a second, separate piece of state. It now sets `S.monFilter='failed'`, so the `Failed` KPI lights up regardless of which control started the filter, and there is one source of truth. The panel's `show all` link clears the filter, same as `Total`.
+
+**The filter and the current page both survive the 15-second poll.** The filter is re-applied on each render before pagination; the page is clamped (§18.4.2). The empty-state message distinguishes a filtered empty result ("No applications with status "queued" in this batch.") from a genuinely empty batch.
+
+### 18.4.4 Verification
+
+Pagination helpers were extracted from the shipped UI Page and exercised in isolation — 21 assertions covering page counts at the 25/26/200 boundaries, first/last/partial-page slicing and `from`–`to` labels, clamping both when a list shrinks below the current page and when the page index exceeds the last page, empty lists, a page size larger than the list, per-view independence, and `pageNumbers` ellipsis windows at the first/middle/last page including a no-duplicates check. Browser verification against `democrmfalectriae152010` is recorded in §18.4.5.
