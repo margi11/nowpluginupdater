@@ -368,13 +368,13 @@ html,body{background:#f5f5f7;margin:0}
         <div class="guide-section mt16">
           <h3>2 &#183; Wizard &#8212; Discover</h3>
           <p>Lists every Store application with an available update (the same set the native Application Manager shows: active, visible, previously installed). Each row shows the scope and the current &#8594; latest version. Click any column header to sort ascending/descending.</p>
-          <p>If any updatable apps belong to the same platform suite (for example&#160;<em>Now Assist</em>), a banner above the table names the suite and how many apps in it will update together &#8212; click&#160;<strong>Show apps</strong>&#160;to see the full list. Independently, any row that will pull in other applications &#8212; because it is a member of that suite, because installing it requires updating another app first, or both &#8212; shows a&#160;<strong>N&#160;more</strong>&#160;link next to its name; click it to expand exactly which applications and versions that row brings with it. This is the same information the native Application Manager shows in its own&#160;<em>Review Installation Details</em>&#160;dialog, surfaced here per row instead of one app at a time.</p>
+          <p>Any row that will pull in other applications &#8212; because it belongs to a platform suite (for example&#160;<em>Now Assist</em>), because installing it requires updating another app first, or both &#8212; shows a&#160;<strong>N&#160;more</strong>&#160;link next to its name; click it to expand exactly which applications and versions that row brings with it. This is the same information the native Application Manager shows in its own&#160;<em>Review Installation Details</em>&#160;dialog, surfaced here per row instead of one app at a time.</p>
         </div>
         <div class="guide-section mt16">
           <h3>3 &#183; Wizard &#8212; Select</h3>
           <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The buttons sit&#160;<strong>above the list</strong>, so you never have to scroll hundreds of rows to continue. Apps already being installed are shown as&#160;<em>installing</em>&#160;and cannot be re-selected.</p>
-          <p>Very long lists render the first 150 rows for speed &#8212; use&#160;<strong>show all</strong>&#160;or the filters to reach the rest.&#160;<strong>Select All</strong>&#160;always applies to everything matching the current filter, not just the visible rows.</p>
-          <p>The same suite banner and per-row&#160;<strong>N&#160;more</strong>&#160;links from Discover are shown here too, so the impact of a row stays visible while you're choosing what to install.</p>
+          <p>Long lists are split into pages &#8212; choose 25, 50, 100, 150 or 200&#160;<strong>applications per page</strong>. Your selection is kept when you change page, sort or filter, and&#160;<strong>Select All</strong>&#160;always applies to everything matching the current filter, not just the visible page.</p>
+          <p>The per-row&#160;<strong>N&#160;more</strong>&#160;links from Discover are shown here too, so the impact of a row stays visible while you're choosing what to install.</p>
         </div>
         <div class="guide-section mt16">
           <h3>4 &#183; Confirm &amp; Launch</h3>
@@ -390,7 +390,7 @@ html,body{background:#f5f5f7;margin:0}
             <li>Whenever a row carries a message, a&#160;<strong>Details</strong>&#160;(or&#160;<strong>Why failed</strong>) button appears in the last column. It opens the exact text reported by the platform underneath that row &#8212; useful for telling apart an app that was rejected at launch from one whose install did not apply. If any application fails to launch, the wizard stays on the Launch step so you can read the reasons before moving on.</li>
             <li>The&#160;<strong>Monitor</strong>&#160;tab shows the batch with five counters &#8212; Total,&#160;<strong>Installing</strong>&#160;(running right now),&#160;<strong>Queued</strong>&#160;(waiting in the server queue), Complete, Failed &#8212; and a sortable per-app table. When the batch ends a summary appears, with a shortcut to list only the failures.</li>
             <li>Underneath any application that pulled in dependencies, a&#160;<strong>dependency</strong>&#160;badge marks the applications the platform actually installed alongside it &#8212; this reflects what really happened, read directly from the platform's own installation tracker, not a prediction made before launch.</li>
-            <li><strong>Cancel queued</strong>&#160;drops the applications still waiting in the queue. Installs already running cannot be interrupted and will finish.</li>
+            <li><strong>Cancel queued</strong>&#160;marks the applications still waiting as&#160;<em>cancelled</em>. It checks each one first: an application that has already started, or is already installed, is kept and reported as already started. The platform's own install queue is not changed, so an application it had already accepted can still install &#8212; its row then turns&#160;<em>Complete</em>. Installs already running cannot be interrupted and will finish.</li>
             <li>Reopening the page reloads your most recent batch automatically; the batch selector lets you review earlier ones.</li>
           </ul>
         </div>
@@ -422,7 +422,7 @@ html,body{background:#f5f5f7;margin:0}
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.6.5',
+    version:'1.6.6',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -899,6 +899,10 @@ html,body{background:#f5f5f7;margin:0}
   // panelId lets Step 1 and Step 2 each have their own toggle/list ids —
   // otherwise wiring both views' click handlers would clash on the same DOM id.
   function renderSuitePanel(panelId){
+    // v1.6.6 — il banner "N apps will be updated together" e' nascosto negli Step 1 e 2:
+    // la stessa informazione resta disponibile per riga tramite il link "N more".
+    // La funzione resta (e wireSuitePanel e' no-op senza il DOM) per poterlo riattivare.
+    if(true) return '';
     var imp=impactData();
     var suiteApps=(imp&&imp.suite&&imp.suite.apps)||[];
     if(!suiteApps.length) return '';
@@ -1405,7 +1409,10 @@ html,body{background:#f5f5f7;margin:0}
   function pollMonitor(){
     if(!monitorActive()) return;
     if(!S.currentBatch){ renderMonitorEmpty(); return; }
-    ajax('getBatchStatus',{ batch:S.currentBatch }, function(e,d){
+    // "Refresh now" chiede anche la riconciliazione lato server (reconcile:1); il
+    // polling automatico no, perche' ci pensa gia' il job ogni minuto.
+    var force=!!S.monForce; S.monForce=false;
+    ajax('getBatchStatus', force?{ batch:S.currentBatch, reconcile:1 }:{ batch:S.currentBatch }, function(e,d){
       if(!e && d && !d.error){ renderMonitor(d); }
       // Il server espone 'installing', non 'running': con la chiave sbagliata il
       // polling si fermava appena l'ultima app usciva dalla coda, congelando il
@@ -1427,7 +1434,7 @@ html,body{background:#f5f5f7;margin:0}
       confirmLabel:'Cancel '+q, cancelLabel:'Keep queued', danger:true,
       onConfirm:function(){
         ajax('cancelRemaining',{ batch:S.currentBatch }, function(e,d){
-          if(!e && d && d.ok){ announce(d.cancelled+' queued installs cancelled'); }
+          if(!e && d && d.ok){ announce(d.cancelled+' queued installs cancelled'+(d.kept?(' · '+d.kept+' had already started and will finish'):'')); }
           startMonitorPolling();
         });
       }
@@ -1649,7 +1656,7 @@ html,body{background:#f5f5f7;margin:0}
     $('launch-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     $('launch-home').onclick=function(){ showView('home'); refresh(); };
     $('mon-batch').onchange=function(){ S.currentBatch=this.value; S.monFilter=''; resetPage('mon'); startMonitorPolling(); };
-    $('mon-refresh').onclick=function(){ startMonitorPolling(); };
+    $('mon-refresh').onclick=function(){ S.monForce=true; startMonitorPolling(); };
     $('mon-cancel').onclick=cancelQueued;
     refresh();
   }

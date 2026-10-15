@@ -1,726 +1,931 @@
-# Now Plugin Updater — Build Specification (Implementation-Ready)
+# Now Plugin Updater — Technical & Functional Specification
 
-**Application name:** Now Plugin Updater · **Author:** Gianmario Marongiu
+**Application:** Now Plugin Updater · **Author:** Gianmario Marongiu
+**Scope:** ServiceNow custom application, **global scope**
+**Delivery model:** one **no-build UI Page** + one client-callable **Script Include** + one custom table + one Scheduled Job. No bundler, no Fluent SDK, no React, no UI Script, no external libraries.
+**Audience:** developers (and Claude Code) maintaining the app on a ServiceNow instance via MCP.
 
-**Target:** ServiceNow custom application, **global scope**
-**Audience:** Claude Code, building directly on a ServiceNow instance via the ServiceNow MCP
-**Delivery model:** **No-build UI Page** + single client-callable Script Include. No bundler, no Fluent SDK, no React toolchain.
-
-> This spec supersedes the previous `SPECS.md`. The **domain logic** in that document was correct and is preserved here almost verbatim (filters, offering retry, version verification, progress polling, lessons learned). What changed is the **delivery architecture**, which was the actual cause of failure. Read §2 before building — it explains what to *not* repeat.
+> **Current state (2026-10-15).** Shipped release **v1.6.6** (`NowPluginUpdater166.xml`, 59 objects), **certified on the Brazil family** (`empgmarongiu1`, build `glide-brazil-08-25-2026__patch1-09-21-2026_10-05-2026_1244`, §18.5). It is composed of:
 >
-> **Sync status (v1.6.5 shipped).**
+> - **UI Page** `pgi_plugin_updater` — client **v1.6.6** (`S.version='1.6.6'`). Identical to `src/ui_page/pgi_plugin_updater.xhtml` (99,994 chars, Guide corrected in the re-cut, §19.7).
+> - **Script Include** `PluginUpdaterAjax` — server **v1.6.6**. Identical to `src/script_include/PluginUpdaterAjax.js` (73,544 chars). §19.1 is closed.
 >
-> - **v1.6.5 replaces the 150-row render cap with real pagination in Step 1, Step 2 and the Monitor, makes the Monitor's KPI cards filter the table, and fixes the page background** — see §18.4. The `capped()`/`capNote()` + "show all" mechanism described elsewhere in this spec is **gone**; `RENDER_CAP`, `showAllW1`, `showAllSel` and `monOnlyFailed` no longer exist in the code. The confirm dialog's own 150-row cap notes (§18.3.3) are **unchanged** — they cap a dialog list, not a paginated table.
+> Both were verified byte for byte against the records installed from the final `NowPluginUpdater166.xml` (367,720 bytes, remote set `0360940c…`, built on the published 1.6.5 lineage, §12.2; includes the tracker failure reason, §19.13) on 2026-10-15. On the **from-scratch** import of `empgmarongiu1` the preview gave 59 / inserted 59 / updated 0 / collisions 0 (§12.4). On the **upgrade from the published 1.6.5** on `democrmfalectriae163723` it gave 59 / updated 53 / inserted 6 / collisions 0. Both were committed. §19 lists the gaps that are still open. **Read §19 before changing anything.**
 >
-> - **§1–§18 describe the shipped application**, reconciled against `src/script_include/PluginUpdaterAjax.js` and `src/ui_page/pgi_plugin_updater.xhtml`, and **verified live on `democrmfalectriae152010`**: Scheduled Jobs (§10.2), install-log dictionary and ACLs (§9), filter behaviour (§8.1), dependency impact (§6), per-row dependency tracking from `sys_execution_tracker` (§10.3).
-> - **v1.6.1 fixes a real bug found via a user-run install test**: the Monitor's dependency rows showed only the target version (`→ 4.0.8`), never what the dependency was upgraded *from* — read at a glance as a placeholder because several dependencies legitimately share the same target. `sys_execution_tracker` never carried a starting version, and `sys_store_app.version` is already the target by the time the Monitor reads it, so the fix snapshots each dependency's pre-install version client-side (from `getUpdateImpact`, already computed for the confirm dialog) into a new `u_dependency_snapshot` field at `createBatch` time — see §10.3.1.
-> - **v1.6.1 also ships the update set as a complete, from-scratch install** (`NowPluginUpdater160.xml`, 32 objects — table, fields, ACLs, module, scheduled job, Script Include, UI Page), not an incremental diff. In the process, the nav-bar brand icon was removed entirely: both ways of embedding it (inline base64, and a `sys_attachment` reference) were tried and verified live, and neither is viable for a self-contained export — see §10.3.2.
-> - **v1.6 adds three admin-visibility fixes, all UI/data-shape only — no change to §6/§7/§8's core logic.** (1) The confirm dialog now names the *selected* apps in their own expandable list, not just a bare count (§14, §18.3.3). (2) The Monitor shows the dependency apps the platform actually installed alongside each row, read from `sys_execution_tracker` — an observed fact, not the §6 prediction (§10.3, §14). (3) Returning Home from the Monitor tab now force-refreshes the dashboard data (§14) so KPI counters never show a stale pre-batch state.
-> - **v1.6 also closes a silent-truncation bug in the confirm dialog** (§18.3.3): both of its expandable lists rendered at most 150 rows with no indication a real total was higher — inconsistent with the `capNote()` pattern already used in Step 1/2. Fixed with the same "Showing N of M" wording.
-> - **v1.6 documents, rather than resolves, a compatibility gap: the current dependency-impact mechanism (§6, `sys_app_version` + `sys_suite_config`) and the v1.6 tracker mechanism (§10.3, `sys_execution_tracker`) have only been verified on `democrmfalectriae152010` (Australia family). Neither has been verified on Zurich** — see §18.3.4. Do not represent this build as Zurich-compatible without that verification.
-> - **§6 (dependency impact) is implemented as two certain branches — not suite + heuristic.** `getUpdateImpact` on `PluginUpdaterAjax` runs a **suite branch** (`sys_suite_config`) and a **dependency branch** that mirrors the platform's own DependencyProcessor (the logic behind the native Application Manager's Update button): for each app's *target* version, read `sys_app_version` (not `sys_store_app.dependencies` — see §6.1) and recurse only where installed < required, stopping at the first satisfied node. Both branches carry an explicit version constraint against the target, so **both render with identical certainty** — v1.5's `Will be updated` / `May also be updated` distinction is gone; there is no heuristic tier. Folded into `getUpdatableApps` (§6.7) and shown identically in **Step 1 and Step 2** (not Step 2 only, as in v1.5).
-> - **v1.5's dependency-graph branch (BFS over `sys_store_app.dependencies`, "May also be updated") was removed and replaced, not just relabeled.** It walked the *installed* version's floor, not the target's, with no version check — measured live, that surfaced 19 unrelated Platform Analytics sub-components for "Content Understanding" (real `update_available=1` rows, reached only through a 40+-dependency hub app, with zero relevance to Content Understanding itself). The replacement dependency branch, measured on the same instance, correctly returns *zero* impact for Content Understanding (its 3 direct deps already satisfy its own target) and exactly 3 apps for Setup Hub (`Setup Hub Content → Common → Config`, terminating at Admin Center instead of continuing into unrelated apps).
-> - **v1.5.2's shared dependency-branch summary panel was replaced by per-row expansion in v1.5.3** (§18.3.1) — a flat "N dependent apps" list gave no indication of *which* row caused *which* downstream app. Each table row that has dependency-branch impact now shows its own `N more ▾`, e.g. `Subscription Management v2` → `Licensing Engine`; `Setup Hub` → `Setup Hub Content/Common/Config`.
-> - **v1.5.4: every row that is itself a suite member also gets its own per-row `N more ▾`**, expanding to the *other* members of the same suite (§18.3.2) — mirroring the native Application Manager, where clicking Update on **any** suite member opens the identical suite dialog. Before this, a suite-only row like `ServiceNow Otto AI Agents` (no dependency-branch impact of its own) showed no expansion at all, even though the native dialog for that exact app lists its 8 suite siblings — confirmed by comparing directly against the native dialog's own output for that app. **A first attempt at this fix shipped a real bug** (caught in the smoke test before this text was written, not after): it added the suite's other members to a row's expansion whenever the suite existed, without checking that *that specific row* was a member — every non-suite row (`Theme Builder`, `AI Experience Framework`, …) briefly showed a spurious `8 more`/`9 more`. Fixed by checking membership first (§18.3.2).
-> - **§18.1 open questions — resolved, see §18.2. §18.3 records the v1.5.2 replacement decisions; §18.3.1 records the v1.5.3 UX correction; §18.3.2 records the v1.5.4 fix and the bug caught while shipping it.**
-> - **Corrected against measured data, do not revert:** the seven extra "updatable" filters (§8.1) and the use of `state_code` as a failure signal (§10.1) were both prescriptions that live data falsified.
-> - **Specified but never built:** category grouping (§13), and `u_product_category` (§9) is written by nothing.
-> - **Migration:** the one-off `repair_install_log_140.js` is described in §9.1.
+> Where this document says "server", it describes the **v1.6.6 Script Include**. The update set and `src/` now agree.
 
 ---
 
 ## 1. Goal
 
-A single, clean admin screen to discover, select, and install available updates for **Store applications** on the instance, replacing the per-app dance in the native Application Manager. It must show instance version and counts, drive updates through a 3-step wizard with live progress, and keep an install history.
+A single admin screen to **discover, select, and batch-install** available updates for **ServiceNow Store applications** on the instance. It replaces the one-app-at-a-time flow of the native Application Manager. It must:
+
+- show instance identity (name, release, data center, DB, last upgrade, last Store sync) and app counters;
+- drive updates through a 3-step wizard (Discover → Select → Launch), with the same **dependency impact** visibility the native *Review Installation Details* dialog offers;
+- trigger installs **without stored credentials** (the admin's own session);
+- keep monitoring **server-side**, so the page can be closed after launch;
+- decide the outcome of each install **only from the installed version**;
+- keep an **install history** (per-batch log table) browsable from the Monitor;
+- trigger a **Store sync** ("Sync now" parity) with real progress.
+
+Out of scope: platform plugins (`v_plugin` / `com.*`), rollback, scheduling, notifications, multi-instance (§17).
 
 ---
 
-## 2. Why the previous architecture failed — hard constraints for this build
+## 2. Hard architectural constraints (why the first build failed)
 
-These are not preferences; they are the root causes of the prior non-working implementation. Do **not** reintroduce them.
+These are root causes of the prior, non-working implementation. Do not reintroduce them.
 
-1. **No React multi-file SPA, no bundler.** The prior `app.jsx / main.jsx / components/*.jsx` structure with ES `import`s requires a build step (Vite/esbuild) that a UI Page cannot perform at serve time. This produced blank pages / module errors. → Build the UI as a **single no-build UI Page**: structured vanilla JS in an IIFE. Nothing that needs transpilation or module resolution. (A no-build micro-lib as a UI Script was allowed here originally; the shipped app does not use one — §18 decision 3.)
-
-2. **No Fluent / `*.now.ts` deploy.** The prior lessons-learned already note Fluent modules / `require()` "may not load on all instances." → All artifacts are created as **native instance records via the ServiceNow MCP** (UI Page, Script Include, table, ACLs, navigation module).
-
-3. **No stored credentials, no Base64 "encryption".** Base64 is reversible; a Base64 `username:password` in a system property is plaintext admin credentials. The server-side `RESTMessageV2` loopback to the instance's own CICD API also breaks on self-call SSL / wrong `glide.servlet.uri` / password rotation. → **Trigger installs client-side using the logged-in user's session** (see §7). Remove the credentials-config UI entirely.
-
-4. **One data path, not two.** The prior "GlideAjax primary + REST Table API fallback" doubles auth/ACL surface and creates inconsistent behavior. → **All reads go through one client-callable Script Include via GlideAjax.** No REST Table API fallback.
-
-5. **Instance version is not `glide.war`.** That property gives a raw build string, not "Australia Patch 2." → Use the version chain in §5.
+1. **No React multi-file SPA, no bundler.** A UI Page cannot run a build step at serve time. The UI is one Jelly fragment containing static HTML, `#app`-scoped CSS and a single vanilla-JS IIFE.
+2. **No Fluent / `*.now.ts`.** Every artifact is a native instance record (created via MCP), packaged in a classic update set.
+3. **No stored credentials, no Base64 "encryption", no server-side REST loopback.** Installs are triggered **client-side** with the logged-in admin's session (§7).
+4. **One data path.** Every read and every log write goes through `PluginUpdaterAjax` via GlideAjax. There is no REST Table API fallback. (`sys_store_app` returns HTTP 403 to the Table API even for admins, so it is only readable server-side.)
+5. **Instance version is not `glide.war`.** Use the parsing chain in §5.2.
+6. **UI layer is vanilla JS only.** No Alpine, no petite-vue, no UI Script (decision §18.0-3).
+7. **CSS under `#app`, prefix `.npu-`, never a `.modal` class** (Next Experience/Polaris defines `.modal{display:none}`). The single deliberate exception is `html,body{background:#f5f5f7}` (§14.9).
+8. **Server code is ES5** (Rhino). Client code is ES5-style too (no build), using `fetch`/`Promise` natively.
 
 ---
 
 ## 3. Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  UI Page (no build):  pgi_plugin_updater.do                  │
-│  Jelly shell + static HTML + design-token CSS                │
-│  Vanilla JS (IIFE) — no reactive micro-lib, no UI Script      │
-│  Views: Home · Wizard 1 (Discover) · Wizard 2 (Select) ·      │
-│         Monitor · Guide  (no router lib)                      │
-├─────────────────────────────────────────────────────────────┤
-│  READS  → GlideAjax → Script Include (server)                │
-│  INSTALL→ fetch() same-origin → /api/sn_cicd/app_repo/install │
-│           (logged-in user session + X-UserToken, see §7)      │
-├─────────────────────────────────────────────────────────────┤
-│  Script Include (client_callable): PluginUpdaterAjax          │
-│   extends AbstractAjaxProcessor   (NOT global.AbstractAjax…)   │
-│   reads:   getInstanceInfo · getHomeData · getUpdatableApps    │
-│            getUpdateImpact (§6) · getBatchStatus · listBatches │
-│   batch:   createBatch · attachWorker · failRow                │
-│            cancelRemaining · getActiveBatch                    │
-│   store:   syncStore · getSyncProgress                         │
-│   server:  monitorBatches  ← Scheduled Job, admin-guarded      │
-├─────────────────────────────────────────────────────────────┤
-│  Custom table (in MVP, not deferred):                         │
-│   u_plugin_updater_install_log                                │
-├─────────────────────────────────────────────────────────────┤
-│  Scheduled Job: finalizes each install server-side, so the    │
-│  can be closed after launch (outcome per §10.1)               │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│ UI Page pgi_plugin_updater (Jelly fragment, no build)             │
+│  <style> tokens + #app-scoped CSS                                 │
+│  <div id="app"> nav · views · #modal-host                         │
+│  <script> vanilla IIFE — state S, view switching, event delegation│
+│  Views: home · wizard1 · wizard2 · wizard3 · monitor · guide      │
+├──────────────────────────────────────────────────────────────────┤
+│ READS/LOG WRITES → GlideAjax('PluginUpdaterAjax') → JSON strings  │
+│ INSTALL          → fetch POST /api/sn_cicd/app_repo/install       │
+│                    same-origin session + X-UserToken (g_ck)       │
+├──────────────────────────────────────────────────────────────────┤
+│ Script Include PluginUpdaterAjax (client_callable, global)        │
+│  extends AbstractAjaxProcessor · every method admin-guarded       │
+├──────────────────────────────────────────────────────────────────┤
+│ Table u_plugin_updater_install_log  (one row per app per batch)   │
+├──────────────────────────────────────────────────────────────────┤
+│ Scheduled Job "Plugin Updater - Monitor Batches" (every 1 min)    │
+│  → PluginUpdaterAjax.monitorBatches() finalizes rows server-side  │
+│ Scheduled Job "Plugin Updater - Store Sync (once)" (on demand)    │
+│  → sn_appclient.UpdateChecker.checkAvailableUpdates(...)          │
+├──────────────────────────────────────────────────────────────────┤
+│ Platform tables read: sys_store_app, sys_app_version,             │
+│  sys_suite_config, sys_suite_config_app_version_m2m,              │
+│  sys_progress_worker, sys_execution_tracker, sys_cluster_state,   │
+│  sys_upgrade_history · properties glide.*, sn_appclient.*         │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-**Components to create (all via MCP, all global scope):**
+### 3.1 Component inventory (update set v1.6.6 — 59 objects)
 
-1. Application `Now Plugin Updater` (global), grouped in one update set / app for export.
-2. ~~UI Script hosting Alpine.js or petite-vue~~ — **not created**: the shipped UI is vanilla JS only (§18 decision 3).
-3. Script Include `PluginUpdaterAjax` (`client_callable = true`), extends `AbstractAjaxProcessor`.
-4. UI Page `pgi_plugin_updater` (Jelly shell + HTML + CSS + JS).
-5. Custom table `u_plugin_updater_install_log` + ACLs (**in MVP** — see §9).
-6. Application menu + module linking to `pgi_plugin_updater.do`.
-7. ACLs / role restriction to `admin`.
+The object list is unchanged from v1.6.5: v1.6.6 only changes the `script` of the Script Include and the `html` of the UI Page. On the from-scratch install of 2026-10-15 all 9 ACL-role rows resolved to `admin`, with no `snc_internal` fallback (§12.2, §19.6).
+
+| # | Type | Record | Key attributes |
+|---|---|---|---|
+| 1 | UI Page | `pgi_plugin_updater` | category `general`, no client/processing script; everything is in `html` |
+| 1 | Script Include | `PluginUpdaterAjax` (`global.PluginUpdaterAjax`) | `client_callable=true`, `active=true`, `sandbox_callable=false`, access `package_private` |
+| 1 | Table | `u_plugin_updater_install_log` ("Plugin Updater Install Log") | not extendable, `access=public`, `ws_access=true` |
+| 22 | Dictionary | 15 custom columns + collection + 6 `sys_*` | see §9 |
+| 16 | Field Label (`sys_documentation`, en) | table + 15 columns | |
+| 1 | Choice list | `u_status` | `queued`, `in_progress`, `complete`, `failed` — **see §19.4** |
+| 5 | ACL | `u_plugin_updater_install_log` create/read/write/delete (type `record`); `pgi_plugin_updater` read (type `record`, **see §19.5**) | all `active`, `admin_overrides=true`, decision `allow` |
+| 9 | ACL Role | `sys_security_acl_role` → role `admin` (`2831a114c611228501d4ea6c309d626d`) | 4 install-log ACLs are bound twice (harmless duplicates, §19.6) |
+| 1 | Application Menu | `Now Plugin Updater` | `roles=admin`, order 100, device `browser` |
+| 1 | Module | `Plugin Updater` | `roles=admin`, link type `DIRECT`, target `now/nav/ui/classic/params/target/pgi_plugin_updater.do` |
+| 1 | Scheduled Script | `Plugin Updater - Monitor Batches` | `run_type=periodically`, period 1 min, `run_as` = `admin` user (`6816f79c…e441`), active |
+
+Created **at runtime** (not in the update set):
+
+- system property `x_npu.sync_state` (JSON Store-sync state, §11.2);
+- system property `__npu_sync_job_id` (sys_id of the latest one-shot sync job);
+- Scheduled Script `Plugin Updater - Store Sync (once)` (one per sync; deletes itself);
+- the `sys_trigger` of `Plugin Updater - Monitor Batches` (created by the platform when the job is committed).
+
+Created **by the platform** when the table is created, and deleted with it by cascade: `ua_table_licensing_config` for `u_plugin_updater_install_log`. On instances that received an early version, also `snc_internal` ACL-role rows from the platform fallback (§19.6). Neither is in the update set. The reset script (§12.4) removes their history.
+
+### 3.2 Repository layout
+
+| Path | Content | Status |
+|---|---|---|
+| `src/ui_page/pgi_plugin_updater.xhtml` | UI Page `html` field (Jelly) | = v1.6.6 (certified) |
+| `src/script_include/PluginUpdaterAjax.js` | Script Include | = v1.6.6 (certified) |
+| `src/fix_scripts/repair_install_log_140.js` | one-off history repair (§9.2) | current |
+| `src/fix_scripts/reset_npu_instance.js` | full uninstall of the app and its history on the test instance (§12.4) | current |
+| `NowPluginUpdater<ver>.xml` | exported update sets 1.3.7 → 1.6.6 | `166` is current |
+| `index.html` | public landing page with the XML embedded as base64 download (Netlify) | v1.6.6 |
+| `netlify.toml`, `netlify/functions/download-count.mjs`, `package.json` | Netlify site + download counter (Netlify Blobs; `GET` read, `POST` +1) | current |
+| `Now-Plugin-Updater-Briefing.html` | original build briefing | historical |
+| `README.md` | public README | **stale (says v1.4.2)**, §19.8 |
+| `Update-Sets/README.md` | export/import notes | historical (v1.3.0) |
 
 ---
 
-## 4. Script Include API (server)
+## 4. Script Include API — `PluginUpdaterAjax` (v1.6.6)
 
-`PluginUpdaterAjax extends AbstractAjaxProcessor`, `client_callable = true`, global scope.
-**Constraint:** extend `AbstractAjaxProcessor` (not `global.AbstractAjaxProcessor`) — required for correct GlideAjax response handling in a global-scope app (carried over from prior lessons learned). All methods return JSON strings.
+`Class.create()` + `Object.extendsObject(AbstractAjaxProcessor, {...})`. Use `AbstractAjaxProcessor`, **not** `global.AbstractAjaxProcessor`. Every public method returns a **JSON string**.
 
-Every public method is `admin`-guarded (`gs.hasRole('admin')`) and every `sys_id` parameter is sanitised against `/^[0-9a-f]{32}$/i` before use.
+### 4.1 Conventions
 
-**Reads**
+- **Authorization:** every client-callable method starts with `_guard()` = `gs.hasRole('admin')`. It returns `{"error":"forbidden: admin role required"}` otherwise. `monitorBatches` uses `_guardServer(who)`, which also logs `gs.error` naming the "Run as" user, so a misconfigured job does not fail silently.
+- **Input hygiene:** every `sys_id` coming from the client goes through `_sysId()` (trim + `/^[0-9a-f]{32}$/i`, else `''`). Strings written to the log are truncated to field length.
+- **Parameters:** the client helper `ajax(method, params, cb)` sends each key as `sysparm_<key>`. The server reads both `sysparm_<key>` and `<key>`.
+- **Internal object variants (v1.6.3, O5):** `_instanceInfo()`, `_updatableApps()` and `_updateImpact(scopesCsv)` return objects. The public methods only `JSON.stringify` them. This avoids stringify→parse→stringify inside `getHomeData`.
+- **Logging:** `gs.info/warn/error` with the `[PluginUpdater]` prefix.
 
-| Method | Returns |
-|---|---|
-| `getInstanceInfo` | `{ versionLabel, rawBuild, instanceName, dataCenter, installsRunning, … }` — friendly version parsed per §5 |
-| `getHomeData` | Home in **one** call (instance info + counters). Consolidated in v1.4.0 — do not split it back into two round-trips |
-| `getUpdatableApps` | `{ apps: [{ sysId, name, scope, current, latest }], appsUpToDate, inFlight: [...] }` after the §8 filters. **No `category` field** — grouping by product category (§13) was not implemented |
-| `getUpdateImpact` | dependency impact — see §6.10 |
-| `getBatchStatus` | rows + progress for one batch |
-| `listBatches` | batch list via **GlideAggregate**, not a row scan (v1.4.0) |
-| `getActiveBatch` / `getMyLatestBatch` | resume the Monitor on (re)entry |
-| `getSyncProgress` | live Store-sync progress from `sn_appclient.apps_sync_progress` |
+### 4.2 Read methods
 
-**Writes / actions**
+| Method | Params | Returns |
+|---|---|---|
+| `getInstanceInfo` | — | `{ rawBuild, versionLabel, installsRunning, instanceName, dataCenter, dbType, lastUpgraded, lastStoreSync }` (§5.2) |
+| `getUpdatableApps` | — | `{ appsUpToDate, inFlight:[{sys_id,state,message,percent_complete}], apps:[{sysId,name,scope,current,latest}], impact, impactError? }`. `impact` = `_updateImpact(null)` (§6). Apps are ordered by `name` |
+| `getHomeData` | — | `{ info, appData, infoError?, appsError? }`: both of the above in **one** round-trip; each half fails independently |
+| `getUpdateImpact` | `scopes` (CSV, optional) | `{ suite, dependenciesByRoot, dependencies }` (§6.10) |
+| `getSyncProgress` | — | `{ pct, running, outcome, message, startedAt, finishedAt, lastSync }` (§11.3) |
+| `getBatchStatus` | `batch`, `reconcile` (optional, `1`) | `{ batch, status, counts, rows, rowsShown, truncated }` (§10.4). **v1.6.6:** with `reconcile=1` it first runs `_reconcile(batch)` (§10.3) |
+| `listBatches` | — | `{ batches:[{batch, started, total, failed, active}] }`: the current user's 20 most recent batches (§10.5) |
+| `getMyLatestBatch` | — | `{ batch }`: the current user's most recent batch key, or `''` |
+| `getActiveBatch` | — | `{ batch }`: the current user's most recent batch that still has a `queued/installing/in_progress` row |
 
-| Method | Purpose |
-|---|---|
-| `createBatch` | creates the batch and its `u_plugin_updater_install_log` rows |
-| `attachWorker` | binds a `sys_progress_worker` sys_id to a row after launch |
-| `failRow` | marks a row failed when the client-side launch itself fails |
-| `cancelRemaining` | drops still-queued rows; running installs finish |
-| `syncStore` | triggers the Store update check via a **Run Once Scheduled Job** — see §5 |
+### 4.3 Write / action methods
 
-**Server-only (not client-callable)**
+| Method | Params | Effect / returns |
+|---|---|---|
+| `createBatch` | `apps` = JSON `[{sysId,name,scope,current,latest,depVersions}]` | Inserts one `queued` row per app (cap **1000**). Returns `{ batch, total, rows:[{sysId, logSysId}] }` or `{error:'no apps'}` |
+| `attachWorker` | `log_sys_id`, `progress_id` | Stores the worker id. Resets the status to `queued` **only if** the row is still `queued`/`in_progress` (v1.6.3, B1). Returns `{ ok, status }` |
+| `failRow` | `log_sys_id`, `message` | Marks the row `failed`, 100 %, `u_completed_at=now`, message ≤ 1000 chars. Returns `{ ok }` |
+| `cancelRemaining` | `batch` | For every `queued` row of the batch (**v1.6.6**): if a target version is set and is already installed → `complete`; else if the worker/tracker is `running` → `installing`; otherwise `cancelled` ("Cancelled by <user> before the install started"). Returns `{ ok, cancelled, kept }` (`kept` = rows found already started or installed). It only changes the log, not the platform queue (§19.12) |
+| `syncStore` | — | Starts a Store sync through a one-shot Scheduled Job (§11). Returns `{ queued:true, jobId, startedAt, lastSync }`, `{ queued:false, alreadyRunning:true, startedAt, lastSync }` or `{ queued:false, error, … }` |
 
-| Method | Purpose |
-|---|---|
-| `monitorBatches` | Scheduled Job entry point: polls workers, applies the §10.1 outcome rule, finalizes rows. Logs an explicit error if it runs without the `admin` role instead of failing silently |
+### 4.4 Server-only
 
-Private helpers: `_findWorker` (multi-strategy lookup, §10), `_cmpVer` (semantic version compare), `_verify` (installed-version check, cached per run), `_failMessage`, `_batchLastActivityMs`.
+| Method | Caller | Returns |
+|---|---|---|
+| `monitorBatches` | Scheduled Job, every minute | `"checked:finalized"`. **v1.6.6:** a thin wrapper, `_guardServer` then `_reconcile('')`. The algorithm is in §10.3 |
 
-There is **no** `getProgress`, `verifyVersion` or `logInstall` method: progress and verification live inside `getBatchStatus` / `monitorBatches`, and logging is done by `createBatch` + the Scheduled Job. **No `RESTMessageV2` in the Script Include** — installs are triggered from the client (§7).
+### 4.5 Private helpers
+
+`_guard`, `_forbidden`, `_sysId`, `_guardServer`, `_instanceInfo`, `_updatableApps`, `_updateImpact`, `_suiteImpact` (suite branch, §6.2), `_readSyncState` / `_writeSyncState` / `_syncLocked` / `_syncRunning` / `_cleanupSyncJobs` (§11), `_fmtDateTime` (aggregate UTC → user display value), `_dependencyTreeForBatch` / `_depRowsFor` (§10.6), `_reconcile(batchFilter)` (v1.6.6, §10.3; no role check of its own, callers guard), `_findWorker` (`gr.get` on `sys_progress_worker`; **v1.6.6** falls back to `sys_execution_tracker` with the same sys_id; returns `{state,message,error,pct,id,source}`), `_trackerFailure(pid)` (v1.6.6: the root tracker's `message` when it is Failed/Cancelled, §19.13), `_cmpVer` (§10.2), `_verify` (installed vs target, per-run cache), `_failMessage`, `_batchLastActivityMs`.
+
+Constants: `ROW_CAP=500`, `SYNC_JOB_NAME='Plugin Updater - Store Sync (once)'`, `SYNC_STATE_PROP='x_npu.sync_state'`, `SYNC_LOCK_TTL_MS=1800000` (30 min).
+
+**There is no `RESTMessageV2` anywhere**, and no `getProgress`, `verifyVersion` or `logInstall` method.
 
 ---
 
-## 5. Data sources — precise reference
+## 5. Data sources
 
-| Need | Table | Query / fields |
+### 5.1 Tables and properties read
+
+| Need | Source | Detail |
 |---|---|---|
-| Active plugin count | `v_plugin` | GROUP BY `state`; count `active` + `published` |
-| Updatable store apps | `sys_store_app` | see §8 filter rules; fields `name`,`scope`,`version`,`latest_version`,`update_available`,`active`,`hide_on_ui`,`install_date`,`last_installed_from`,`static_content` |
-| In-flight installs | `sys_progress_worker` | `name=CICDAppRepoService$CICDInstallWorker`, `state IN pending,running` |
-| Install progress | `sys_progress_worker` | by sys_id; `state`,`state_code`,`message`,`error_message`,`percent_complete` — **there is no `completion_code` field** (§10) |
-| Post-install verify | `sys_store_app` | re-read `version` for the app's sys_id |
-| Suite membership (§6) | `sys_suite_config` | target = `compatible=true`, highest `version`; **never rely on `installed=true`** — absent on Zurich |
-| Suite app versions (§6) | `sys_suite_config_app_version_m2m` | `suite_config`, `app_scope`, `app_version` — the per-app target version behind the native *Review Installation Details* dialog |
-| Dependency graph (§6) | `sys_store_app` | `dependencies` (glide_list, `scope:min_version`; `com.*:sys` = platform plugin), `update_available`, `hide_on_ui` |
+| Updatable apps | `sys_store_app` | `update_available=true ^ active=true ^ hide_on_ui=false`, ordered by `name` (§8) |
+| Up-to-date count | `sys_store_app` (GlideAggregate) | `active=true ^ update_available=false ^ hide_on_ui=false` |
+| In-flight installs | `sys_progress_worker` | `name=CICDAppRepoService$CICDInstallWorker ^ state IN pending,running` |
+| "Installing" KPI | `sys_progress_worker` (GlideAggregate) | same name, `state=running`. **Instance-wide**, not limited to this app's batches |
+| Install progress | `sys_progress_worker` by sys_id | `state`, `message`, `error_message`, `percent_complete`. There is **no `completion_code` field**, and `state_code` is not used (§10.2) |
+| Post-install version | `sys_store_app.version` by sys_id | arbiter of outcome |
+| Dependency impact | `sys_app_version`, `sys_suite_config`, `sys_suite_config_app_version_m2m` | §6 |
+| Installed dependencies | `sys_execution_tracker` | §10.6 |
+| Data center | `sys_cluster_state.system_id` (first by `system_id`) | host `appNNN.ams101.service-now.com:…` → 2nd DNS label upper-cased → `AMS101` |
+| Last upgrade | `sys_upgrade_history` newest by `sys_created_on` | `completed` → `started` → `sys_created_on`, date part only |
+| DB engine | `glide.db.rdbms` | `mysql`→`MySQL`, `postgres(ql)`→`PostgreSQL (RaptorDB)`, else capitalized |
+| Instance name | `instance_name` | |
+| Last Store sync | `sn_appclient.apps_last_sync_time` | |
+| Store sync % | `sn_appclient.apps_sync_progress` | **0–100 scale** (observed "85.0"), reset to 0 at the end |
 
-> **`sys_store_app` returns HTTP 403 to the Table API** (API-level ACL) even for an admin with Basic Auth — verified on two instances. It is readable server-side, which is how the app reads it. Any verification or diagnostic script must run server-side (or through the app's own GlideAjax methods), not via REST.
+### 5.2 Release label
 
-**Instance version label (e.g. `Australia · Patch 2`)** — fallback chain; verify exact format on the target instance during build:
+1. `family` = `glide.buildname` if set. Otherwise it comes from `glide.buildtag` `^glide-([a-z]+)-`, capitalized.
+2. `patch` from `__patch(\d+)`, `hotfix` from `hotfix([0-9a-z]+)` (both on `glide.buildtag`).
+3. Label = `Family · Patch N · Hot Fix M` (omit missing parts). If there is no family, use the raw buildtag. If there is no buildtag, use `sys_upgrade_history.to_version` or `Unknown`.
+4. `rawBuild` = `glide.buildtag`. It is returned, but the current Home does not render it.
 
-1. `gs.getProperty('glide.buildtag')` — parse release family + patch (e.g. `glide-australia-…__patchN`).
-2. `gs.getProperty('glide.buildname')` — often the family name.
-3. Fallback: `sys_upgrade_history.to_version` (raw build) if no friendly label can be derived.
+Home shows `instanceName` as the banner title (falling back to `versionLabel`) and `versionLabel` as the **Release** meta item.
 
-Always display the best friendly label, with the raw build string as small secondary text so the value is never empty/meaningless.
+### 5.3 CICD install endpoint (client-side, §7)
 
-**CICD install endpoint (called from client, §7):**
-`POST /api/sn_cicd/app_repo/install?sys_id={store_app_sys_id}&version={latest_version}`
-Success → `result.links.progress.id` is the `sys_progress_worker` sys_id to poll.
-Offering retry → see §11.
+`POST /api/sn_cicd/app_repo/install?sys_id={sys_store_app sys_id}&version={latest_version}`
+Success (200/201) → `result.links.progress.id` = `sys_progress_worker` sys_id. The API is **single-flight** (a "CICD Operation" mutex), so installs are enqueued one at a time (§7.3).
+
+The v1.3.2 platform-plugin count from `v_plugin` was **removed**: it cost 10–40 s on a cold view, and it is not shown anywhere.
 
 ---
 
-## 6. Dependency impact — what else gets updated (v1.5.2)
+## 6. Dependency impact — what else gets updated
 
-**Requirement.** Before launching a batch, the admin must see the applications that will be updated *in addition to* the ones selected — the same visibility the native App Manager gives in its **Review Installation Details** dialog. Read-only: the batch still installs exactly what was selected; the platform pulls the rest in by itself.
+**Requirement.** Before launch, show the apps that will be updated *in addition to* the selected ones. This is the same information as the native *Review Installation Details* dialog. It is read-only: the batch installs exactly what was selected, and the platform pulls in the rest.
 
-Surfaced in **Wizard Step 1** (discover), **Step 2** (selection), and in the **confirm dialog** that precedes launch — all three read the same two branches described below.
+Surfaced in: Step 1 and Step 2 (per-row `N more ▾`, plus the suite panel, §14.3/§14.4) and the confirm dialog (deduplicated union, §14.5).
 
-### 6.1 Two version-constraint sources, and why only one of them is real per app
+### 6.1 The correct constraint source is the *target* version
 
-`sys_store_app.dependencies` (glide_list, `scope:min_version` entries) declares the floor required by the **currently installed** version, not by the target. Measured on `democrmfalectriae152010`: across the 20 updatable apps, walking this field with no version check surfaced impact that has nothing to do with the app being inspected — see §6.1.1. **Do not build the feature on this field's version constraint**, and do not BFS over it — it is structurally the wrong graph to walk.
+`sys_store_app.dependencies` declares the floor of the **installed** version. Walking it (the v1.5 design) surfaced unrelated apps. For example, for *Content Understanding* it returned 19 Platform Analytics components, reached only through a 40-dependency hub app. **Do not use it.**
 
-The correct source for a **target-version** constraint is **`sys_app_version`**: one row per `(scope, version)`, where `version` is a version that has existed as a *target* (i.e. the version an install would move an app to), and its own `dependencies` glide_list declares what *that specific version* requires — not what the currently-installed version requires. This is the same table the native App Manager's `DependencyProcessor` reads when resolving what an Update click will pull in.
+The correct source is **`sys_app_version`**: one row per `(scope, version)`, whose `dependencies` glide_list (`scope:minVersion`, comma-separated) declares what *that* version requires. The native `DependencyProcessor` reads the same table. For each dependency, compare `minVersion` to the installed `sys_store_app.version`:
 
-```
-sys_app_version where scope='sn_docintel_gen_ai' and version='7.0.5'  (the target)
-  dependencies: sn_docintel:8.0.9, sn_docintel_iframe:1.0.4, sn_generative_ai:14.2.2, com.glide.*:sys
-```
+- installed ≥ required → the platform will not touch it. **Stop, do not recurse.**
+- installed < required → it is impact. Recurse into its own `sys_app_version[scope@minVersion]`.
 
-Compare each declared `minVersion` against the dependency's *installed* version (`sys_store_app.version`): if installed ≥ required, the platform will not touch that app as part of this chain — **stop, do not recurse into it**. If installed < required, include it, and recurse into *its own* target version's `sys_app_version` row (its own `latest_version`) to keep resolving the chain.
+### 6.2 Two independent branches, same certainty
 
-#### 6.1.1 The v1.5 graph branch was wrong, not just approximate
-
-The original v1.5 design BFS'd `sys_store_app.dependencies` (installed-version floor) breadth-first with no version check, labelling the result "May also be updated". Measured live: for "Content Understanding" (`sn_docintel_gen_ai`, 7.0.4→7.0.5) that produced **19 unrelated `sn-app-par-*` / Platform Analytics sub-components** — real `update_available=1` rows, reached only because one of Content Understanding's dependencies (`Generative AI Controller`, itself already at its required version and therefore a dead end under the §6.1 rule) declares **40+** of its own dependencies, one of which is Platform Analytics, which has its own long tail. None of that tail has anything to do with Content Understanding. This was not a labelling problem — the heuristic label was hiding a wrong result, not a fuzzy-but-useful one.
-
-Rebuilt against `sys_app_version` (§6.1), the same app correctly resolves to **zero** dependency-branch impact: its three direct dependencies are already at the versions its own target requires, so the BFS terminates at depth 1 for all three. The suite branch (§6.2) is what actually explains its 8 sibling apps in the native dialog.
-
-### 6.2 Two independent, both-certain branches
-
-An app can fall under one, the other, both, or neither.
-
-| | **Suite branch** | **Dependency branch** |
+| | Suite branch (`_suiteImpact`) | Dependency branch |
 |---|---|---|
-| Source | `sys_suite_config` + `sys_suite_config_app_version_m2m` | `sys_app_version`, recursive, per §6.1 |
-| Semantics | atomic block — the whole suite moves together | parent → child edges resolved against each node's own target |
-| Certainty | explicit target version per app | **also explicit** — every included node has a version constraint against the target that the installed version fails |
-| UI label | `Will be updated` (uniform — no heuristic tier) | same |
+| Source | `sys_suite_config` (`compatible=true`, **highest `version`**, limit 1) + `sys_suite_config_app_version_m2m` (`suite_config`, `app_scope`, `app_version`, limit 5000) | `sys_app_version`, BFS per root |
+| Inclusion | member installed and `app_version` > installed | `minVersion` > installed |
+| Certainty | explicit target | explicit target |
 
-**Suite branch** — this is the source behind the native dialog's suite block. Verified: `sn_nava_config → 16.0.5`, `sn_uxc_gen_ai 13.2.5 → 13.2.9`, `sn_docintel_gen_ai 7.0.4 → 7.0.5` (Content Understanding, a member despite not itself declaring any of its 8 siblings as a `sys_store_app.dependencies` entry — suite membership is a separate, orthogonal signal from the dependency graph), matching the App Manager screen field for field.
+- The installed suite (`installed=true`) is **never** used: it is not reliably populated.
+- Members that are not installed are ignored (the platform will not pull them in).
+- `com.*` dependency entries are platform plugins: skipped, never recursed into.
+- Each root keeps a `visited` set (cycles are real).
+- **Suite wins the overlap:** a scope claimed by the suite branch never appears in the dependency branch.
+- There is no heuristic tier. Every impact row reads the same (`current → target`).
 
-- Target suite = `sys_suite_config` where `compatible=true`, **highest `version`**.
-- Members via `sys_suite_config_app_version_m2m` (`app_scope`, `app_version`).
-- Per member: `app_version` > installed → *will update*; equal/lower → *already at version*; app absent → *not installed* (ignore, it will not be pulled in).
-- **Never depend on the installed suite** (`installed=true`): not reliably populated. Deriving the target from the installed suite risks `null`. Mandatory guard, not defensive coding.
+### 6.3 Roots and root-exclusion
 
-**Dependency branch** — covers what suites miss. `Subscription Management v2` and `Licensing Engine` are both outside the suite, both 6.4.5 → 6.4.7, with `sn_sub_man`'s target version declaring `sn_entitlement:6.4.7` in `sys_app_version`. A suite-only implementation shows "no impact" for that row and hides the Licensing Engine update.
+- **Without `scopes`** (Step 1/2, folded into `getUpdatableApps`): roots = every `updateAvailable && !hideOnUi` app. **No root-exclusion.** An app can be both a root and another root's impact (e.g. *Setup Hub* is updatable itself and is also impact of *ServiceNow Otto for Setup Core*). Excluding it would hide real impact; this was a v1.5.2 bug.
+- **With `scopes`** (confirm dialog): roots = the selected scopes that are present in the index. The suite branch is also restricted to selected members. The union `dependencies` **excludes the roots** ("N *more* beyond what you picked"). `dependenciesByRoot` is never root-excluded.
 
-- BFS from each root, resolving `sys_app_version[scope@targetVersion].dependencies`, recursing only past nodes where installed < required (§6.1).
-- Keep a per-root `visited` set: **cycles are real**. Without the guard the traversal does not terminate.
-- `com.*` entries are **platform plugins**, not Store apps — collected separately, never recursed into.
-- No `lockstep` concept in v1.5.2 — both branches are equally certain, so there is nothing to flag as "likely" versus "will".
+### 6.4 Deduplication
 
-### 6.3 Recursion depth is not optional
+The union counts each scope **once** across both branches and all roots. It is never a per-row sum.
 
-Chains are deep and single-level resolution loses most of the impact. Verified live on `democrmfalectriae152010` (dependency branch, rooted at `Setup Hub`, target `2.0.8`):
+### 6.5 Hidden apps
 
-```
-Setup Hub (sn_ia_base)          2.0.4 → 2.0.8    ← itself a root elsewhere in the same list (§6.3.1)
-└── Setup Hub Content           4.0.4 → 4.0.8    ← updates
-    └── Setup Hub Common        4.0.4 → 4.0.8    ← updates
-        └── Setup Hub Config    4.0.5 → 4.0.8    ← updates
-            └── Admin Center     6.2.1 (already at 6.2.1 — STOP, no recursion)
-```
+Impact nodes with `hide_on_ui=1` are **kept** in impact lists and badged `not selectable`. `hide_on_ui` only gates the selectable list.
 
-`Setup Hub Config` sits at depth 3. Single-level would surface 1 of 3 impacts.
+### 6.6 Per-row expansion (client, `rowImpactList(scope)`)
 
-#### 6.3.1 A root can also be another root's impact — this is correct, not a bug
+A row's list = `dependenciesByRoot[scope]` **plus**, only when `scope` is itself one of `suite.apps`, all *other* suite members. This mirrors the native dialog, where any suite member lists its siblings. The membership check is mandatory: without it, every row inherits the suite list (a v1.5.4 bug caught in the smoke test).
 
-`Setup Hub` and `Licensing Engine` are each independently updatable (they're rows in Step 1's own list) **and** each is also the dependency-branch impact of a *different* root (`ServiceNow Otto for Setup Core` declares `sn_ia_base:2.0.8`; `Subscription Management v2` declares `sn_entitlement:6.4.7`). In the **unfiltered view** (Step 1/2, roots = every updatable app), do **not** exclude an app from the impact list just because it is itself a root elsewhere — that would hide real impact (§6.3.2 explains why the exclusion is right in a different context). In the **confirm dialog** (roots = only the admin's selection), exclude the selected roots from the result, since the dialog's framing is "N *more* apps beyond what you picked".
+### 6.7 Performance
 
-#### 6.3.2 The root-exclusion bug (found and fixed during the v1.5.2 build)
+- `sys_store_app` is loaded **once** into a scope index `{name,current,latest,hideOnUi,updateAvailable}` (limit 20000).
+- **v1.6.3 (O1):** roots are computed first. **No roots → early return** (suite only, no `sys_app_version` read). This is the normal case when there are 0 updates.
+- `sys_app_version` is read **level by level, restricted to relevant scopes** (`scope IN (roots)`, then `IN (newly discovered dependency scopes)`, up to 12 levels, limit 20000 per query) into a `"scope@version" → deps` index. It is no longer a full-table scan (≈5,200 rows measured).
+- The BFS itself runs purely in memory.
 
-An early v1.5.2 draft applied the confirm-dialog exclusion rule (§6.3.1) unconditionally, including in the unfiltered view — where roots = all ~20 updatable apps. Since `Setup Hub Content/Common/Config` are themselves updatable (hence also roots), the filter silently discarded every dependency-branch result: `dependencyScopes` measured empty for every app, despite the underlying BFS logic being correct in isolation (confirmed by replaying the same traversal manually against live data). The fix: apply the root-exclusion filter **only** when the caller passed an explicit `sysparm_scopes` selection.
+### 6.8 Verified cases (`democrmfalectriae152010`, Australia family)
 
-### 6.4 Deduplicate the union — never sum per row
-
-Impact sets across both branches overlap. The batch-level figure the confirm dialog shows is the **union of the selected apps' impact (suite + dependency branch), deduplicated by scope, minus the apps already selected directly**.
-
-Measured live: selecting all 20 updatable apps together on `democrmfalectriae152010` yields a union of exactly 20 apps beyond the selection (9 suite + the dependency-branch scopes not already suite members) — confirmed via the confirm dialog's "N more applications… Show all" list.
-
-Suite membership takes priority when a scope appears in both branches: an app already accounted for by the suite branch is never duplicated into the dependency-branch result, so the union counts it once.
-
-### 6.5 No heuristic tier — v1.5.2 correction
-
-v1.5 shipped a `Will be updated` / `May also be updated` distinction, with the graph branch always the uncertain one. That distinction is now **gone**: both branches, as rebuilt in §6.1–§6.2, carry an explicit version constraint against the *target*, so both are shown with identical framing — matching the native dialog, which badges every row the same way regardless of which mechanism (suite or per-app dependency) produced it.
-
-### 6.6 Hidden apps are still shown, never selectable
-
-Impact nodes with `hide_on_ui=1` never appear in the wizard's selectable table, and are updated anyway. Show them in the impact panels, badged as not individually selectable. Never filter them out of the impact set: `hide_on_ui` gates the *selection list*, not the *impact list*.
-
-### 6.7 Performance — compute once, not per root
-
-- Load `sys_store_app` **once** into an in-memory scope-keyed index (installed version, latest/target version, `hide_on_ui`, `update_available`) — no GlideRecord query inside either branch's traversal.
-- Load `sys_app_version` **once** into a `"scope@version" → dependencies` index (5.195 rows measured on `democrmfalectriae152010`) — the dependency branch looks up this index per BFS step, never queries.
-- Load the target suite's members in **one** query.
-- Fold the result into the existing `getUpdatableApps` response — no second round-trip (consistent with the `getHomeData` consolidation in v1.4.0).
-- A root's own target version (needed to seed its BFS) is read from the already-loaded `sys_store_app` index's `latest_version` field — an earlier draft queried `sys_store_app` again per root inside the loop; fixed to read from the index instead.
-
-### 6.8 Cross-instance validation
-
-Verified live on `democrmfalectriae152010` (Australia · Patch 5): 20 updatable apps, one `Now assist` suite (highest version `29.5.20260820`) with 9-app impact, `sys_app_version` with 5.195 rows. Two independent chains confirmed by manual server-side replay before being trusted in the shipped code:
-
-| Root | Suite impact | Dependency-branch impact |
+| Root | Suite | Dependency branch |
 |---|---|---|
-| Content Understanding (`sn_docintel_gen_ai`) | 8 sibling apps (via suite membership) | **0** — all 3 direct deps already satisfy their required versions |
-| Setup Hub (`sn_ia_base`) | 0 (not a suite member) | **3** — `Setup Hub Content → Common → Config`, terminating correctly at Admin Center |
-
-`sys_store_app` returns HTTP 403 to the Table API (API-level ACL) — it is readable server-side, which is how the app reads it. Any verification script must run server-side (`servicenow_execute_background_script` or equivalent) or through the app's own GlideAjax methods, not via REST.
-
-A single instance does not exercise every edge case (e.g. cycles, or an installed suite) — treat this instance's profile as a floor, not a ceiling, for what the feature must handle.
+| Content Understanding `sn_docintel_gen_ai` 7.0.4→7.0.5 | 8 siblings (`Now assist` suite) | 0 (its 3 direct deps are already satisfied) |
+| Setup Hub `sn_ia_base` 2.0.4→2.0.8 | not a member | 3: Setup Hub Content → Common → Config, stopping at Admin Center (6.2.1 satisfied) |
+| Subscription Management v2 `sn_sub_man` | — | 1: Licensing Engine `sn_entitlement` 6.4.7 |
+| ServiceNow Otto for Setup / Setup Core | member | 8 suite + 4 dependency = `12 more` |
+| Theme Builder, etc. | — | none → no expansion |
 
 ### 6.9 Degradation
 
-- `sys_suite_config` empty or absent → suite branch yields nothing, dependency branch still runs. **Silence, not an error.**
-- No suite with `compatible=true` → no target suite; suite branch off.
-- Dependency scope not present in `sys_store_app` → not installed, not impact; do not recurse.
-- No `sys_app_version` row for a node's exact target version → nothing further to resolve past that node; stop, do not error.
-- Impact set empty → render nothing at all. No empty panel, no "0 dependencies" badge.
+No `compatible=true` suite, or no member with impact → `suite:null`. No roots → `dependenciesByRoot:null, dependencies:null`. No `sys_app_version` row for a node's version → stop at that node. A dependency that is not installed → not impact. Empty impact → **render nothing** (no empty panel, no "0 more"). An exception in `_updateImpact` inside `getUpdatableApps` → `impact:null` + `impactError`, and the wizard still works.
 
-### 6.10 Server API — implemented
+### 6.10 `getUpdateImpact` response
 
-Extends the §4 table. **Built** on `PluginUpdaterAjax` and folded into `getUpdatableApps` (as `result.impact`) so Step 1 and Step 2's initial render cost no extra round-trip.
-
-| Method | Returns |
-|---|---|
-| `getUpdateImpact` (param: `sysparm_scopes` — CSV of selected scopes, optional) | `{ suite: { name, version, apps: [{ scope, name, current, target, hidden }] } \| null, dependenciesByRoot: { [rootScope]: [{ scope, name, current, target, hidden }] } \| null, dependencies: [{ scope, name, current, target, hidden }] \| null }` |
-
-Two dependency-branch shapes, for two different consumers (§18.3.1):
-
-- **`dependenciesByRoot`** — per-root breakdown, keyed by the scope that *causes* the impact (e.g. `dependenciesByRoot['sn_sub_man'] = [{ scope: 'sn_entitlement', name: 'Licensing Engine', … }]`). Drives Step 1/2's per-row `N more ▾` expansion (§14). **Never** filtered by root-exclusion — a row's own breakdown must show everything it pulls in, even if some of those apps are also independently-updatable roots elsewhere in the same list (§6.3.1).
-- **`dependencies`** — the deduplicated union across *all* roots (§6.4), used only by the confirm dialog. This one **is** subject to root-exclusion when `sysparm_scopes` is present (§6.3.2) — the dialog's framing is "N more beyond what you picked."
-
-With no `scopes`, both branches run over every updatable app (Step 1 / Step 2 initial render). With `scopes`, both branches are restricted to roots within the selection; only `dependencies` (the union) has roots excluded from it — `dependenciesByRoot` still reports every root's own breakdown, since Step 1/2 read from it unconditionally regardless of any selection state.
-
-Implementation notes (measured live on `democrmfalectriae152010`, §6.8):
-
-- `sys_store_app` and `sys_app_version` are each loaded **once** into in-memory indexes (§6.7); both branches walk those indexes — no GlideRecord query inside either loop.
-- Target suite = highest-`version` row with `compatible=true`; per-member impact requires `app_version` (m2m) to be semantically **greater** than the member's installed version (§6.2) — members already at version, or below the m2m's, are not shown.
-- Dependency branch keeps a per-root `visited` set (cycle guard, §6.2); `com.*` dependency entries are skipped, never recursed into.
-- **Overlap rule: suite wins.** A scope claimed by the suite branch is excluded from the dependency-branch result (both shapes) — never shown twice.
-- Root-exclusion (§6.3.1, §6.3.2) applies only to the `dependencies` union, conditional on `sysparm_scopes` being present. `dependenciesByRoot` is never filtered by it.
-
-Kept as **one** method. `sys_suite_config` and `sys_app_version` are not publicly documented API — they are data the platform itself uses, but an upgrade could change their shape. Isolating them in a single method keeps any breakage contained and easy to disable.
-
----
-
-## 7. Security & install trigger (mandatory)
-
-**No stored credentials anywhere. Remove the credentials-config UI.**
-
-Trigger each install **client-side with the logged-in admin's session**:
-
-```js
-fetch('/api/sn_cicd/app_repo/install?sys_id=' + sysId + '&version=' + encodeURIComponent(latest), {
-  method: 'POST',
-  credentials: 'same-origin',
-  headers: { 'X-UserToken': window.g_ck, 'Accept': 'application/json', 'Content-Type': 'application/json' }
-})
+```json
+{
+  "suite": { "name": "Now assist", "version": "29.5.20260820",
+             "apps": [{ "scope":"…", "name":"…", "current":"…", "target":"…", "hidden":false }] },
+  "dependenciesByRoot": { "sn_sub_man": [{ "scope":"sn_entitlement", "name":"Licensing Engine",
+                                           "current":"6.4.5", "target":"6.4.7", "hidden":false }] },
+  "dependencies": [ /* deduplicated union, root-excluded only when scopes given */ ]
+}
 ```
 
-- `X-UserToken: window.g_ck` satisfies CSRF.
-- The acting admin already holds the CICD roles; no service account, no Base64, no loopback.
-- Server reads (`getInstanceInfo`, `getUpdatableApps`, `getProgress`, `verifyVersion`) run under the user's session via GlideAjax.
-
-**Validate this first during build** (§12 step 1): confirm the CICD App Repo Install API accepts session auth on the target instance. **Documented fallback only if it does not:** a **Basic Auth Credential + Connection alias** stored in the credential store (encrypted), retrieved server-side via `sn_ws.RESTMessageV2`. Never Base64 in a system property.
-
-**Access control:** restrict the UI Page, module, and (if created) the log table to the `admin` role.
+Any key can be `null`. `sys_suite_config*` and `sys_app_version` are **not documented public API**. They are isolated in this one method so that a platform change is contained.
 
 ---
 
-## 8. Filtering logic — which apps are "updatable"
+## 7. Install trigger & security
 
-**Implemented filter — three conditions**, mirroring what the Application Manager itself lists:
+### 7.1 Session-based install (no credentials)
+
+```js
+fetch('/api/sn_cicd/app_repo/install?sys_id='+encodeURIComponent(sysId)+'&version='+encodeURIComponent(latest), {
+  method:'POST', credentials:'same-origin',
+  headers:{ 'X-UserToken': window.g_ck||'', 'Accept':'application/json', 'Content-Type':'application/json' }
+  // body: JSON.stringify({offering:id}) only on the offering retry
+});
+```
+
+`X-UserToken` satisfies CSRF. The acting admin already holds the CICD rights. Session auth was validated on the target instance, so the credential-alias fallback was never needed and is not implemented.
+
+### 7.2 Response handling (`handleTrigger`)
+
+| Case | Action |
+|---|---|
+| 200/201 with `result.links.progress.id` | `attachWorker(logSysId, pid)` → next app |
+| 200/201 without a progress id | `failTrigger`: "The install was accepted but no progress ID was returned…" |
+| 400 containing "offering" + an id in `[...]` or `"offering":"…"` | retry **once** with body `{offering:id}` |
+| transient: HTTP 409/429/503, or a message containing `enqueue`/`mutex`/`in progress`/`try again`/`another`; or a `fetch` network error | `retryOrFail`: up to **8** retries, delay `2000 + attempt×800` ms, "Waiting for the CICD queue… (retry n/8)" |
+| anything else | `failTrigger`: `HTTP <status> — <message>` |
+
+The error message is read from `result.error`, else `error.message` / `error.detail`, else `HTTP <status>`. `failTrigger` records `{key,name,scope,target,message}` in `S.launchErrors` and calls `failRow`.
+
+### 7.3 Sequential launch queue (`startInstalls`)
+
+- Builds `apps[]` from the selection. Each item gets `depVersions = {scope: current}` from `rowImpactList(scope)`: the pre-install snapshot of predicted dependencies (§10.6).
+- `createBatch` → maps `sysId → logSysId`.
+- Pump with `POOL=1` (strictly sequential). Each step is wrapped in `once()` plus a **120 s watchdog** that advances the queue if a callback never returns ("An install took too long to launch — moving on to the next one.").
+- When done: if nothing failed to launch → `openMonitor(batch)` automatically. Otherwise it stays on Step 3 with the "could not be started" table and its *Why failed* rows.
+
+### 7.4 Access control
+
+- Every Script Include method: `admin` (§4.1). This is the effective protection for all data and actions.
+- Application Menu and Module: `roles=admin`.
+- Install-log table: 4 CRUD ACLs → `admin` (bound through `sys_security_acl_role`, §19.6).
+- UI Page: the `pgi_plugin_updater` read ACL has `type=record`. See §19.5 on whether it protects the page. A non-admin who opens the URL gets a page whose every call returns `forbidden`.
+- XSS: every dynamic value rendered through `innerHTML` goes through `esc()` (`& < > "`).
+- Batch keys (`u_session_id`) are passed to `addQuery(field, value)`, not to encoded queries. `sys_id`s are regex-validated.
+
+---
+
+## 8. Which apps are "updatable"
+
+Exactly **three** conditions, mirroring the Application Manager:
 
 | Filter | Reason |
 |---|---|
-| `update_available = true` | Flagged as having an update |
-| `active = true` | App is active |
-| `hide_on_ui = false` | Not a hidden dependency (§6.6 shows these as *impact*, never as selectable rows) |
+| `update_available = true` | flagged as updatable by the Store sync |
+| `active = true` | active app |
+| `hide_on_ui = false` | not a hidden dependency (these appear only as impact, §6.5) |
 
-### 8.1 The seven extra filters from the prior spec were wrong — measured, do not add them
-
-The earlier spec prescribed seven more conditions. Applying them would remove **8 of the 20 updatable apps (40%)** on `democrmfalectriae152010`, including `Platform AI Agents and Skills` — the app in the native *Review Installation Details* dialog that motivated §6.
-
-The load-bearing claim was that `static_content = true` apps *"accept installs but never bump version"*. **Falsified by the app's own install log:** of the last 400 `complete` rows, **110 are `static_content = true` apps, with 0 failures** — every one showing a real version bump (`Value Engine 6.0.8 → 6.0.10`, `Web Components Foundation 1.4.1 → 1.5.0`, `Webviews for mobile 36.2.0 → 36.2.8`). Excluding them would hide 30 currently-updatable apps for no reason.
+### 8.1 Rejected filters (measured, do not add)
 
 | Prior filter | Verdict |
 |---|---|
-| `static_content = false` | **Wrong.** 110 successful installs, 0 failures, on `static_content = true` apps |
-| `last_installed_from = 'store'` | **Too narrow.** 3 of the 20 read `out_of_band` and update normally; 676 rows instance-wide are non-`store` |
-| `install_date != ''` | **Redundant.** 0 of the 20 have it empty |
-| `version != latest_version` | **Redundant.** 0 of the 20 have them equal — `update_available` already covers it |
-| `name NOT LIKE @devsnc/` / `@servicenow/` | **Inert.** 0 matches among updatable apps on either instance |
-| `name NOT LIKE @now-par` | **1 match** (`@now-par-components/sn-par-visualization-controls-section`) out of 243 on Zurich — cosmetic at best |
+| `static_content = false` | **Wrong.** 110 successful installs, 0 failures on `static_content=true` apps |
+| `last_installed_from = 'store'` | **Too narrow.** `out_of_band` apps update normally |
+| `install_date != ''`, `version != latest_version` | redundant |
+| `name NOT LIKE @devsnc/ / @servicenow/ / @now-par` | inert or cosmetic |
 
-The genuine caveat is the one already in the README: a few platform-bundled apps that cannot update via the Store API may end as *Failed*. That is **accepted and visible**, not filtered away — filtering on these flags removes far more working apps than broken ones.
+Applying them would have hidden 40 % of the updatable apps. A few platform-bundled apps may end as *Failed*. That is accepted and visible, not filtered away.
 
 ---
 
-## 9. Data model (in MVP)
+## 9. Data model — `u_plugin_updater_install_log`
 
-The table is **required**, not deferred: `createBatch` writes the batch rows and the Scheduled Job (§10.1) finalizes them, which is what lets the admin close the page mid-batch. Field types matter — the prior build got these wrong:
+One row = one application in one batch.
 
-Table `u_plugin_updater_install_log`:
+| Field | Type (len) | Label | Written by | Meaning |
+|---|---|---|---|---|
+| `u_app_name` | string 255 | App Name | createBatch | display name |
+| `u_app_scope` | string 100 | App Scope | createBatch | scope |
+| `u_store_app_id` | string 32 | Store App ID | createBatch | `sys_store_app` sys_id (validated) |
+| `u_previous_version` | string 40 | Previous Version | createBatch | version before install |
+| `u_target_version` | string 40 | Target Version | createBatch | `latest_version` at launch |
+| `u_status` | choice 40 | Status | all | `queued` · `installing` · `complete` · `failed` · `cancelled` (legacy read: `in_progress` → `installing`) — choice list gap §19.4 |
+| `u_started_at` | glide_date_time | Started At | createBatch | batch creation time |
+| `u_completed_at` | glide_date_time | Completed At | monitor/failRow/cancel | finalization time |
+| `u_triggered_by` | reference → sys_user | Triggered By | createBatch | batch owner, filter for list/latest/active |
+| `u_progress_id` | string 32 | Progress ID | attachWorker | `sys_progress_worker` = `sys_execution_tracker` root sys_id |
+| `u_error_message` | string 1000 | Error Message | monitor/failRow/cancel | reason (also "Details" in the Monitor) |
+| `u_percent_complete` | integer | Percent Complete | monitor | 0–100 |
+| `u_session_id` | string 32 | Session ID | createBatch | **batch key** `b_<base36 ms>_<first 8 chars of user sys_id>` (~19 chars) |
+| `u_product_category` | string 100 | Product Category | — | **unused**, category mapping never built (§13) |
+| `u_dependency_snapshot` | string 4000 | Dependency Snapshot | createBatch | JSON `{scope: currentVersion}` of predicted dependencies, taken before launch |
 
-| Field | Type | Notes |
-|---|---|---|
-| `u_app_name` | String(255) | |
-| `u_app_scope` | String(100) | |
-| `u_store_app_id` | String(32) | sys_id from `sys_store_app` |
-| `u_previous_version` | String(40) | |
-| `u_target_version` | String(40) | |
-| `u_status` | Choice | code writes `queued` · `installing` · `complete` · `failed` · `cancelled`. **The choice list also still contains a legacy `in_progress`** entry that nothing writes — safe to delete |
-| `u_started_at` | **glide_date_time** | not String |
-| `u_completed_at` | **glide_date_time** | not String |
-| `u_triggered_by` | **Reference → sys_user** | not String |
-| `u_progress_id` | String(32) | `sys_progress_worker` sys_id |
-| `u_error_message` | String(1000) | |
-| `u_percent_complete` | Integer | not String |
-| `u_session_id` | String(32) | groups one wizard batch |
-| `u_product_category` | String(100) | from §13 mapping — **defined but unused** by the shipped code; keep or drop with §13 |
-| `u_dependency_snapshot` | String(4000) | **v1.6.1.** JSON map `{scope: currentVersion, …}`, one entry per dependency `getUpdateImpact` predicted for this row at launch time, written by `createBatch` before any install runs. See §10.3 — this is the only place the dependency's *pre-install* version is ever available. |
+20 physical fields (15 custom + `sys_*`). Instance data on 2026-09-29: 1,644 `complete`, 23 `failed`, no active rows.
 
-### 9.1 Historical repair (v1.3.x → v1.4.0)
+### 9.1 Row lifecycle
 
-`src/fix_scripts/repair_install_log_140.js` reclassifies log rows that claim `complete` for installs that never applied — the fallout of the `completion_code` bug (§10.1). Run **once** in Scripts - Background after upgrading from 1.3.x.
+```
+createBatch ─► queued ──attachWorker (keeps status if already final)──► queued
+   │                                     │ monitorBatches: worker running
+   │                                     ▼
+   │                                 installing
+   │        worker complete/success      │      worker failed/error/cancelled
+   │        + installed ≥ target ─► complete    ──────────────► failed
+   │        + installed < target ─► failed
+   │ failRow (launch failed) ─────────────────────────────────► failed
+   │ cancelRemaining (only while queued) ─────────────────────► cancelled
+   │ no worker + installed ≥ target ──────────────────────────► complete
+   └ no worker + queue idle + batch inactive > 60 min ────────► failed (timed out)
+```
 
-It is a **dry run by default** (`DRY_RUN = true`): it prints what it would change without writing. Review, then set `DRY_RUN = false` and re-run. Rows whose application is no longer present are left untouched. It reclassifies a row to `failed` **only when the installed version is semantically lower than the target** — the same rule as §10.1, and it independently documents the two rejected criteria on the same 725-row measurement.
+### 9.2 Historical repair (upgrading from 1.3.x)
 
-ACLs: CRUD restricted to `admin`. **Verified on the instance:** four ACLs on the table (`create`, `read`, `write`, `delete`) plus one `read` ACL on `pgi_plugin_updater`, all `active=1` with `admin_overrides=1`. The table carries **20 fields** (14 custom + 6 `sys_*`), matching this list.
-
----
-
-## 10. Progress tracking (multi-strategy lookup)
-
-`getProgress` reads `sys_progress_worker` resiliently (handles ACL/timing where a freshly-queued worker isn't yet materialized):
-
-1. `gr.get(progressId)`.
-2. else `addEncodedQuery('sys_id=' + progressId)` with `setWorkflow(false)`.
-3. else query with `setQueryNoDomain(true)` if available.
-4. all fail → return `{ error: 'progress worker not found' }`.
-
-Client treats `"not found"` as **transient `running / queued`**, not an error.
-
-Polling: every **15s**, **30-minute** timeout per app; stop polling apps in terminal state (`complete`/`failed`).
-
-### 10.1 The installed version is the only arbiter of outcome — measured
-
-Two field-name traps on `sys_progress_worker`, both already paid for in v1.3.7 and v1.4.0. Do not re-derive them:
-
-1. **`completion_code` does not exist on the table.** The real field is `state_code`. Reading the wrong name returns empty, so an error branch keyed on it never fires — this is exactly why failed installs were reported as Complete until v1.4.0.
-2. **`state_code` is nevertheless unusable as a failure criterion.** Measured on the target instance: the CICD worker closes with `state='complete'` **and** `state_code='error'` even when the install succeeded — **723 of 725 rows** carrying `state_code='error'` had the correct target version installed. Keying failure on it would mark hundreds of successful installs as failed: a worse false negative than the false positive it appears to fix.
-
-**Therefore:** on `state IN (complete, success)`, ignore `state_code` entirely and re-read the app's installed version. Outcome rule, with `_cmpVer` semantic comparison (not string equality):
-
-- installed `>=` target → **complete** (a later batch or a Store sync may legitimately have pushed the app past this batch's target)
-- installed `<` target → **failed** (the update did not apply)
-
-On `state IN (failed, error, cancelled)` → **failed**, using the worker's own message. On `running` → *installing*; on `pending`/unknown → *queued*.
-
-### 10.2 The two Scheduled Jobs (verified on the instance)
-
-| Job | Type | Purpose |
-|---|---|---|
-| `Plugin Updater - Monitor Batches` | **periodically, every 1 minute**, `active=1` | calls `monitorBatches` — this is what lets the admin close the page after launch |
-| `Plugin Updater - Store Sync (once)` | **run once**, created on demand by `syncStore` | calls `sn_appclient.UpdateChecker` directly (§15.10); cleaned up by `_cleanupSyncJobs` |
-
-The monitor job runs as a **periodic** job, not on-demand: a batch left running with the browser closed is finalized within a minute of each worker completing.
-
-### 10.3 Dependency install tracking, per row (v1.6) — `sys_execution_tracker`
-
-**Requirement.** The Monitor must show which dependency applications the platform actually installed alongside each selected app — not a pre-launch prediction (that's §6's `getUpdateImpact`), a fact observed after the fact.
-
-**Mechanism.** `AppUpgrader.upgradeProcess()` — the same code path behind the native Application Manager's Update button — starts a `GlideScriptedHierarchicalWorker`; the returned `getProgressID()` is the `sys_progress_worker` sys_id the app already stores as `u_progress_id`. That worker's progress tree is written to **`sys_execution_tracker`**, a self-referencing table (`parent` → `sys_execution_tracker`) with `state` (0 Pending, 1 Running, 2 Successful, 3 Failed, 4 Cancelled) and `percent_complete`.
-
-**Verified live on `democrmfalectriae152010` — the root node's sys_id is the SAME as the `sys_progress_worker`'s.** Confirmed for two independent workers (a `CICDAppRepoService$CICDInstallWorker` created by this app, and an unrelated `auto-upgrade-*` worker): `sys_execution_tracker.get(<the sys_progress_worker's own sys_id>)` returns a row directly — no join table, no lookup field needed.
-
-Every application `GlideAppLoader` actually installs — the requested app **and** any dependency the platform pulled in because it wasn't already at the required version (§6.1's `_appAlreadyExist()` + `VersionComparator.isUpgrade()` check happens before this tree is built — a dependency already satisfied never gets a node here) — gets its own descendant node named exactly `Installing application <scope>:<version>`. Measured tree shape varies (2–3 levels: root → `"Installing application package"` → `"Installing application <scope>:<version>"`, or root → `"Plugins Loading"` → …), so the lookup walks the **whole subtree**, not just direct children.
-
-Live-verified case: a batch that requested only `Subscription Management v2` (`sn_sub_man`) produced a tree with exactly one dependency node — `Installing application sn_entitlement:6.4.7` (Licensing Engine) — matching §18.3.1's prediction from `getUpdateImpact`, but this time as an observed fact with real `state`/`percent_complete`, read after the install actually ran.
-
-**Extraction (`_dependencyRowsFromTracker`, server-side):** BFS from the row's `u_progress_id`, matching each descendant's `name` against `/^Installing application ([A-Za-z0-9_.]+):(.+)$/`; skip the row's own scope (that's the requested app, not a dependency); dedupe by scope. Friendly names are resolved in **one** `sys_store_app` query per `getBatchStatus` call across all rows' dependency scopes combined (§6.7-style — no query per row). `guard < 500` node visits caps runaway traversal on a corrupted/cyclic tree, though none has been observed.
-
-**Degradation:** no `u_progress_id` (row never got a worker attached) → empty dependency list, no error. No matching descendant nodes (dependency already satisfied, or the row's own install hasn't started writing tracker nodes yet) → empty list, not a placeholder.
-
-#### 10.3.1 v1.6.1 fix — the tracker node has no "current" version, only the target
-
-**Bug reported by the user** after a real install: testing with `Setup Hub` (`sn_ia_base`), the Monitor's dependency rows for `Setup Hub Content`/`Common`/`Config` all showed `→ 4.0.8` with no starting version — read at a glance as a repeated placeholder value, because three different apps showing the identical number with no "from" looks synthetic. It wasn't: `4.0.8` is the real, correctly-installed target version for all three (confirmed against `sys_store_app.version` post-install). The actual defect is narrower and easy to miss: **the tracker node's name (`Installing application <scope>:<version>`) never carried a starting version to begin with** — §10.3's extraction only ever had the target to show.
-
-**Why it can't be recovered after the fact.** `sys_store_app.version` would be the obvious place to read "current" — except by the time `getBatchStatus` runs (during or after the install), that field already holds the *new* version; the row the admin is looking at has already moved past the value being asked for. There is no server-side query, before or after this fix, that can reconstruct a dependency's pre-install version once the install has completed.
-
-**Fix.** The one place this data legitimately exists is the client, at confirm-dialog time, before anything has launched: `getUpdateImpact`'s `dependenciesByRoot[scope]` already carries `current` for every dependency (§6.10) — that's what the wizard's own `N more ▾` expansion has been rendering since v1.5.3. `startInstalls()` now builds a small `depVersions` map (`{scope: current}`) per selected app from `rowImpactList(scope)` and sends it to `createBatch` alongside the app itself. `createBatch` serializes it into the new `u_dependency_snapshot` field (§9) on that row — a snapshot taken at the one moment the data is still true. `_dependencyRowsFromTracker` now takes this JSON as a third argument and uses it to fill `current` on each dependency entry it builds from the tracker tree; the Monitor renders `current → target` (via the same `verCell()` used everywhere else) instead of a bare `→ target`.
-
-**Degradation, unchanged in spirit:** a row created before this fix shipped has no `u_dependency_snapshot` (empty string, parses to `{}`) — its dependency rows fall back to the pre-fix `→ target` display rather than showing a wrong or blank "current". Not an error, just a batch that predates the data being captured.
-
-#### 10.3.2 v1.6.1 decision — no brand icon, after two mechanisms both failed to render
-
-The nav bar originally showed a small PNG logo (`.brand-icon`) as an inline base64 `data:` URI in the UI Page's `html` field — the same mechanism, the same 96×96 PNG, byte-for-byte identical, that shipped as far back as v1.4.3. On `democrmfalectriae152010`, in the browser used to verify this build (Chromium via Playwright), that image loaded successfully by every measurable signal — `naturalWidth`/`naturalHeight` correct, `complete: true`, no broken-image icon, `<canvas>`.`drawImage()` + `getImageData()` reading real non-white pixel data — but never actually painted on screen; the element rendered as a blank rectangle. This reproduced identically in complete isolation (a fresh `<img>` appended straight to `document.body`, no `.nav`, no `backdrop-filter`, no CSS inherited from the app), at native size, with `object-fit`, `border-radius`, and `box-shadow` all stripped. No cause was found — every plausible one (corrupted blob, `backdrop-filter` compositing, CSS scaling, PNG color-profile chunks) was tested and ruled out live.
-
-Switching the `<img>` to reference a `sys_attachment` on the UI Page (`/sys_attachment.do?sys_id=...`) instead of the inline data URI **did** render correctly — verified with a screenshot showing the actual logo. But a `sys_attachment` record's `sys_update_xml` payload carries only metadata (hash, dimensions, content type) — never the file's bytes, which travel through a separate channel in ServiceNow's native update-set export that a plain `.xml` file cannot reproduce. Since v1.6.1's update set is required to be a single, complete, install-from-scratch XML file (§12), an attachment-based icon would silently break on any instance it's imported into.
-
-**Decision: no `<img>` at all.** The `.brand-icon` CSS rule and the element itself were removed; the nav bar shows the app name as text only. Documented here so this isn't attempted a third time expecting a different result — both mechanisms were verified, in this build, in this browser, and neither is a viable path to an icon that (a) renders and (b) round-trips through a self-contained update-set export.
+`src/fix_scripts/repair_install_log_140.js` (Scripts - Background, admin, `DRY_RUN=true` by default, `LIMIT=5000`) re-reads `complete` rows. It reclassifies a row as `failed` **only** when the installed version is semantically lower than the target, using the same `_failMessage` wording. Rows whose app no longer exists are left untouched. It documents the two rejected criteria: `state_code` (723/725 "error" rows had actually succeeded) and strict equality (503 of 507 "mismatches" were *above* target). Result on the reference instance: 4 real failures out of 1,072.
 
 ---
 
-## 11. Offering retry (client-side)
+## 10. Batch monitoring
 
-On the install `fetch`, if HTTP 400 with body containing `Offering plugin id must be specified`:
+### 10.1 Two cooperating loops
 
-- Parse the first id inside `[...]` in `result.error` (e.g. `[com.sn_hs_csc]` → `com.sn_hs_csc`); fallback to the `"offering":"…"` hint in the example text.
-- Retry the same endpoint with JSON body `{ "offering": "<id>" }`.
-- If the retry also fails, mark the app `failed` with the parsed reason.
+- **Server (authoritative):** `monitorBatches` every minute. It reads workers, verifies versions and writes rows. This is what lets the admin close the page.
+- **Client (display only):** the Monitor polls `getBatchStatus` every **15 s** while `counts.installing + counts.queued > 0`, then stops. The client never polls `sys_progress_worker` directly.
 
-**Implemented** in the UI Page (`fire` / `handleTrigger`): the offering retry fires **once** with the parsed id, and is combined with backoff retries for transient enqueue/mutex collisions — the CICD install API being single-flight (§15.7).
+### 10.2 Outcome rule — the installed version is the only arbiter
 
----
+- `sys_progress_worker` has **no `completion_code`** (reading it silently returned empty until v1.4.0, so failures looked Complete).
+- `state_code` is **unusable**: the CICD worker ends `state=complete, state_code=error` even on success (723/725 measured).
+- `_cmpVer(a,b)` splits on `.`/`-`, compares numerically (NaN → 0) and returns -1/0/1.
+- `_verify(appId, target, cache)`: `matches = installed ≥ target` (a later batch or sync may legitimately exceed the target). If the app is not found → `matches:false`. If there is no target → `matches:true`.
+- `_failMessage`: "Install did not apply: still at X, below the target Y" (or "application record not found"), plus ` — <worker error/message>` unless that message is the uninformative "Executing queued operation". Maximum 1000 chars.
 
-## 12. Build order for Claude Code
+### 10.3 `monitorBatches` algorithm
 
-1. **Validate auth path.** Confirm `/api/sn_cicd/app_repo/install` accepts session auth (`credentials:'same-origin'` + `X-UserToken`) on the target instance. If yes, proceed credential-free; if no, switch to the credential-alias fallback (§7) — but only then.
-2. **Confirm version label format.** Inspect `glide.buildtag` / `glide.buildname` and a `sys_upgrade_history` row; lock the §5 parsing to the observed format.
-3. **Create the application** `Now Plugin Updater` (global) + update set.
-4. **Create the Script Include** `PluginUpdaterAjax` with the §4 methods and §10 lookup.
-5. **(Optional) Create the install-log table** + ACLs (§9) and `logInstall`.
-6. **Create the UI Page** `pgi_plugin_updater`: Jelly shell + HTML + design-token CSS + **vanilla-JS IIFE** (no Alpine, no petite-vue, no UI Script — see §18 decision 3). Implement Home, Wizard 1 (Discover), Wizard 2 (Select), Monitor, Guide as client-side views.
-7. **Wire reads** through GlideAjax; **wire installs** client-side (§7) with offering retry (§11), enqueued **one app at a time** with retry on a busy queue — the CICD install API is single-flight (§15.7).
-8. **Wire dependency impact** (§6) — **done, rebuilt in v1.5.2, UX-corrected in v1.5.3 and v1.5.4.** `getUpdateImpact` runs a suite branch and a `sys_app_version`-based dependency branch (§6.1, §6.2), folded into the `getUpdatableApps` response. The suite panel renders identically in **Step 1 and Step 2** as one shared summary (v1.5 shipped it in Step 2 only). Per-row `N more ▾` expansion on each affected table row (§18.3.1) covers BOTH the dependency branch AND suite membership (§18.3.2) — a row that is itself a suite member expands to its siblings, mirroring the native App Manager where clicking Update on any suite member opens the identical suite dialog. The confirm dialog shows the deduplicated union across both branches (§18.2, §18.3). Smoke-tested live on `democrmfalectriae152010`: no installed suite (`installed=true` absent on every `sys_suite_config` row, confirming the §6.2 guard is load-bearing); `Content Understanding` and `ServiceNow Otto AI Agents` (both suite-only, no dependency-branch impact) each expand to their 8 suite siblings, matching the native dialog exactly; `Setup Hub`'s row expands to exactly `Setup Hub Content`, `Setup Hub Common`, `Setup Hub Config`; `Subscription Management v2`'s row expands to exactly `Licensing Engine`; rows with neither suite membership nor dependency-branch impact (e.g. `Theme Builder`) show no expansion. §18.3.2 documents a suite-membership false-positive bug caught in the smoke test and fixed before this was considered done.
-8a. **Wire per-row dependency tracking (v1.6, §10.3)** — `_dependencyRowsFromTracker` walks `sys_execution_tracker` from each row's `u_progress_id`, folded into `getBatchStatus`'s `deps` array; rendered as indented dependency rows in the Monitor (§14). **Wire the confirm-dialog selected-apps list and both dialogs' 150-row cap-notes (§18.3.3).** **Wire Home's forced refresh on return from Monitor (§14).**
-9. **Create application menu + module** → `pgi_plugin_updater.do`. (On `democrmfalectriae152010` the UI Page exists with `category=general`; the module is reachable but was not found by a `name CONTAINS 'Plugin Updater'` query — confirm the menu record when packaging the update set.)
-10. **Restrict** page/module/table to `admin`.
-11. **Smoke test** against §16.
-12. **Package** all artifacts in the app update set.
+1. Guard `admin` (logs an error otherwise). Query rows with `u_status IN queued,installing,in_progress`, limit 2000. **v1.6.3 (B2):** rows with no `u_progress_id` are included too. Otherwise a row whose launch response was lost stayed `queued` forever.
+2. `queueActive` = any `CICDInstallWorker` in `pending,running`.
+3. Per row: `w = _findWorker(pid)`. **v1.6.6:** when `sys_progress_worker` has no record with that sys_id, `_findWorker` reads `sys_execution_tracker` with the same sys_id and maps its `state` (`sys_choice`: 0 Pending, 1 Running, 2 Successful, 3 Failed, 4 Cancelled) to `pending/running/complete/failed/cancelled`. An install that fails before it starts (observed on `sicuritaliafsmau`, 2026-10-14: "Unable to download app package" in ~6 s) creates **only** the tracker. Before v1.6.6, such a row stayed `queued` for 60 minutes and then closed with the misleading "Timed out: install did not start".
+   - **No worker:** if installed ≥ target → `complete`. Else, if `queueActive` → keep waiting. Else, if the batch shows no activity for **> 60 min** (latest `u_completed_at` in the batch, else `u_started_at`) → `failed`: "Timed out: install did not start (install queue idle, no progress for 60 minutes)". If there is no pid at all, the message is "…the install was never launched (no progress worker was ever attached to this row)".
+   - **Worker `complete`/`success`:** verify the version → `complete` (message cleared) or `failed` (`_failMessage`); 100 %; `u_completed_at`.
+   - **Worker `failed`/`error`/`cancelled`:** **v1.6.6:** verify the version first (§10.2). If installed ≥ target → `complete`. Otherwise `failed` with `_failMessage` (the version fact plus the worker/tracker message). Up to v1.6.5 it was `failed` with the worker's `error_message`/`message`/"Worker <state>", without a version check.
+   - **Worker `running`:** `installing`. **Otherwise** (`pending`/unknown): `queued`.
+   - `u_percent_complete` follows the worker whenever the worker reports > 0.
+4. **v1.6.6 — late installs of cancelled rows.** `cancelRemaining` changes only the log, so an operation already accepted by the platform queue can still install. Rows with `u_status=cancelled`, `u_completed_at` in the **last 6 hours** and a non-empty `u_target_version` are re-verified (limit 200). If installed ≥ target → `complete` (message cleared). Observed on Brazil: "Customer Service Case Action Status" was cancelled while its tracker was already Running. It installed anyway, and the row moved to `complete` on the first job cycle after the v1.6.6 deploy.
+5. Log `monitorBatches checked=N finalized=M`.
 
----
+**v1.6.6 — `_reconcile(batchFilter)`.** Steps 1–5 are the body of `_reconcile`. `monitorBatches` calls it with `''` (every batch). The Monitor's **Refresh now** calls it for one batch through `getBatchStatus` with `reconcile=1` (§10.4), so the log is aligned with tracker and installed version immediately instead of on the next one-minute cycle. The automatic 15 s poll does **not** reconcile: it only reads the log.
 
-## 13. Product category mapping (by scope prefix) — NOT IMPLEMENTED
+### 10.4 `getBatchStatus`
 
-> **Status: not built.** The shipped UI groups nothing by category: Step 1 is a flat sortable table and Step 2 filters by **exact scope** (a dropdown built from the scopes actually present), which proved faster than typing a prefix. `getUpdatableApps` returns no `category` field and `u_product_category` is never written.
->
-> Kept as reference in case categories are revisited. If they are not, drop this section together with the `u_product_category` column (§9).
+- **v1.6.6:** with `reconcile=1`, `_reconcile(batch)` runs first. A reconcile error is logged with `gs.warn` and the status is still returned.
+- `counts` come from one GlideAggregate over the **whole batch** grouped by status (`in_progress` → `installing`, unknown → `queued`).
+- `rows` are ordered by `u_app_name` and limited to **`ROW_CAP=500`** (v1.6.3, O3). Each row = `{logSysId,name,scope,current,latest,status,pct,message,startedAt(display),deps[]}`.
+- `rowsShown`, `truncated = counts.total > rows.length`.
+- Batch `status`: `running` while any row is installing/queued. Otherwise `partial` (some failed and some complete), `failed` (failed, none complete), `cancelled` (none complete, some cancelled), else `complete`.
 
-| Prefix | Category |
-|---|---|
-| `sn_csm`, `sn_customerservice` | CSM |
-| `sn_hr` | HRSD |
-| `sn_itsm`, `com_snc_itsm` | ITSM |
-| `sn_itom`, `sn_em`, `sn_disco` | ITOM |
-| `sn_iam`, `sn_risk`, `sn_grc` | IRM |
-| `sn_sec`, `sn_si` | SecOps |
-| `sn_fsm`, `sn_field_service` | FSM |
-| `sn_spm`, `sn_itbm`, `sn_project` | SPM |
-| `sn_cmdb` | CMDB |
-| `sn_creatorworkflow`, `sn_flow` | App Engine |
-| `sn_nowassist`, `sn_gen_ai`, `sn_va` | Now Assist |
-| (other) | Other |
+### 10.5 `listBatches`
 
----
+A GlideAggregate on the current user's rows, grouped by `u_session_id`, with `COUNT` + `MAX(sys_created_on)`. **v1.6.6:** the result is sorted explicitly by that date, **descending, before** `slice(0,20)`, so the most recent batch is first. The direction of `orderByAggregate` was not reliable: the selector showed the oldest batch first, and with more than 20 batches the slice kept the 20 oldest. Limits of the **Batch** dropdown: only the current user's batches (`u_triggered_by`), at most 20, no search and no paging. A second aggregate grouped by (batch, status) gives `failed` and `active` (= not complete/cancelled/failed). `started` = user-timezone display value. **Only the caller's own batches are listed**. Any admin can still open any batch via `getBatchStatus` if they know the key.
 
-## 14. UI / UX specification
+### 10.6 Observed dependency installs — `sys_execution_tracker`
 
-Clean, modern, card-based, light neutral background, generous spacing, subtle shadows, rounded corners (8–12px), system font stack, clear type hierarchy. CSS via design tokens (CSS custom properties for color, spacing, radius, shadow). Client-side view switching — no router library.
+The root `sys_execution_tracker` node has the **same sys_id** as the `sys_progress_worker` (verified). Every app that `GlideAppLoader` actually installs under that root gets a descendant node named `Installing application <scope>:<version>`. Dependencies that were already satisfied get no node. The tree is 2–3 levels deep (e.g. root → "Installing application package" → "Installing application …").
 
-**Views:**
-
-- **Home (Dashboard).** Prominent **instance version** (`Australia · Patch 2`) with raw build as secondary text. KPI cards: `Active plugins`, `Up to date`, `Updates available`, `In progress`. Quick actions: *Start wizard*, *Refresh*, *View history*. (No credentials card — removed by design.)
-- **Wizard Step 1 — Discover.** All updatable apps (per §8) in a **flat sortable table** — name, scope, `current → latest`. Not grouped by category (§13). The step indicator reads Discover · Select · Install, where *Install* is the launch that continues in the Monitor — there is no third wizard view.
-  **Dependency impact (§6) — implemented, shown here too (v1.5.4).** A **suite-only** shared panel renders above the table (`<suite name> <version> — N apps will be updated together`, expandable via `Show apps`/`Hide apps`) — the suite is a single atomic block with one target, so one summary badge reads unambiguously. There is **no shared panel for anything else** (§18.3.1): instead, every table row that has impact — from the dependency branch (§6.10's `dependenciesByRoot`), from suite membership, or both — gets its own `N more ▾` link next to the app name, opened via event delegation on the table body, expanding a detail row directly beneath it that lists exactly what *that row* causes. A suite-member row's expansion lists its suite siblings (mirroring the native App Manager, where clicking Update on **any** suite member opens the same suite dialog — §18.3.2), e.g. `ServiceNow Otto AI Agents` shows `8 more ▾` → its 8 `Now assist` siblings; a dependency-branch root's expansion lists what it pulls in, e.g. `Subscription Management v2` shows `1 more ▾` → `Licensing Engine`; a row that is both (e.g. `ServiceNow Otto for Setup Core`) shows the merged count (`12 more ▾` = 8 suite + 4 dependency-branch). Multiple rows can be expanded at once; state is tracked per view (`S.treeOpenW1` / `S.treeOpenSel`) and resets whenever the wizard is (re)entered. Every panel and every per-row detail use the identical `current → target` framing (§6.5: no heuristic tier). Hidden apps show a `not selectable` badge but are never filtered out.
-- **Wizard Step 2 — Select.** Multi-select with select-all, debounced text filter, scope filter, live selected count. In-flight apps shown but disabled. Action bar **pinned to the bottom** so *Install* stays reachable on long lists; first 150 rows render with a *show all* escape, while *Select All* applies to everything matching the filter. Checkbox ticks use event delegation — no full-table re-render. Selection state resets whenever the wizard is (re)entered.
-  **Dependency impact (§6)** — the same suite panel and the same per-row `N more ▾` expansion as Step 1, sharing the render/wire functions (`renderSuitePanel`/`wireSuitePanel`, `rowDepCount`/`rowDepTreeHtml`/`rowImpactList`), parameterised only by a DOM-id prefix so the two views' toggle state doesn't collide.
-- **Confirm dialog.** Before launching, names the instance and the number of applications, then two separate expandable lists (v1.6 — §18.3.3):
-  1. **Selected applications** — the apps the admin directly picked, by name and `current → target`, via `selectedListHtml()`. Before v1.6 this was a bare count ("N applications"); the admin had no way to see *which* apps without cancelling back into Step 2. Same `N selected applications will be installed` / `Show all ▾` mechanics as the list below, independent toggle state (`#confirm-selected-list` / `#confirm-selected-toggle`).
-  2. **Dependency impact** — the **deduplicated** impact union (§6.4): suite branch + dependency branch merged by scope, minus the apps already selected directly, never a per-row sum — fetched from `getUpdateImpact` with the selected scopes at confirm time. A compact `N more applications will be updated as a result` line with a `Show all ▾` toggle (`#confirm-union-list` / `#confirm-union-toggle`).
-
-  Both lists render at most 150 rows and, when the real count exceeds that, append a `Showing 150 of N — refine your selection to see the rest` note (`.cap-note-inline`) instead of silently dropping the remainder — the same wording Step 1/2's own `capNote()` uses. Before this fix (caught by asking what happens above ~50 selected apps with hundreds of dependencies) both lists capped at 150 with no indicator at all. CSS class **`.npu-modal`, never `.modal`**: the platform's Next Experience/Polaris `.modal{display:none}` rule would otherwise win and the dialog would stay invisible.
-- **Monitor.** Per-app live rows: status pill (`queued` muted · `installing` amber · `complete` green · `failed` red), progress bar + percent, message/detail. **The page can be closed after launch** — a Scheduled Job (`monitorBatches`) finalizes every row server-side, outcome per §10.1. Batch selector showing app count and outcome; end-of-batch summary with a shortcut to list only failures; *Cancel queued* drops apps still waiting while running installs finish. Status icons alongside colour, `aria-sort` on sortable headers, keyboard sorting, live region announcing progress.
-  **Dependency rows (v1.6 — §10.3).** Directly beneath a batch row, if the platform actually pulled in dependency apps to satisfy that install, each gets its own indented row: a `dependency` badge, the friendly name, `→ target version`, status pill, and progress bar/percent — read from `sys_execution_tracker` via `getBatchStatus`'s `deps` array, not predicted. No Details column (the tracker carries state/percent, not a human-readable error message). A row with no tracker-derived dependencies (already satisfied, or the tracker hasn't written nodes yet) shows nothing extra — no placeholder row.
-  **Home auto-refresh on return (v1.6).** Clicking the Home tab while the Monitor view is active forces a data refresh (instance info, KPI counters) even if Home was already loaded earlier in the session — otherwise the KPI cards (e.g. `Updates available`) kept showing the pre-batch count until the admin clicked *Refresh* by hand.
-- **Guide.** Short in-app usage notes.
-
-There is no separate History view: the Monitor's batch selector covers past runs from `u_plugin_updater_install_log`.
-
-Responsive: KPI cards wrap; wizard tables scroll horizontally on narrow viewports. Smooth, restrained transitions only.
+- **v1.6.3 (O2) `_dependencyTreeForBatch(progressIds)`:** resolves all rows' trees in **one query per level** (`parent IN (frontier)`, limit 5000, max depth 8). It tracks the owning root per node and matches `/^Installing application ([A-Za-z0-9_.]+):(.+)$/`. The first node per scope wins. State map: 0 queued, 1 installing, 2 complete, 3 failed, 4 cancelled.
+- **`_depRowsFor(tree, pid, ownScope, snapshotJson)`:** excludes the row's own scope. It fills `current` from `u_dependency_snapshot`, because tracker names only carry the target, and `sys_store_app.version` is already the target after install. The result is `[{scope,current,version,status,pct}]`.
+- Friendly names: **one** `sys_store_app` query (`scope IN …`) for all dependency scopes in the response.
+- Degradation: no pid or no nodes → `deps:[]`. Pre-v1.6.1 rows have no snapshot, so the Monitor shows `→ target` only.
 
 ---
 
-## 15. Lessons learned — bake in as constraints
+## 11. Store sync ("Sync with Store")
 
-1. Script Include must extend `AbstractAjaxProcessor` (**not** `global.AbstractAjaxProcessor`) for correct GlideAjax responses in global scope.
-2. The `/api/sn_appclient/v1/appmanager/product/install` **batch endpoint is unreliable** — use `/api/sn_cicd/app_repo/install` per app.
-3. Fluent server modules / `require()` may not load on all instances — **build native records, not Fluent.**
-4. `static_content=1` apps accept installs but never bump version — **filter them out** (§8).
-5. `last_installed_from != 'store'` (platform-bundled) apps **cannot** update via REST — filter out (§8).
-6. Base64 is not encryption — **no stored credentials** (§7).
-7. **The CICD install API is single-flight.** A batch must be enqueued one app at a time, with retry on a busy queue — not fired in parallel. (The earlier "batched concurrency cap (~8)" idea was wrong and is gone from §12.)
-8. **`completion_code` does not exist** on `sys_progress_worker`, and `state_code` is not a usable failure signal — the installed version is the only arbiter (§10.1).
-9. **Never name a CSS class `.modal`** in a UI Page: the Next Experience/Polaris `.modal{display:none}` rule wins and the dialog silently never appears. Use a prefixed class (`.npu-modal`). Scope **all** CSS under `#app`.
-10. **Do not use `gs.eventQueue('sn_appclient.check.for.update')` for the Store sync.** Measured on the target instance, that event sat in a shared queue for 9–13 hours. Use a **Run Once Scheduled Job** calling `UpdateChecker.checkAvailableUpdates()` (~112s over 1.200 apps) — picked up within seconds. Too slow to run inline inside a GlideAjax transaction.
-11. **A duplicate `PluginUpdaterAjax` Script Include shadows the app's own** and makes Home return an empty response. If one pre-exists on the instance, delete the copy without the app's methods.
-12. **Reset client selection state when the wizard is (re)entered** — stale `selected` entries otherwise show "N selected" with every checkbox visibly unticked (fixed in v1.4.2).
+### 11.1 Mechanism
+
+`gs.eventQueue('sn_appclient.check.for.update')` is **not used**: on the reference instance the event sat 9–13 h in a shared queue. Instead, `syncStore` inserts a **Run Once** `sysauto_script` (`run_start=now`, `run_as=current user`, `conditional=false`). The scheduler picks it up in seconds (up to minutes under load). The job calls:
+
+```js
+new sn_appclient.UpdateChecker().checkAvailableUpdates(false, false, { forceUpdate: true });
+```
+
+(~112 s measured over ~1,200 apps; too long for an inline GlideAjax transaction.)
+
+### 11.2 Server state machine (v1.6.3, S1–S4)
+
+`x_npu.sync_state` = `{"state":"running|done|error","startedAt","finishedAt","message","by"}`.
+
+1. `syncStore`: if `_syncLocked()` (state `running` and younger than 30 min) or `_syncRunning()` (`apps_sync_progress > 0`) → `{alreadyRunning:true}`.
+2. Otherwise it writes `running` **before** creating the job (the lock covers the window where the job exists but progress is still 0). Then it runs `_cleanupSyncJobs()` (deletes up to 50 old one-shot jobs: created > 1 h ago **and** `run_start` in the past), inserts the job and stores its id in `__npu_sync_job_id`.
+3. If the job insert fails → it writes state `error` (releasing the lock) and returns an error.
+4. The generated job script writes `done` or `error` (with the exception text), then **deletes its own `sysauto_script`** record (id taken from `__npu_sync_job_id`).
+5. A `running` state older than 30 min is treated as dead: the lock is released, and `getSyncProgress` reports `outcome:'error'` ("The sync job stopped without reporting an outcome…").
+
+### 11.3 `getSyncProgress`
+
+`pct` = rounded `apps_sync_progress`, clamped to 0–100. The observed phases are 1 fixUpdateAvailableField, 3 fetchAppUpdates, 20–70 updateAppRecords, 85 refreshStoreResponseCache, 96 syncGoldenConfigs, then 0. `outcome` comes from `x_npu.sync_state` (`idle` if absent). `running = outcome==='running'`. When `outcome==='done'`, `pct` is reported as 100.
+
+### 11.4 Client behaviour (deployed v1.6.5 page)
+
+- The button is disabled with "Syncing…". It calls `syncStore`, then polls `getSyncProgress` (first poll after 3 s).
+- `p.running` → progress bar "Updating the application catalog…", poll every 3 s.
+- Otherwise: finished if `lastSync` changed from the value shown before the click, or `lastSync >= startedAt` (string comparison). Then "Finished" and a Home refresh after 700 ms.
+- Otherwise it waits and shows the elapsed seconds ("Waiting for the sync job to start… (Ns)", with a warning after 90 s), polling every 6 s (3 s once running was seen). A poll error retries after 5 s.
+- After **5 min** it stops following: "Still running after 5 minutes. The sync continues on the server…".
+- **The v1.6.5 client ignores `outcome`, `message` and the re-attach on Home load that v1.6.4 had.** See §19.2.
+
+---
+
+## 12. Build & deployment procedure
+
+### 12.1 Deploying changes to the instance
+
+1. Edit the local sources. For the Script Include, first **re-sync `src/` from the instance** (§19.1).
+2. Write the record server-side with `GlideRecord` (*Scripts - Background*). For large payloads (the UI Page is about 100 KB), verify **by exact length** against the record after writing. Dense base64 blobs corrupt: split them into separate patch writes.
+   **Never write `sys_ui_page.html` through the REST Table API** (MCP `update_record`, or `PATCH /api/now/table/sys_ui_page`). The write returns 200, but the platform escapes the `<script>` tags into `&lt;script&gt;`, and the page silently stops running its JavaScript. Observed on `empgmarongiu1`, 2026-10-15: +12 chars, exactly the two tags. The same `html` written with `GlideRecord.setValue` was stored byte-identical. REST is fine for `description` and other plain fields.
+3. The UI Page `html` field is a **Jelly fragment**, not a full document. No CDATA inside it. Avoid `<` followed by a space in inline JS (the Jelly parser may read it as a tag), so comparisons are written reversed (`30000 > age`).
+4. Bump `S.version` in the page, plus the `description` of the UI Page and Script Include records.
+
+### 12.2 Exporting the update set
+
+- **Every** record must be a tracked `sys_update_xml` entry with `remote_update_set` set. Otherwise the import reports Total 0.
+- Include `sys_app_application`, `sys_app_module`, `sys_db_object`, dictionary, `sys_documentation`, choice list, ACLs **and their `sys_security_acl_role` rows**. Missing ACL-role rows make the effective role depend on the target's platform fallback (observed `snc_internal`).
+- `GlideUpdateManager2.saveRecord` does **not** rewrite an existing entry. Update the payload in place, or the export ships the old version.
+- No `sys_attachment`-based content: attachment bytes do not travel in a plain XML export. This is why there is no brand icon (§18.3.5).
+- Test the import on an instance **where the app does not exist**: a different instance, or the source instance after the reset of §12.4. Read `state=previewed`, `summary`, `inserted`, `collisions` from the `sys_remote_update_set` record. A from-scratch install was proven for v1.6.4 and for **v1.6.6** (§18.5).
+- Refresh `index.html` (the embedded base64 XML, verified by exact length and round-trip, plus version strings).
+
+**Native export, used for v1.6.6 (2026-10-15).** Never build the XML by hand: `payload_hash` is not the Java `hashCode` of the payload, and a hand-built set without `remote_update_set` imports as Total 0.
+
+1. **Capture the changes.** Writes made with `execute_background_script` **are** captured, in the current update set of the admin session (here: **Default**). They are not "missing": look them up with `sys_update_xml` `name = <table>_<sys_id>`. Default also collects noise from the MCP tool (`mcp.bg_result.*` properties, see §19.12). Move only the app's entries by changing the `update_set` field of those `sys_update_xml` rows into a new local set (here "Now Plugin Updater v1.6.6 delta", 2 entries).
+2. **Merge into a complete set.** Use *System Update Sets → Merge Completed Sets* (`merge_update_sets_complete.do`). The page has **no checkboxes**: it merges **every set the list filter shows**. Filter it to exactly the sets to merge (`sys_idIN…`) and confirm "merge these 2 update sets?". For each object the newest entry wins, decided by the record's *Updated* field. The merge **moves** the entries (it does not copy them), cannot be undone, and puts the source sets in state `ignore` with `merged_to` set. The superseded copies stay in the source set.
+3. Close the merged set (`complete`) and use **Export to XML** from its Related Links. The file is named `sys_remote_update_set_<new sys_id>.xml`. In it, `remote_sys_id` is the local set's sys_id and every entry has `remote_update_set` set and `update_set` empty.
+4. Check locally: number of entries, the `type` mix, and the `script`/`html` payload of the Script Include and UI Page against `src/` (length and SHA-256).
+
+The MCP tools `preview_remote` and `commit_remote` are not usable for this (§19.12). Use the **Preview Update Set** and **Commit Update Set** buttons on the form.
+
+**Lineage rule — build every release on top of the previous published one (since v1.6.6).** Each `sys_update_xml` carries an `update_guid` and an `update_guid_history` (`guid:payload_hash,…`). On import, the preview accepts a remote update without problems only if the target's **latest local customer update** for that object is in the remote entry's history. Otherwise it raises the error "**Found a local update that is newer than this one**", whatever the timestamps say.
+
+- *Observed with the first v1.6.6 XML:* customers who installed the published 1.6.5 have the Script Include's 1.6.5 entry `3f53e670…` as their latest local update. The v1.6.6 Script Include had been written on an instance where the 1.6.5 commit had created **no new version** (same content as 1.6.4), so its history went straight to 1.6.4 (`32f7f153…`). Upgrading from 1.6.5 therefore gave an error on the Script Include. On `democrmfalectriae152010`, the development instance, there was also one on the UI Page, because of a local, never-exported edit in Default (`451e53f4…`).
+- *Fix:* reset the build instance (§12.4) and install the **published** XML of the previous release from scratch. A clean insert creates the versions with the published guids. Then write the new code with `GlideRecord`, so that the new entries' history starts from those guids. Finally move the 2 entries to a delta set, merge with the local set created by the commit, and export.
+- *Offline check before shipping:* for every entry of the previous published XML, its `update_guid` must be in the history (or be the guid) of the same entry in the new XML. Script: compare `NowPluginUpdater<prev>.xml` with `NowPluginUpdater<new>.xml`.
+- *Refinement observed later the same day:* a matching **`payload_hash`** in the history is enough too. On `democrmfalectriae152010` the latest local entries came from the first 1.6.6 build: guids `8e4c4ffb…`/`87bc437f…`, hashes 717598062/1441050591. The tracker-fix XML has other guids for those steps but the same hashes (`0391a7ff…:717598062`, `9b91a7ff…:1441050591`), and the preview raised no problem. In practice the preview compares `guid:hash` pairs, and a match on either part counts.
+- *Result for the final v1.6.6:* 59/59 entries of the published 1.6.5 are in the lineage, and 59/59 of the first final 1.6.6 build. Against 1.6.4, only the choice list differs, exactly as it already did in 1.6.5 (whose upgrade from 1.6.4 passed with 0 collisions).
+
+### 12.3 Installing (end user)
+
+System Update Sets → Retrieved Update Sets → **Import Update Set from XML** → Preview → Commit. Open **All → Now Plugin Updater → Plugin Updater** (`/now/nav/ui/classic/params/target/pgi_plugin_updater.do`). If the instance already had a `PluginUpdaterAjax` without this app's methods, delete it: it shadows the app's copy and Home returns "Empty response from server".
+
+### 12.4 Resetting the test instance (uninstall and reinstall from scratch)
+
+The app is in global scope, so the Application Manager has no *Uninstall*. Proving a from-scratch install used to need a new instance each time. `src/fix_scripts/reset_npu_instance.js` removes the app **and its history** from one dedicated test instance, so the same instance can be reused. First used on `empgmarongiu1` on 2026-10-15.
+
+**Why the history must go too.** If `sys_update_version` or `sys_metadata_delete` rows with the same update names survive, the preview treats the incoming objects as "newer local deletion" instead of clean inserts. If the local update set the XML was exported from survives (same `remote_sys_id`), the import reads as a false success: the v1.6.5 lesson. `sys_metadata_delete` **is** used in global scope: every deletion of an app file leaves a row there, keyed by `sys_update_name`.
+
+**What the script does** (ES5, Scripts - Background, scope `global`):
+
+0. Runs only when `instance_name` equals `ALLOWED_INSTANCE` (`empgmarongiu1`).
+1. Builds the inventory from the `sys_update_xml` names of **every** local and remote update set whose name starts with "Now Plugin Updater". No hand-kept list, so it covers every object ever shipped and keeps working for future versions. `sys_properties_*` entries are skipped (they are `mcp.bg_result.*` noise). On 2026-10-15: 12 local + 8 remote sets → **59 objects**, the same as the XML.
+2. Runtime data: the job's `sys_trigger`, the properties `x_npu.sync_state` / `__npu_sync_job_id` (deleted **one by one**: `deleteMultiple` on `sys_properties` is refused with "Not allowing multiple record update to sys_property"), and the install-log rows.
+3. App records, children first: ACL roles, ACLs, module, menu, UI Page, Script Include, job, labels, table last. Deleting the `sys_db_object` record **drops the table** (verified: `GlideRecord.isValid()` false afterwards) and takes the dictionary, labels and choices with it. Names are resolved as `<table>_<sys_id>`, otherwise through `sys_metadata.sys_update_name`. If any deletion fails (for example an ACL without `security_admin`), the script **stops before step 4**, keeping the update sets so a rerun can rebuild the inventory.
+4. History: `sys_update_xml`, `sys_update_version` and `sys_metadata_delete` for those names, in every set including the DELETE entries just captured in Default. Then the NPU update sets, local and remote, with their entries. It also covers:
+   - **cascade deletions** that are in no NPU set. These are recognised by their DELETE entry on an app target (`target_name` starting with the table name or `pgi_plugin_updater`). On 2026-10-15: 5 old `snc_internal` ACL-role rows and `ua_table_licensing_config`;
+   - historical name variants (`sys_update_version` / `sys_metadata_delete` with `LIKE u_plugin_updater_install_log`, for example `sys_choice_u_plugin_updater_install_log_null` from v1.4.0).
+
+**How to run it**
+
+1. Export the release first (§12.2): the reset deletes the source update set.
+2. Elevate the session to `security_admin`.
+3. `MODE='dryrun'`: writes nothing and prints the inventory and the counts.
+4. `MODE='execute'`: each line reports what was **actually** deleted (before − after) and flags `LEFT n` when something survived. "Record for rollback" stays on.
+5. `MODE='verify'`, in a separate run: every count must be 0 and the table must be invalid.
+6. Import, preview, commit the XML (§12.3), then smoke-test the page.
+
+**Result on `empgmarongiu1` (2026-10-15).** The first `execute` removed 591 log rows, 36 app records (+ the table drop), 726+ `sys_update_xml`, 113+ `sys_update_version`, 52 `sys_metadata_delete`, 12 local and 8 remote sets in 36 s. `verify` then found the 2 properties and 1 name variant still there, plus 6 cascade deletions, which led to the one-by-one property delete, the cascade step and the `LEFT n` report. A second `execute` cleaned them, and `verify` returned all zeros. The import of `NowPluginUpdater166.xml` then gave **previewed, summary 59, inserted 58, updated 1, collisions 0**, with no preview problems. The one *update* is the `u_status` **Choice list**, even though no `sys_choice` row existed for the table. It was explained later the same day: a leftover `sys_choice_set` record from 2026-06-26 (see below). After the commit:
+- the Script Include and UI Page were byte-identical to `src/`, with the same sys_ids;
+- the 9 ACL-role rows were all `admin`;
+- the job trigger was rescheduled and the table had its 22 dictionary entries;
+- Home rendered real data with 0 console errors.
+
+**`sys_choice_set` — the leftover that explained "updated 1".** The `u_status` choice list has a container record in `sys_choice_set` (`sys_update_name` `sys_choice_u_plugin_updater_install_log_u_status`, extends `sys_metadata`). It falls neither with the table nor with the `sys_choice` rows. On `empgmarongiu1` one was created on **2026-06-26** by the first install, and it survived every reset until it was found on 2026-10-15. Because it existed, every "clean" import reported the choice list as *updated* instead of *inserted*. The script now deletes it, plus the remaining `sys_update_xml` named like the table. After that, the import of the published 1.6.5 and of the final 1.6.6 both gave **inserted 59 / updated 0**.
+
+**Second run (v1.6.6 re-cut, same day).** With the corrected script, one `dryrun` (59 objects, 3 local + 1 remote set) and **one** `execute` were enough. That run deleted 36 app records + table, 178 `sys_update_xml`, 129 `sys_update_version`, 58 `sys_metadata_delete` and 6 cascade names, with no `LEFT`. `verify` returned all zeros at the first attempt.
+
+The script is destructive and irreversible. Never point it at an instance that is not a dedicated test instance.
+
+---
+
+## 13. Product category mapping — NOT IMPLEMENTED
+
+Never built. Step 1 is a flat table and Step 2 filters by exact scope. `getUpdatableApps` returns no `category`, and `u_product_category` is written by nothing. Either implement a mapping by scope prefix (reference: `sn_csm`/`sn_customerservice` CSM, `sn_hr` HRSD, `sn_itsm` ITSM, `sn_itom`/`sn_em`/`sn_disco` ITOM, `sn_grc`/`sn_risk`/`sn_iam` IRM, `sn_sec`/`sn_si` SecOps, `sn_fsm` FSM, `sn_spm`/`sn_itbm`/`sn_project` SPM, `sn_cmdb` CMDB, `sn_flow`/`sn_creatorworkflow` App Engine, `sn_nowassist`/`sn_gen_ai`/`sn_va` Now Assist, else Other), or drop the column.
+
+---
+
+## 14. UI / UX specification (client v1.6.6)
+
+### 14.1 Shell and style
+
+- **Nav bar** (sticky, blurred translucent): the text "Now Plugin Updater" (no icon, §18.3.5); pill tabs **Home · Wizard · Monitor · Guide**; a **Refresh** ghost button on the right (reloads Home data).
+- **Design tokens** on `#app`: `--bg #f5f5f7`, `--surface #fff`, `--surface-2 #fbfbfd`, `--border #e8e8ed`, `--border-2 #d2d2d7`, `--text #1d1d1f`, `--text-2 #6e6e73`, `--text-3 #a1a1a6`, `--accent #0071e3`, `--success #34c759`, `--warning #ff9f0a`, `--danger #ff3b30`. Radii 8/12/18/pill. Two shadow levels. System font stack (SF/Segoe/Helvetica). Max content width 1120 px.
+- **Status pills** carry an icon as well as a colour (✓ complete, ✕ failed, ⟳ installing/running, • queued/pending, ⊘ cancelled, ! partial).
+- Views switch through `.view.active` with a 0.25 s fade. No router. The Wizard tab is active for any `wizard*` view.
+- All user-facing text is in **English**.
+
+### 14.2 Home
+
+- **Banner** (dark gradient): the instance name, plus a meta grid showing only the non-empty items: **Release**, **Data Center**, **Database**, **Signed in** (`g_user.getFullName()`), **Last Upgraded**, **Store Synced**.
+- **KPIs:** **Apps** (= up to date + updates available, "managed (active & visible)"), **Up to Date**, **Updates Available** (warning colour when > 0), **Installing** (running CICD workers instance-wide). When Installing > 0 the card is clickable: `getActiveBatch` → Monitor.
+- **Actions:** **Start Wizard** (disabled when there are 0 updates), **Refresh Data**, **Sync with Store** (§11.4), **Monitor installs** (current or latest batch).
+- A sync status area, an error alert (`infoError`/`appsError`/transport error) and the footer "Now Plugin Updater v1.6.6 · by Gianmario Marongiu" (built from `S.version`).
+- Loaded through **one** `getHomeData` call. The data is re-fetched on Home-tab entry the first time **and whenever the user comes from the Monitor** (so KPIs are never stale after a batch).
+
+### 14.3 Wizard Step 1 — Discover (`wizard1`)
+
+- Entering the wizard **always clears the selection** (`S.selected={}`). It reuses Home's app data if it is less than **30 s** old, otherwise calls `getUpdatableApps`.
+- With 0 apps: "All store applications are up to date." and **← Home**.
+- An info box "Found N application(s)…". **Next: Select →** and **Cancel** sit **above** the table.
+- **The suite panel is hidden (v1.6.6).** `renderSuitePanel()` starts with `if(true) return ''`, so the banner "<suite> <version> — N apps will be updated together" (for example Now Assist) no longer appears in Step 1 or Step 2. This restores the v1.6.3 decision (§18.3.6) that v1.6.5 had undone. The code below the early return, and `wireSuitePanel`, are kept but unreachable. Suite impact is still visible through the per-row `N more` and the confirm dialog.
+- A table with sortable columns **Application · Scope · Current → Latest** (click or Enter/Space, `aria-sort`, ▴/▾). The default order is by name. The sort is shared with Step 2 (`S.wizSort`).
+- A per-row **`N more ▾`** (§6.6) toggles a detail row with `name [not selectable] current → target`. Its state (`S.treeOpenW1`) is kept per scope.
+- A pager (§14.8, view `w1`).
+
+### 14.4 Wizard Step 2 — Select (`wizard2`)
+
+- A filter bar with a text filter on name/scope (debounced 150 ms), a **scope** dropdown ("All scopes (N)" + each distinct scope, keeping the chosen value across rebuilds), **Select All** and **Clear**.
+- The top action bar: **Install N updates** (disabled at 0), **← Back**, **Cancel**, the badge "N selected" and the hint "N already installing (not selectable)".
+- The per-row `N more` works as in Step 1 (its own state, `S.treeOpenSel`, reset on entry). The suite panel is hidden here too (§14.3).
+- Columns: checkbox · Application · Scope · Current → Latest · Status. In-flight apps (`inFlight` sys_ids) have a disabled checkbox and an `installing` pill; the others show `pending`.
+- The header checkbox and **Select All** act on **all apps matching the filter across all pages**, skipping in-flight ones. Selection is a `sysId` map that lives outside rendering, so it survives paging, sorting and filtering.
+- Ticking a checkbox uses delegation on the `tbody` and **does not re-render** the table (it only updates the counter and button).
+- The page resets to 1 on filter, scope, sort or page-size change and on entry. Empty result: "No applications match your filter."
+
+### 14.5 Confirm dialog
+
+Built by `confirmModal` in `#modal-host` (`.modal-back` + `.npu-modal`, `role=dialog`, `aria-modal`). Esc or a click on the backdrop cancels, and focus goes to the confirm button.
+
+- **Title** "Install N updates?". **Body:** "You are about to update **N** applications on **<instance>**. Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going."
+- **Selected list:** "**N** selected applications will be installed. Show all ▾" (name, current → target).
+- **Impact union:** a fresh `getUpdateImpact(scopes=selection)` call. Suite and dependency results are merged and deduplicated by scope, with selected scopes removed: "**N** more applications will be updated as a result. Show all ▾". It is omitted when empty or when the call fails.
+- Both lists render at most **150** entries, with "Showing 150 of N — refine your selection to see the rest."
+- Buttons: **Review selection** / **Install N** → `startInstalls` (§7.3).
+
+### 14.6 Step 3 — Launch (`wizard3`)
+
+- An info box about launching with the user's session, a progress card "Launching… k / N" (· "M failed to launch"), a progress bar and a transient message (retry or watchdog).
+- If there are launch failures: a table "N applications could not be started" (Application · Scope · Status · **Why failed** expander with "Reason reported by the platform" and the target version). This table is not paginated.
+- At the end: **Go to Monitor →** and **Home**, plus an automatic jump to the Monitor when nothing failed.
+
+### 14.7 Monitor
+
+- A permanent info box: "Installs run on the server. You can close this page…". A filter bar with:
+  - a **Batch** selector (`listBatches`: "<started> · N apps · M failed | running"; the newest batch first, at most 20, only the user's own, §10.5);
+  - **Refresh now**, which sends `reconcile:1` so the server aligns the log with tracker and installed version before answering (v1.6.6, §10.3). The 15 s auto-poll does not reconcile;
+  - **Cancel queued**, visible only when queued > 0. It opens a danger confirm dialog with **Keep queued** as the cancel button, then calls `cancelRemaining`. The sr-announcement is "N queued installs cancelled", plus " · K had already started and will finish" when `kept` > 0 (v1.6.6).
+- Opening it: with a batch key → load that batch. Otherwise `getMyLatestBatch`, or "No install batches yet. Launch updates from the Wizard."
+- **End-of-batch summary** (when the status is not running): "All updates installed" (ok) / "Finished with failures" (warn) / "All updates failed" (bad) / "Batch cancelled", with counts and **Show only failures**.
+- **KPI row = status filter** (v1.6.5): **Total · Installing · Queued · Complete · Failed**, counts from the server. A click (or Enter/Space, `role=button`, `aria-pressed`) filters to that status. Clicking again or clicking **Total** clears the filter. KPIs showing 0 are inert. The active card has `.kpi-active`. "filtered by X · show all" appears in the status line. "Show only failures" sets the same state (`S.monFilter`).
+- Line: "Batch status: <pill>" · "Last refreshed <local time>".
+- Table columns **Application · Scope · Version (current → target) · Status · Progress (% + bar) · Details**. Sortable by name/scope/latest/status/pct (`S.monSort`). **Details / Why failed** appears only if the row has a message and expands a full-width row ("Reason reported by the platform" / "Message", plus "Started …"). The expanded state is kept per `logSysId` across polls.
+- **Dependency rows** under each parent: a `dependency` badge, name, scope, `current → version` (or `→ version`), status pill and progress. There is no Details for them. They **follow the parent** under filtering and paging and never count as page slots.
+- A pager (view `mon`) labelled "Showing a–b of N applications · K dependency rows" (per page; the second clause is omitted when K is 0).
+- A live region (`#mon-live`, `aria-live=polite`) announces progress and the final result.
+- Polling: every 15 s while installing or queued > 0. The filter and page survive polls (page clamping).
+
+### 14.8 Pagination (v1.6.5)
+
+- One implementation for three views (`w1`, `sel`, `mon`) with **independent** `S.page[view]` and `S.pageSize[view]`. Sizes **25/50/100/150/200**, default **25**. The label is "Applications per page".
+- `clampPage` pins the page into `[1,last]` on every render (lists shrink under filters and polls). `resetPage` runs on every reorder or shrink. `pageNumbers` shows all pages up to 7, otherwise first, last, a window of 3 and ellipses.
+- The pager is built as an HTML string and wired with one delegated handler per pager, plus the size `<select>`. It is not rendered when the list is empty.
+
+### 14.9 Page background
+
+`html,body{background:#f5f5f7;margin:0}` is the only rule outside `#app`. It is a literal copy of `--bg` (the token is declared on `#app` and is invisible from `body`). `#app{min-height:100vh;border-radius:0}` removes the white band below short views. **If `--bg` changes, change the literal too.**
+
+### 14.10 Guide
+
+A static card in English: Overview · Home · Wizard Discover · Wizard Select · Confirm & Launch · Launch & Monitor · Notes · Access Control, plus a version footer (`S.version`). Revised in v1.6.6: it describes pagination, the per-row *N more* links (no suite banner) and what Cancel queued really does (§19.7).
+
+### 14.11 Client state (`S`) and main functions
+
+State: `info`, `appData`, `selected`, `version`, `page`, `pageSize`, `PAGE_SIZES`, `whyOpen`, `launchWhyOpen`, `monFilter`, `treeOpenW1`, `treeOpenSel`, `loadedHome`, `appsFetchedAt`, and at runtime `wizSort`, `monSort`, `currentBatch`, `monData`, `monTimer`, `syncing`, `launch*`. These are leftovers that nothing reads (§19.2): `installRows`, `historyRows`, `sessionId`, `pollTimers`, `pollDeadlines`, `POLL_INTERVAL`, `POLL_TIMEOUT`, `BATCH`.
+
+Main functions: `ajax`, `showView`, `loadHome/renderHome/kpi`, `syncStore/renderSync/finishSync/keepGoingInBackground`, `startWizard/renderWizard1`, `openSelect/renderSelect/filteredApps/buildScopeFilter/toggleApp/selectedIds/updateSelCount`, `impactData/impactRowsHtml/renderSuitePanel/wireSuitePanel/rowImpactList/rowDepCount/rowDepTreeHtml`, `confirmInstalls/selectedListHtml/confirmUnionHtml/confirmModal`, `startInstalls/renderLaunch/triggerOne/fire/handleTrigger/retryOrFail/failTrigger`, `openMonitor/loadBatchList/startMonitorPolling/pollMonitor/renderMonitor/batchSummary/cancelQueued`, pagination helpers, `init`. Utilities: `esc`, `num`, `plural`, `once`, `debounce`, `statusPill`, `announce`.
+
+---
+
+## 15. Lessons learned — constraints to keep
+
+1. Extend `AbstractAjaxProcessor`, not `global.AbstractAjaxProcessor`.
+2. `/api/sn_appclient/v1/appmanager/product/install` (batch) is unreliable. Use `/api/sn_cicd/app_repo/install` per app.
+3. No Fluent / `require()`. Build native records.
+4. **Do not** filter on `static_content` or `last_installed_from` (§8.1). Earlier versions of this list said the opposite, and measurements proved that wrong.
+5. Base64 is not encryption. Store no credentials.
+6. The CICD install API is **single-flight**. Launch sequentially with retry and backoff.
+7. `completion_code` does not exist and `state_code` lies. The installed version is the arbiter.
+8. Never use a `.modal` CSS class. Scope everything under `#app`, with the `.npu-` prefix.
+9. Do not use the `sn_appclient.check.for.update` event for the sync. Use a Run Once job.
+10. A duplicate `PluginUpdaterAjax` shadows the app's own copy.
+11. Reset the selection on wizard (re)entry.
+12. A pagination label must name its unit ("applications", "dependency rows").
+13. `sys_store_app` is 403 via REST. Verify server-side.
+14. The update-set export must include `sys_security_acl_role` rows and in-place payload updates (§12.2).
+15. **Always rebuild from the deployed version, not from a local copy that may be stale.** v1.6.5 lost v1.6.3/1.6.4 client work this way (§19.2).
 
 ---
 
 ## 16. Acceptance criteria
 
-- Home shows the correct friendly **version label**, active plugin count, up-to-date count, updates-available count, and in-progress count — matching live instance data.
-- Wizard Step 1 lists exactly the apps passing the **three** §8 filters — mirroring the Application Manager. `static_content` and `last_installed_from` are **not** used as exclusions (§8.1): a platform-bundled app that ends *Failed* is accepted and visible, not filtered away.
-- Selecting apps and starting updates triggers real CICD installs **with zero stored credentials** (new workers appear in `sys_progress_worker`).
-- Offering-required 400 is handled by an automatic offering retry.
-- Live progress reflects real worker state and survives the "worker not found" transient.
-- Monitor reflects installs from `u_plugin_updater_install_log`, and **finishes them with the page closed** — the Scheduled Job finalizes every row server-side.
-- An app is marked `complete` **only when the installed version reaches the target** (§10.1); `state_code` is never used as the failure criterion.
-- **Dependency impact (§6) — met, v1.5.4 mechanism.** Step 1 and Step 2 both show the suite panel (shared summary) and per-row `N more ▾` expansion covering both dependency-branch impact and suite membership (§18.3.1, §18.3.2); the confirm dialog shows the **deduplicated union**, never a per-row sum. Apps with `hide_on_ui=1` appear in the impact set (marked not selectable) and are never filtered out of it. Both suite-derived and dependency-derived rows read with **identical certainty framing** — no heuristic tier (§6.5), since the dependency branch is now built against `sys_app_version` target-version constraints (§6.1), not the installed-version floor. On an instance with no `compatible=true` suite, or with `sys_suite_config` empty, the suite panel renders **nothing** — no error, no empty panel (§6.9); the dependency branch is independent and still runs. BFS terminates on cyclic dependency graphs (§6.2) via a per-root `visited` set. Root-exclusion applies only to the confirm dialog's deduplicated union when an explicit selection is present, never to the per-row `dependenciesByRoot` breakdown in the unfiltered Step 1/2 view (§6.3.1, §6.3.2 — a real bug found and fixed during this build). A row's per-row expansion includes its suite siblings only when that row is itself confirmed a suite member — the initial v1.5.4 implementation skipped this check and gave every row a spurious expansion, caught immediately in the smoke test (§18.3.2). Verified live on `democrmfalectriae152010`: `Content Understanding` and `ServiceNow Otto AI Agents` each expand to their 8 suite siblings (0 of their own dependency-branch impact); `Setup Hub`'s row expands to exactly `Setup Hub Content`, `Setup Hub Common`, `Setup Hub Config`; `Subscription Management v2`'s row expands to exactly `Licensing Engine`; non-member, non-dependency rows (e.g. `Theme Builder`) show no expansion.
-- The UI Page renders fully with **no build step** — no blank page, no module/import errors.
-- All artifacts live in the `Now Plugin Updater` global-scope app and export cleanly.
-- **Confirm dialog (v1.6) — met.** Shows the selected apps in their own expandable list (`selectedListHtml()`) separate from the deduplicated dependency-impact union, so the admin can see both which apps they picked and what else will be pulled in before committing. Both lists show a `Showing 150 of N` cap-note when the real count exceeds 150 rows, instead of silently truncating (§18.3.3).
-- **Monitor dependency rows (v1.6) — met.** Each batch row that caused a dependency install (per §10.3's `sys_execution_tracker` extraction) shows that dependency as its own indented row with a `dependency` badge, name, target version, live status pill, and progress — an observed fact from the tracker, not the §6 prediction. Verified live: `Subscription Management v2`'s row showed a dependency row for `Licensing Engine` at `complete`/100%, matching the tracker extraction test.
-- **Home auto-refresh (v1.6) — met.** Navigating to Home from an active Monitor view always triggers `refresh()`, even if Home data was already loaded earlier in the session.
-- **Zurich compatibility — not claimed, gap documented (§18.3.4).** The v1.5.2+ dependency-impact mechanism and the v1.6 tracker mechanism have been verified only on `democrmfalectriae152010`. This is a documented gap, not an acceptance criterion met.
+- Home shows the correct release label, data center, DB, last upgrade and last sync, plus the Apps / Up to Date / Updates Available / Installing KPIs matching live data (Apps = the sum of the next two).
+- Step 1 lists exactly the apps passing the three §8 filters.
+- Installs start with **zero stored credentials**. New `CICDInstallWorker` rows appear, and the offering-required 400 is retried automatically.
+- Installs are launched sequentially. A busy queue is retried and a lost callback never stalls the queue.
+- The page can be closed after launch: `monitorBatches` finalizes every row. A row is `complete` **only** if installed ≥ target. Rows without a worker are eventually finalized (complete by version, or timed out after 60 idle minutes).
+- Dependency impact: per-row expansion (dependency branch + suite membership, with a membership check), a deduplicated root-excluded union in the confirm dialog, hidden apps kept and badged, empty impact renders nothing, and cycles terminate.
+- The Monitor shows observed dependency installs (`sys_execution_tracker`) with `current → target` from the snapshot.
+- Pagination works in the three views independently. Selection survives paging, select-all covers the whole filtered set, and the page is clamped when a list shrinks.
+- The Monitor KPI filter follows §14.7. Dependency rows are never orphaned.
+- The UI renders with no build step and no JS errors. There is no white band under short views.
+- The update set imports with 0 preview problems on an instance where the app does not exist, and the ACLs resolve to `admin`. Proven for v1.6.6 on Brazil after the reset of §12.4.
+- The update set **upgrades the previous published release with 0 preview problems**. Check the lineage offline (§12.2) and with a real import on an instance that has the previous published XML. Proven for 1.6.5 → 1.6.6 on `democrmfalectriae163723`.
+- **Not claimed:** compatibility with the Zurich family (§19.10).
 
 ---
 
-## 17. Out of scope (future)
+## 17. Out of scope
 
-Dependency pre-resolution/ordering · maintenance-window scheduling · email notifications · auto-install policies · rollback · multi-instance management. Updating **platform plugins** (vs store apps) is also out of scope.
-
----
-
-## 18. Decisions — resolved during the v1.x build
-
-All five open questions were settled by the shipped implementation. Recorded here so they are not reopened.
-
-1. **Session auth — confirmed working.** `/api/sn_cicd/app_repo/install` accepts `credentials:'same-origin'` + `X-UserToken: window.g_ck`. The credential-alias fallback (§7) was **never needed** and no credentials are stored anywhere.
-2. **Version label — parsed from `glide.buildtag`.** Family from `^glide-([a-z]+)-`, patch from `__patch(\d+)`, hotfix likewise; rendered as `Zurich · Patch 11`, with the raw build string as secondary text. Verified on two releases (§6.8).
-3. **Reactive layer — pure vanilla JS.** No Alpine, no petite-vue, no UI Script. This supersedes the "Alpine.js as UI Script" note in the project brief: the shipped UI Page uses a plain IIFE with event delegation.
-4. **Palette — neutral Apple-inspired**, as CSS custom properties: `--bg:#f5f5f7`, `--surface:#ffffff`, `--border:#e8e8ed`, `--text:#1d1d1f`, `--accent:#0071e3`, `--success:#34c759`, `--warning:#ff9f0a`. Not the ServiceNow brand palette.
-5. **Install-log table — built, in MVP.** `u_plugin_updater_install_log` is not deferred; the Monitor and the Scheduled Job both depend on it.
-
-### 18.1 Opened for v1.5 (dependency impact), resolved in §18.2
-
-1. **Suite-vs-graph overlap in the UI.** An app can be reached by both branches (§6.2). Decide whether the shared suite panel or the per-row tree owns such a row, so it is not counted twice in the displayed union.
-2. **Confirm-dialog verbosity** when the union is large — Zurich yields a 200-app union (§6.8). Decide between a count with a *show all* escape and a scrollable list, consistent with the 150-row cap already used in Step 2.
-
-### 18.2 Decisions — v1.5 dependency impact (resolved during the v1.5 build)
-
-1. **Suite wins the overlap.** When a scope is a member of the target suite, it is excluded from every graph-branch tree and from the deduplicated union — it is shown once, in the suite panel, framed as `Will be updated` (the certain, explicit-target case). The graph branch (`May also be updated`, a heuristic per the original §6.5) never re-surfaces a suite-owned row. Reasoning: the suite branch has an explicit per-app target version; when both branches could claim a row, the more certain signal should own it, not the heuristic one. **Superseded in spirit by §18.3.1 — the overlap rule (suite wins) survives into v1.5.2 unchanged; what changed is that the non-suite branch is no longer heuristic either.**
-2. **Confirm dialog: count + show all.** The dialog shows a compact `N more applications will be updated as a result` line by default; a `Show all` toggle expands a scrollable list on request. Chosen over an always-visible list so the dialog stays lightweight for the common case (a handful of apps) and only pays the rendering cost when the admin actually wants the detail — consistent with the 150-row cap already used in Step 2's own table. **Unchanged in v1.5.2.**
-
-### 18.3 Decisions — v1.5.2 dependency-impact replacement (resolved during the v1.5.2 build)
-
-The v1.5 graph branch was replaced, not tuned. Trigger: a real dependency chain (`Content Understanding`, §6.1.1) that the shipped v1.5 heuristic resolved to 19 apps with no relationship to the row inspected — surfaced by a side-by-side comparison against the native App Manager's own "Review Installation Details" dialog for the same app, which showed a completely different, much smaller set (the same 8 apps §6.2's suite branch already accounted for). That comparison is what triggered the replacement rather than a UI-only relabel.
-
-1. **Rebuild the second branch against `sys_app_version` (target-version dependencies), not `sys_store_app.dependencies` (installed-version floor).** §6.1 explains why the old source was structurally wrong, not merely imprecise. This is the same table/logic the platform's own `DependencyProcessor` reads for the Application Manager's Update button.
-2. **Drop the heuristic tier entirely.** Both branches now carry an explicit target-version constraint, so both render identically (`Will be updated` framing, no `May also be updated`, no `lockstep`/`Likely` marker) — §6.5.
-3. **Surface the impact panels in Step 1, not just Step 2.** The suite panel renders identically in both wizard steps, sharing the same render/wire functions parameterised by a DOM-id prefix.
-4. **Root-exclusion is conditional on an explicit selection (§6.3.1, §6.3.2).** The unfiltered view (Step 1/2) must NOT exclude an app from the impact panels just because it is itself a root elsewhere in the same updatable-apps list — doing so was a real bug found during this build (Setup Hub's own 3-app chain was being filtered to zero because Setup Hub Content/Common/Config are themselves independently-updatable roots). The confirm dialog (an explicit selection) is the only context where root-exclusion is correct, because there the framing is "N more beyond what you picked."
-5. **A root that is also another root's dependency is shown as both, without deduplication penalty.** Verified live: `Setup Hub` is independently updatable *and* is `ServiceNow Otto for Setup Core`'s dependency-branch impact; `Licensing Engine` is independently updatable *and* is `Subscription Management v2`'s. Decided to show this plainly (§18.3.1) rather than hide the cross-reference — the information ("updating A will also touch B, which happens to be updatable on its own too") is accurate and useful even though it reads as redundant next to B's own row in the table.
-
-### 18.3.1 v1.5.3 correction — per-row dependency expansion replaces the shared dependency panel
-
-v1.5.2 (this section's original text) shipped the dependency branch as **one shared summary panel** — "N dependent apps will be updated together" — next to the suite panel, listing the deduplicated union across every root with no indication of *which* row caused *which* downstream app. User feedback on that exact screen: it read as ambiguous — seeing `Setup Hub`, `Setup Hub Content`, `Setup Hub Common`, `Setup Hub Config`, and `Licensing Engine` in one flat list gives no way to tell that `Setup Hub` is the one causing the first three, and `Subscription Management v2` (not shown in the panel at all — it's the *root*, not the *impact*) is the one causing the fifth.
-
-**Fix:** drop the shared dependency panel. Instead, every table row that has dependency-branch impact gets its own `N more ▾` link (identical styling and mechanics to the suite panel's toggle) that expands a detail row directly beneath it, scoped to exactly that root's own impact — `Subscription Management v2` shows `1 more ▾` and expanding it reveals `Licensing Engine`; `Setup Hub` shows `3 more ▾` and expanding it reveals `Setup Hub Content`, `Setup Hub Common`, `Setup Hub Config`. **The suite panel stays a shared summary** (unchanged from v1.5.2) — a suite is a single atomic block with one target version, so one badge unambiguously describes it; the dependency branch has no such collective noun (20 different roots, 20 different reasons), so per-row is the only framing that doesn't require the admin to reverse-engineer the relationship.
-
-This required a backend shape change: `getUpdateImpact` now returns **both** `dependenciesByRoot` (keyed by root scope, feeds the per-row expansion, never subject to root-exclusion) and `dependencies` (the flat deduplicated union, feeds the confirm dialog only, root-excluded when a selection is present) — see §6.10. The confirm dialog's framing ("N more applications will be updated as a result") is unaffected; only the wizard steps' presentation changed.
-
-### 18.3.2 v1.5.4 correction — suite-member rows also get per-row expansion
-
-§18.3.1's per-row expansion only read `dependenciesByRoot` — populated exclusively by the dependency branch (§6.2). A row whose *only* impact source is suite membership (it declares no `sys_app_version` dependencies of its own, but is listed in `sys_suite_config_app_version_m2m`) got **no expansion at all**, even though every other suite member's row correctly showed one via the shared panel's presence.
-
-Concrete case that surfaced this: `ServiceNow Otto AI Agents` (`sn_aia`) is a `Now assist` suite member with zero dependency-branch impact of its own. In the native Application Manager, clicking Update on `ServiceNow Otto AI Agents` opens the *same* "Review Installation Details" dialog every other suite member opens — listing its 8 suite siblings. The shipped UI's suite panel already listed those 8 apps (shared, top-of-page), but `sn_aia`'s own *row* showed no `N more ▾` — nothing tied the panel to that specific row, so the two looked unconnected even though they describe the same fact.
-
-**Fix:** `rowImpactList(scope)` (client-side) now merges two sources per row: `dependenciesByRoot[scope]` (unchanged) **and**, if `scope` is itself a suite member, every *other* suite member (`imp.suite.apps` minus itself). A row that is both a dependency-branch root and a suite member (none observed on this instance, but structurally possible) shows the union of both, deduplication not required since the two sources are already disjoint by construction (§6.10's suite-wins overlap rule keeps suite scopes out of `dependenciesByRoot`).
-
-**A bug shipped with the first version of this fix, caught in the smoke test before merging further:** the initial implementation added "every other suite member" to a row's list whenever a suite existed, without first checking whether *that row's own scope* was among the suite's members. Since the filter was `suiteApps[i].scope !== scope` (excluding only the row itself) rather than "is `scope` in `suiteApps` at all", every row — suite member or not — passed the filter and inherited the full suite list. The smoke test caught this immediately: non-suite rows like `Theme Builder`, `AI Experience Framework`, `AI Service Graph Connector for Databricks`, `ISA Equipment Model`, `Licensing Engine`, `Process Automation Designer`, and `Setup Hub Config` all showed spurious `8 more ▾`/`9 more ▾`/`10 more ▾` links with no basis in the data. Fixed by adding an explicit membership check before merging: only add the suite's other members if the row's own scope first matches one of `imp.suite.apps`.
-
-Verified live on `democrmfalectriae152010` after the fix: all 9 suite-member rows (`AI Admin Hub`, `Content Understanding`, `Platform AI Agents and Skills`, `ServiceNow Otto AI Agents`, `ServiceNow Otto for Setup`, `ServiceNow Otto for Setup Core`, `ServiceNow Otto for Virtual Agent`, `ServiceNow Otto for Virtual Agent Configurations`, `ServiceNow Otto in Document Management`) show `8 more ▾` (or `12 more ▾` for the two that also have dependency-branch impact — `ServiceNow Otto for Setup` and `ServiceNow Otto for Setup Core`, each 8 suite + 4 dependency-branch apps merged); every non-member, non-dependency row shows no expansion at all; `ServiceNow Otto AI Agents` expanded matches the native dialog's 8-app list exactly.
-
-### 18.3.3 v1.6 fix — confirm dialog: name the selection, and never silently truncate past 150
-
-Two separate gaps in the confirm dialog, both surfaced by direct questions rather than a smoke-test failure.
-
-**Gap 1 — the dialog never named the selection.** Before v1.6 the confirm dialog said only `You are about to update N applications`, with the dependency-impact union shown as its own expandable list. The admin had no equivalent list for what they had *actually clicked* — only a number. To see the names they had to cancel back into Step 2. **Fix:** `selectedListHtml()` builds a second expandable list, styled and mechanically identical to the dependency-impact one (`N selected applications will be installed` + `Show all ▾`), populated directly from `selectedIds()` and the already-loaded `S.appData.apps` — no extra round-trip. It renders above the dependency-impact list so the dialog reads top-to-bottom as "what you picked" then "what else follows."
-
-**Gap 2 — both lists silently truncated past 150 rows.** Asked directly: *what does the confirm dialog do if the admin selects more than 50 apps that relate to hundreds of dependencies?* Grepping the code found `Math.min(list.length, 150)` in both `confirmUnionHtml()` and (the then-new) `selectedListHtml()`, with no indicator when the true count exceeded 150 — the row simply stopped, with no `capNote()`-style message. This is inconsistent with Step 1/2, which have shown a `Showing N of M · show all` note since before v1.6 whenever a list is capped. On this instance (~20 updatable apps) the case can't be triggered live, but the code path is real and the inconsistency was real. **Fix:** both lists now append `<div class="cap-note-inline">Showing 150 of N — refine your selection to see the rest.</div>` when the underlying array's length exceeds 150, matching the existing cap-note wording style. New CSS rule `.cap-note-inline` (muted, centered, top border) visually separates it from the row list above it.
-
-### 18.3.4 Compatibility gap — Zurich not verified, documented rather than claimed
-
-Asked directly: *is this version of Now Plugin Updater compatible with the Zurich release of ServiceNow?* Checked rather than assumed.
-
-The **original** dependency-impact design (the one superseded in §18.3, before the `sys_app_version` rebuild) had been validated on a Zurich instance per the original §6.8. That code path **no longer exists** — §6.1–§6.10 describe a different mechanism (`sys_app_version` target-version constraints, `sys_suite_config` suite branch), built and verified only against `democrmfalectriae152010`, which runs the Australia release family. The v1.6 tracker mechanism (§10.3, `sys_execution_tracker`) is newer still and has never run against anything but that same instance.
-
-**Decision (explicit, not a default): document the gap rather than claim compatibility.** Neither the current `sys_app_version`/`sys_suite_config` dependency-impact mechanism nor the `sys_execution_tracker` tracking mechanism has been verified on Zurich. Nothing in the tables or APIs involved (`sys_app_version`, `sys_suite_config`, `sys_suite_config_app_version_m2m`, `sys_execution_tracker`) is documented public API — they are internal platform tables the app reads because they're what `AppUpgrader`/`DependencyProcessor` itself reads, and their presence, shape, or population behaviour could differ across release families in ways that have not been checked. Do not represent this build as Zurich-verified in any customer-facing material until that verification is actually run.
+Dependency pre-resolution or ordering, maintenance-window scheduling, email notifications, auto-install policies, rollback, multi-instance management, platform plugin (`com.*`) updates, category grouping (§13), a separate History view (the Monitor's batch selector covers it), and editing or deleting log rows from the UI.
 
 ---
 
-## 19. v1.6.5 — pagination, KPI filtering, background (§18.4)
+## 18. Decision record
 
-### 18.4.1 Uniform page background — the one rule that lives outside `#app`
+### 18.0 Foundational (v1.x)
 
-**Symptom:** the page rendered `#f5f5f7` down to the end of the app content and plain white below it, a visible horizontal seam whenever the content was shorter than the viewport.
+1. Session auth for CICD works (`same-origin` + `X-UserToken`). There is no credential fallback.
+2. The version label is parsed from `glide.buildtag`/`glide.buildname` (§5.2).
+3. The reactive layer is **pure vanilla JS** (no Alpine, no petite-vue, no UI Script).
+4. The palette is neutral and Apple-inspired (§14.1), not the ServiceNow brand palette.
+5. The install-log table is part of the MVP.
 
-**Cause:** every rule in this UI Page is scoped under `#app` (a deliberate constraint — see the CSS header comment and CLAUDE.md), and `#app` carried `min-height:600px`. On a tall viewport with a short view (Step 3, an empty Monitor) `#app` stopped at its content and the platform's own `html`/`body`, which the app had never styled, showed through white.
+### 18.1 Dependency impact (v1.5 → v1.5.4)
 
-**Fix, and why it breaks the scoping rule on purpose:** a single unscoped rule, `html,body{background:#f5f5f7;margin:0}`, plus `#app{min-height:100vh;border-radius:0}`. Tinting `body` is the only way to cover the area *outside* the app container; no `#app`-scoped rule can reach it. `border-radius` drops to 0 because a rounded container against an identically-coloured backdrop only produced four faintly clipped corners.
+1. **Suite wins** the overlap. A scope is shown once.
+2. **Confirm dialog = count + Show all**, with a 150-entry cap and an explicit note.
+3. **v1.5.2:** the second branch was rebuilt on `sys_app_version` (target-version constraints) instead of `sys_store_app.dependencies`. The heuristic "May also be updated" tier was dropped.
+4. **Root-exclusion only with an explicit selection** (§6.3). Applying it unconditionally emptied every dependency result (a v1.5.2 bug).
+5. **v1.5.3:** the shared dependency panel was replaced by a **per-row `N more ▾`**. A flat list could not tell which root caused which app. This introduced the `dependenciesByRoot` + `dependencies` shapes.
+6. **v1.5.4:** suite members also get per-row expansion, **only after a membership check** (the first attempt gave every row a spurious `8 more`).
 
-**The colour is duplicated literally, and that is deliberate:** `--bg` is declared *on* `#app`, so it is not in scope on `body` — `body{background:var(--bg)}` would silently resolve to nothing. The CSS carries a comment tying the two values together: if `--bg` changes, the `html,body` literal must change with it.
+### 18.2 Confirm dialog (v1.6)
 
-### 18.4.2 Pagination replaces the render cap — and why the original objection no longer holds
+The selection is listed by name (`selectedListHtml`), separate from the impact union. Both lists carry a cap note beyond 150.
 
-Before v1.6.5, Step 1 and Step 2 rendered at most `RENDER_CAP` (150) rows and offered a one-way `show all`; the Monitor rendered every row unconditionally. The in-code comment justified this by stating that classic paging "spezzerebbe la selezione multipla su più pagine" (would break multi-select across pages).
+### 18.3 Monitor & packaging (v1.6 → v1.6.4)
 
-**That objection was unfounded, and the code already proved it.** `S.selected` is a map keyed by `sysId`, mutated by `toggleApp()` and read by `selectedIds()`; it is entirely independent of what is rendered. `toggleApp()` deliberately does *not* re-render the table. So selection already survived re-renders, filter changes and sorting — it survives page changes for exactly the same reason. Verified live: items selected on page 1 remain selected and counted after navigating to page 3 and back.
+1. **v1.6:** observed dependency rows come from `sys_execution_tracker` (a fact, not a prediction). Home refreshes when the user comes back from the Monitor.
+2. **v1.6.1:** `u_dependency_snapshot` holds the pre-install version, which the tracker never carries.
+3. **v1.6.1+:** the update set is a **complete from-scratch install**, not a diff.
+4. **v1.6.2/v1.6.4:** menu, module, table, labels, choice list and **ACL-role** records are tracked, so the effective role no longer depends on target defaults.
+5. **No brand icon.** An inline base64 `<img>` loaded but never painted (verified with Playwright/Chromium). A `sys_attachment` icon rendered, but its bytes cannot travel in a plain XML update set. Do not retry either approach.
+6. **v1.6.3:** batch fixes B1–B5, optimizations O1–O5, and the explicit sync state S1–S4 (§4, §6.7, §10, §11). Per user feedback, the **suite banner was removed** from the wizard (`renderSuitePanel` returned `''`). The row-level `N more` and the confirm dialog carried the impact. The Monitor showed a notice when a batch exceeded `ROW_CAP`.
 
-**Design:** one implementation serves all three views, keyed by view (`w1` = Step 1, `sel` = Step 2, `mon` = Monitor), with `S.page` and `S.pageSize` indexed per key so each view keeps its own position and size independently (an explicit requirement — page size is *not* shared across steps). Page sizes offered: **25 / 50 / 100 / 150 / 200**, default **25**.
+### 18.4 v1.6.5
 
-Helpers: `pageSizeOf`, `pageCount`, `clampPage`, `paginate`, `resetPage`, `pageNumbers`, `pagerHtml`, `wirePager`. The pager markup is built as a string and wired by event delegation (one handler per pager, one per page-size select), consistent with the rest of the app — no inline handlers, no handler-per-element.
+1. **Uniform background** (§14.9): the one rule outside `#app`, deliberately.
+2. **Pagination replaces the 150-row render cap** (§14.8). The old claim that paging breaks multi-select was false: selection is keyed by `sysId` outside rendering.
+3. **Monitor KPIs are a hard status filter** (not a sort), per the user's decision. It absorbs `monOnlyFailed`.
+4. **Pager label names its unit** (a regression caught by a colleague: "Showing 1–2 of 2" above 8 visible rows). Pagination stays on main rows so a dependency stays with its parent. Step 1/2 keep "of N applications".
+5. **Verification:** 21 assertions on the pagination helpers, 7 on the label, and browser tests on `democrmfalectriae152010` (four real batches, a forced page size of 2). The import was tested on `democrmfalectriae163723` (59 objects, 0 collisions, as an update, not from scratch).
 
-**`clampPage` is the load-bearing piece.** These lists change underneath the user: a filter is typed in Step 2, and the Monitor re-renders on a 15-second poll as rows change state. Without a clamp, a user sitting on page 7 of a list that shrinks to 2 pages would see an empty table with no explanation. `clampPage` pins the current page into `[1, lastPage]` on every render, so the view degrades to the last valid page instead of to nothing.
+### 18.5 v1.6.6
 
-**Reset-to-page-1 is applied on every change that reorders or shrinks a list** — text filter, scope filter, column sort, page-size change, re-entering Step 2, switching batch, changing the Monitor's KPI filter. Staying on page 5 after typing a filter would show an empty table that reads as "no results".
+1. **Failures before a worker exists are detected** (§10.3). Trigger: on `sicuritaliafsmau`, `sn_appclient.upload_base_url` / `sn_appauthor.upload_base_url` had been reset by `system` to `https://disabled.service-now.com`. Every Store install failed with "Unable to download app package" (syslog: "Blocked: credentials cannot be sent to a host other than the configured apprepo"). The Application Manager failed the same way, and clearing both properties fixed it. That is a platform issue, but the app hid it: rows looked `queued` for an hour.
+2. **The failed/cancelled branch now applies the version rule** (§10.2), like the `complete` branch.
+3. `src/script_include/PluginUpdaterAjax.js` was rebuilt from the deployed Script Include before patching. This closes §19.1.
+4. **Suite banner hidden again** in Step 1 and Step 2 (§14.3). This settles the product question left open in §19.2/§19.3. The per-row `N more` links stay. The Guide was revised.
+5. **`cancelRemaining` checks before cancelling** (§4.3): target version installed → `complete`; tracker Running → `installing`; otherwise `cancelled`. It returns `{ok, cancelled, kept}`, and the UI adds "N had already started and will finish". Trigger: on Brazil, "Customer Service Case Action Status" was marked `cancelled` by **Cancel queued** while its tracker was already Running, and it installed anyway.
+6. **`_reconcile(batchFilter)`** (§10.3). `monitorBatches` became a wrapper. A new pass turns recent `cancelled` rows (6 h) back to `complete` when the target is installed, because cancelling touches only the log, not the platform queue.
+7. **"Refresh now" reconciles** (`getBatchStatus` with `reconcile=1`). Before, it only re-read the log, which the job updates once a minute.
+8. **`listBatches` sorts explicitly**, newest first, before taking 20 (§10.5).
 
-**`pageNumbers` emits numbered pages with ellipses** (first, last, and a window around the current page). With 200 rows at a page size of 25 a full list of page numbers is short, but at the 25-row size over a large batch it is not — and the window keeps the control a fixed width either way.
+**Certification on Brazil** — `empgmarongiu1`, build `glide-brazil-08-25-2026__patch1-09-21-2026_10-05-2026_1244`, 2026-10-14/15.
 
-**Step 2's "Select all" was already correct and is unchanged:** it iterates `filteredApps()`, i.e. the whole filtered set across all pages, not the rendered rows — pagination was always a rendering limit, never a selection limit. Only its `aria-label` changed, from "Select all shown applications" (which described the cap's behaviour inaccurately even before v1.6.5) to "Select all matching applications".
+- **Path to the instance:** v1.6.5 was installed as an upgrade (remote set `0ce5e339…`, 59 entries, 0 collisions). v1.6.6 was then deployed by writing the two fields directly, verified byte for byte against `src/`.
+- **Batch 1:** 5 apps (Application spoke selector, Beans.ai Spoke, Calendar component, Carousel component, Coaching) → 5 `complete`.
+- **Batch 2:** 4 apps (Activity Timer Reporting, Assignment Workbench, Compatibility Management, Customer Service Case Action Status) → all installed. Home then showed Up to Date 183, Updates Available 343. The cancelled-but-installed row (point 5) moved to `complete` on the first job cycle after the v1.6.6 deploy, through the new pass of point 6.
+- **Tested OK:**
+  - Home and KPIs; Sync with Store (updates `apps_last_sync_time`);
+  - Step 1 and 2: paging 25/50/100/150/200, text and scope filter, selection that persists;
+  - the confirm dialog ("Show all", "Review selection");
+  - the Monitor: Batch dropdown, KPI filters with toggle-off, reset with Total, a zero KPI not clickable, the Cancel queued dialog with "Keep queued";
+  - Polaris / Next Experience rendering (`.playwright-mcp/brazil-monitor-queued.png`), with no console errors.
+- **Install queue:** installs go through `AppOperationQueue` one at a time (a `sys_trigger` job). About 3 minutes passed before the first worker. That is normal on this instance.
+- **Packaging:** native merge + export (§12.2), then reset (§12.4) and a **from-scratch import on the same instance**: previewed, summary 59, inserted 58, updated 1 (the choice list), collisions 0, committed. Code byte-identical to `src/`, ACLs all `admin`, Home rendered with 0 console errors.
+- **Upgrade tests and lineage fix (same day).** These were run after the re-cut described in the next point.
+  - *Australia, `democrmfalectriae152010`* (Patch 7, development instance, 1.6.5 deployed directly): preview 59 / updated 51 / inserted 6 / **2 errors** "Found a local update that is newer than this one" (Script Include, UI Page). Cause: the lineage (§12.2). The local records were verified identical to the shipped 1.6.5 page and the 1.6.4 Script Include, so both were resolved with *Accept remote update* and committed. Afterwards: code byte-identical to `src/`, 9 ACL-role rows on `admin`, 1,937 log rows intact, 0 console errors. This instance keeps that first build's lineage, which is irrelevant for customers.
+  - *Rebuild on the published lineage* (§12.2): reset → published 1.6.5 installed from scratch (inserted 59 / updated 0) → v1.6.6 written with `GlideRecord` → merge → export. The result is the final `NowPluginUpdater166.xml`: 366,226 bytes, remote set `01f12733…`.
+  - *Customer path, `democrmfalectriae163723`* (Australia Patch 6, 1.6.4 → published 1.6.5 committed): preview **59 / updated 53 / inserted 6 / collisions 0 / 0 problems**, committed. Afterwards: code identical, descriptions v1.6.6, 1,113 log rows intact, 0 console errors. ACL roles: 9 `admin` + 4 legacy `snc_internal` from early installs (§19.6); 1.6.6 neither adds nor removes them.
+  - *Clean install of the final file, `empgmarongiu1`:* **inserted 59 / updated 0 / collisions 0**, committed, code identical, 9 `admin` roles, 0 console errors.
+  - *Live batch on Australia (`152010`)* — Field Service Manager Mobile 1.1.0 → 1.2.1, with dependency Field Service Mobile 29.2.3 → 29.3.3: the platform aborted it ("application depends on other applications which are not accessible at app store: Field Service Mobile:29.3.3"). The app finalized the row correctly as `failed` by the version rule, but the message only says "still at 1.1.0, below the target 1.2.1": the platform's reason was in the tracker, which was not read (§19.13).
+- **Tracker failure reason (same day, §19.13) — final build.** The Script Include was rebuilt on `empgmarongiu1` on top of the first final 1.6.6, with a 1-entry delta merged with the commit set and then exported. The final `NowPluginUpdater166.xml` is 367,720 bytes, remote set `0360940c…`, Script Include SHA-256 `655a8621…`; the UI Page is unchanged. Results:
+  - offline lineage: 59/59 against the published 1.6.5 and 59/59 against the first final 1.6.6;
+  - `democrmfalectriae163723`, 1.6.6 → 1.6.6: 0 problems, committed;
+  - `empgmarongiu1`, real **1.6.5 → 1.6.6** path (reset, published 1.6.5 inserted 59/0, then the new XML): 59 / updated 53 / inserted 6 / 0 collisions / 0 problems, committed;
+  - `empgmarongiu1`, clean install: inserted 59 / updated 0 / 0 collisions, committed. 9 `admin` roles, footer v1.6.6, 0 console errors;
+  - `democrmfalectriae152010` (development, first build): 0 problems thanks to the hash match (§12.2), committed. The Field Service Manager Mobile batch was relaunched and the platform aborted it again for the same reason. Pressing **Refresh now** moved the row from `installing` to `failed` immediately, without waiting for the job (the first live test of §10.3's reconcile). Its *Why failed* reads: "Install did not apply: still at 1.1.0, below the target 1.2.1 — Aborting installation of application: Field Service Manager Mobile, application depends on other applications which are not accessible at app store: Field Service Mobile:29.3.3".
+- **Re-cut (same day):** the Guide copy and the two record descriptions were corrected (§19.7), and v1.6.6 was rebuilt with the same flow. The REST write of `html` was corrupted by the platform and was rewritten with `GlideRecord` (§12.1). Then the delta set, a merge with the locally committed set, a new export (an intermediate `NowPluginUpdater166.xml`, 368,247 bytes, 59 entries, later superseded by the lineage rebuild above), and the reset, which cleaned everything in **one** `execute` pass. The re-import gave the same result: **previewed 59 / inserted 58 / updated 1 / collisions 0**, 0 preview problems, committed. Verified after the commit:
+  - UI Page and Script Include SHA-256 equal to `src/`, descriptions "v1.6.6";
+  - 9 ACL-role rows on `admin`;
+  - the Guide shows the new text, with no trace of "first 150 rows", "suite banner" or "drops the applications";
+  - the footer reads v1.6.6 and the console has 0 errors.
+- **Not tested live:**
+  - the new check inside `cancelRemaining` (clicking Cancel while an app has already started);
+  - a failed download ("Unable to download app package", point 1). It was deliberately not reproduced: both `upload_base_url` properties are empty on `empgmarongiu1`.
+- **Known limit:** **Cancel queued** does not remove the operation from the platform queue (§19.12). No unverified API was used to cancel the tracker.
 
-**In the Monitor, page size counts main rows only.** Dependency rows (§10.3) are rendered *inside* their parent's loop iteration, so they consume no page slot and always stay attached to their parent. Slicing a flat row list would have stranded a `dependency` row at the top of a page with its parent on the previous one.
+---
 
-**Not paginated:** the Step 3 launch view's "could not be started" table. It lists launch failures only — normally empty, and a launch large enough to produce 25+ failures is a different problem than a paging one.
+## 19. Known gaps and discrepancies (as of 2026-10-15)
 
-### 18.4.3 Monitor KPI cards as a status filter
+First found on 2026-09-29, while reconciling this spec against `src/`, the `NowPluginUpdater16x.xml` payloads and read-only queries on `democrmfalectriae152010`. Updated after the v1.6.6 certification on Brazil. Each item says whether it is closed or still open. They are listed so the next change starts from the facts.
 
-**Requirement as stated:** clicking a KPI should "sort by status and bring focus to the relevant plugins". **Resolved to a hard filter instead of a sort**, on the user's explicit decision — a sort that floats the chosen status to the top still leaves every other row on the page, so the admin still has to find where the group ends. A filter answers "show me the queued ones" directly.
+### 19.1 `src/script_include/PluginUpdaterAjax.js` is stale — **closed in v1.6.6**
 
-**Where:** the `Total / Installing / Queued / Complete / Failed` KPI row lives in `renderMonitor()`, on the **Monitor tab** — not in the wizard's Step 3, which has no KPI row and no plugin table (only the launch progress bar and the launch-failure list). This was confirmed before implementing rather than assumed.
+Before v1.6.6, the local file (55 KB) predated v1.6.3. v1.6.6 rebuilt it from the deployed Script Include. Since 2026-10-15, `src/` is byte-identical to the Script Include installed from `NowPluginUpdater166.xml` (73,544 chars).
 
-**Behaviour:** `Installing / Queued / Complete / Failed` filter to that status; clicking the active card again clears it (toggle-off); `Total` clears it. **A KPI showing 0 is not clickable** — no `data-kpi`, no pointer, no focus stop; filtering to an empty list is a dead end. The active card is marked visually (`.kpi-active`: accent ring + accent label) and with `aria-pressed`, because a filtered table with no indication of *why* reads as an incomplete table. Cards are `role="button"`, keyboard-activated with Enter/Space, matching the existing sortable-header pattern.
+### 19.2 The v1.6.5 UI Page regressed the v1.6.3/v1.6.4 client changes
 
-**The filter matches the main row's status only; dependency rows follow their parent.** A parent `installing` with a `complete` dependency appears under `Installing`, dependency included, and never under `Complete`. This keeps the filter consistent with §18.4.2's paging rule and guarantees a dependency row is never shown orphaned. It also keeps the filter aligned with the KPI numbers themselves, which come from the server's `d.counts` and count main rows only.
+The v1.6.5 page was built from the local `src/` page, which was still on the v1.6.1/1.6.2 client base, instead of from the deployed v1.6.4 page. A diff of the `164` and `165` payloads shows v1.6.5 **lost**:
 
-**`monOnlyFailed` was absorbed, not kept alongside.** The batch-summary panel's existing "Show only failures" link did the same job for one status through a second, separate piece of state. It now sets `S.monFilter='failed'`, so the `Failed` KPI lights up regardless of which control started the filter, and there is one source of truth. The panel's `show all` link clears the filter, same as `Total`.
+- **Sync outcome handling (S1–S3):** `followSync`/`endSync`, reading `p.outcome` (`done`/`error`), the "The Store sync failed" alert with the server message, and re-attaching to a running sync on Home load. v1.6.5 is back to inferring completion by **string-comparing** `lastSync >= startedAt`, and to giving up after 5 minutes. A failed sync is now shown as "Still running…". The instance query `htmlLIKEp.outcome` returns 0.
+- **The suite banner removal** (`renderSuitePanel` returned the panel again). **Closed in v1.6.6:** the banner is hidden again (§14.3, §18.5.4).
+- **The `ROW_CAP` notice**: the page ignores `d.truncated`/`d.rowsShown`. A batch of more than 500 apps paginates only the first 500, with no indication.
+- **O4 cleanup**: the unused state fields and the named poll constants (`MON_POLL_MS`, `SYNC_POLL_MS`) are back as literals.
 
-**The filter and the current page both survive the 15-second poll.** The filter is re-applied on each render before pagination; the page is clamped (§18.4.2). The empty-state message distinguishes a filtered empty result ("No applications with status "queued" in this batch.") from a genuinely empty batch.
+The server still returns every field the old client expects, so nothing crashes. The loss is functional (the sync error path) and informational. **Still open in v1.6.6**, except the suite banner. The v1.6.6 client changed the Monitor and the suite panel but not the sync path.
 
-### 18.4.4 Pager label must name what it counts — regression caught in review
+### 19.3 Suite panel: shipped, but previously removed on purpose — **closed in v1.6.6**
 
-**Reported on the shipped 1.6.5 by a colleague, with a screenshot:** the Monitor showed `Showing 1–2 of 2` above a table with **eight** visible rows — two applications (`Employee Center Pro`, `Employee Center Core`) and six `dependency` rows.
+v1.6.6 hides it again, as v1.6.3 had decided (§14.3).
 
-**The count was correct and the label was still wrong.** §18.4.2 deliberately paginates on main rows only, because that is what keeps a dependency attached to its parent instead of splitting a family across two pages. That decision stands. The defect was letting an internal accounting rule surface as a user-facing sentence: `of 2` described the pagination unit, while the reader was counting rows on screen. A label that contradicts what the eye sees reads as a bug regardless of which number is technically defensible.
+### 19.4 Choice list is missing `installing` and `cancelled`
 
-**Fix:** the label now names its unit and declares the rest. `pagerHtml(view, pg, extraRows)` takes the number of rows rendered on the current page that do *not* consume a pagination slot, and renders `Showing 1–2 of 2 applications · 6 dependency rows`. With no dependencies on the page the second clause is omitted entirely, so the common case stays short. Singular forms are handled for both counts (`1 application`, `1 dependency row`). `renderMonitor` accumulates `depRowsShown` inside the parent loop, so the figure is **per page**, not per batch — on page 1 of a paginated batch it reports only the dependencies actually visible there.
+`u_status` choices on the instance and in the XML: `queued`, `in_progress`, `complete`, `failed`. The code writes `installing` and `cancelled` too. Those values are stored, but in list and form views they show as raw values and are not offered in the choice list. `in_progress` is legacy: it is read and normalized, never written.
 
-`Rows per page` became **`Applications per page`** in the same pass, for the same reason: it named the wrong unit, and with a page size of 25 over rows that expand into dependencies the old wording implied a cap the control does not enforce.
+### 19.5 The UI Page ACL has `type=record`
 
-**Step 1 and Step 2 were left alone.** Their expandable `tree-row` blocks are detail panels the user opens deliberately, not application rows in their own right, so `of N applications` remains accurate there.
+The `pgi_plugin_updater` read ACL is `type=record` (on the instance and in the XML). Protecting a UI Page normally needs an ACL of the UI Page type, so this ACL may not be enforced (**to verify** on the platform). The actual protection today is the admin guard on every server method plus the admin-only menu and module.
 
-**Lesson to carry forward:** when a pagination unit differs from the visible row, the label must say which one it is counting. Verified on `democrmfalectriae152010` against four real batches — 9 apps + 3 dependency rows, 14 + 1 (singular), and two batches with none — and under a forced page size of 2, where the dependency note correctly appears only on the page that renders them.
+### 19.6 Duplicate ACL-role bindings
 
-### 18.4.5 Verification
+There are 9 `sys_security_acl_role` rows, all pointing to `admin`. The create, read, write and delete install-log ACLs are each bound twice (a leftover of the v1.6.4 role-binding fix; update sets are additive). This is harmless. Cleaning it up needs security_admin elevation. **Still in v1.6.6:** both rows of each pair are in the update set, so a from-scratch install creates both (verified 2026-10-15).
 
-Pagination helpers were extracted from the shipped UI Page and exercised in isolation — 21 assertions covering page counts at the 25/26/200 boundaries, first/last/partial-page slicing and `from`–`to` labels, clamping both when a list shrinks below the current page and when the page index exceeds the last page, empty lists, a page size larger than the list, per-view independence, and `pageNumbers` ellipsis windows at the first/middle/last page including a no-duplicates check. Browser verification against `democrmfalectriae152010` is recorded in §18.4.5.
+Instances that received an early version also carry `snc_internal` bindings created by the platform fallback, which no update set removes. On `empgmarongiu1` there were 5 (4 install-log + 1 UI Page). They were removed only as a cascade of the reset (§12.4).
+
+### 19.7 Stale user-facing copy — **closed in v1.6.6 (re-cut)**
+
+The first v1.6.6 export still shipped stale passages. They were fixed, v1.6.6 was re-cut with the same version (that export had never been published), and it was re-certified on 2026-10-15 (§18.5):
+
+- **Step 3 (Select)** said "Very long lists render the first 150 rows for speed — use **show all**…". It now describes pagination (25–200 *applications per page*; selection kept across page, sort and filter; Select All covers the whole filter).
+- **Step 3 (Select)** mentioned the hidden **suite banner**. Now only the per-row *N more* links are mentioned.
+- **Launch & Monitor** said Cancel queued "drops the applications still waiting in the queue". It now says what happens: rows still waiting become *cancelled* after a check; started or installed apps are kept; the platform queue is not changed, so an app it had already accepted can still install and its row turns *Complete* (§19.12).
+- The `description` of the UI Page and the Script Include records said "v1.6.4". Both now start with "Now Plugin Updater v1.6.6".
+
+Still open: the Guide notes describe the 5-minute "stops following it" sync behaviour, which is correct for the current client but tied to the §19.2 regression.
+
+### 19.8 README is out of date
+
+`README.md` still says **v1.4.2**, references `NowPluginUpdater140.xml`, and describes the pre-1.5 feature set ("action bar pinned to the bottom", "first 150 rows").
+
+### 19.9 `u_product_category` unused
+
+This is §13: implement it or drop it.
+
+### 19.10 Compatibility
+
+| Family | Instance | What is verified |
+|---|---|---|
+| Australia | `democrmfalectriae152010` (Patch 7), `democrmfalectriae163723` (Patch 6) | dependency impact (`sys_app_version`, `sys_suite_config*`), tracker (`sys_execution_tracker`), v1.6.5 browser tests. **v1.6.6 upgrade**: 1.6.5 → 1.6.6 with 0 problems on `163723` (customer path); Home, Monitor (newest batch first) and one live batch on `152010` (§18.5) |
+| **Brazil** (Patch 1) | `empgmarongiu1` | **v1.6.6 certified** (§18.5): two real batches (9 apps), Monitor, `sys_execution_tracker` read by `_findWorker`, Polaris rendering, from-scratch install (§12.4) |
+| Zurich | — | **not verified** |
+
+- These are internal, undocumented tables, so each new family must be re-checked.
+- The from-scratch install is now proven for **v1.6.6** (2026-10-15). For v1.6.5 it is still an inference.
+- On Brazil, the first worker appears about 3 minutes after launch (`AppOperationQueue` processes one operation at a time). That is not an app error.
+
+### 19.11 Minor behaviours worth knowing
+
+- The **Installing** KPI on Home counts every running CICD install worker on the instance, including ones not started by this app.
+- `listBatches`, `getMyLatestBatch` and `getActiveBatch` only see the **current user's** batches.
+- `createBatch` silently truncates the selection to 1000 apps.
+- `__npu_sync_job_id` is a single global property. It is safe only because of the sync lock.
+- `rawBuild` is returned but not displayed.
+
+### 19.13 The failure reason from the tracker is not shown when a worker exists — **closed in v1.6.6**
+
+When the CICD worker exists, it ends `state=complete` with the generic message "Executing queued operation", which `_failMessage` drops on purpose. The real reason is only on the root `sys_execution_tracker` (`state=3`, with the same sys_id as the worker). For example: "Aborting installation of application: …, application depends on other applications which are not accessible at app store: Field Service Mobile:29.3.3". `_findWorker` reads the tracker only when the worker is missing (§10.3), so the row says just "Install did not apply: still at X, below the target Y". Observed on `democrmfalectriae152010`, 2026-10-15.
+
+**Fix (v1.6.6, same day):** `_findWorker` also returns `id` and `source`. When the worker's message is empty or "Executing queued operation", `_failMessage` calls `_trackerFailure(pid)` and appends the root tracker's `message` if the tracker is Failed (3) or Cancelled (4). The extra read happens only for rows being marked `failed`. This needed a new Script Include build. It was written on top of the already-shipped 1.6.6 build (history `421098c8…` → `0391a7ff…` → `3f53e670…`), so that instances with either the published 1.6.5 or the first final 1.6.6 upgrade cleanly (§12.2).
+
+### 19.12 Cancel queued and tooling anomalies (v1.6.6)
+
+**Cancel queued is a log operation.** `cancelRemaining` does not remove the operation from the platform queue. No verified API to cancel an `AppOperationQueue` operation or a `sys_execution_tracker` was found, and none was used. An app already queued can still install. v1.6.6 limits the damage: it checks the version and tracker before cancelling, and runs the 6 h re-verify pass in `_reconcile` (§10.3), so the row then turns `complete`.
+
+**MCP tool anomalies** (`jarvis-servicenow`, observed on `empgmarongiu1`, 2026-10-14/15):
+
+- `preview_remote` answers "initiated" but starts nothing. Use **Preview Update Set** on the form.
+- `commit_remote` with `wait:true` reports "Update set committed", but the record stays `previewed`. Use **Commit Update Set** on the form.
+- `execute_background_script` does not return `gs.info` output. Verify by re-reading records, or run the script in *Scripts - Background* through the browser, which shows the output. Each call also leaves an `mcp.bg_result.*` system property, captured in the current update set.
+- Writes through `execute_background_script` **are** captured in the current update set of the session (Default). They are not lost (§12.2).
+- `sys_store_app` returns 403 through MCP.
+- `get_record`/`query_table` on large fields (`script`, `html`, `payload`) spill to a file. Analyse them with Python.
+- Platform: `deleteMultiple` on `sys_properties` is refused ("Not allowing multiple record update to sys_property"). Delete properties one by one.
+- Platform: a REST write of `sys_ui_page.html` escapes `<script>` into `&lt;script&gt;` and still returns 200. Write it with `GlideRecord` (§12.1).
+
+---
+
+## 20. Release history (summary)
+
+| Version | Main changes |
+|---|---|
+| 1.3.0 | First working build: no-build UI Page, GlideAjax, session-based CICD install, install log, monitor job |
+| 1.3.1–1.3.4 | Monitor false-failure fixes on large batches; never time out while the CICD queue is active |
+| 1.3.2 | Home optimized; `v_plugin` count removed |
+| 1.3.3 | Store sync added; updatable filter aligned with App Manager |
+| 1.3.5–1.3.7 | UI polish; fire-and-forget sync; category feature removed |
+| 1.4.0 | **Installed version as sole arbiter** (`completion_code` bug), semantic compare, launch watchdog, real sync progress, confirm dialog, scope filter, cancel queued, batch summary, a11y, `getHomeData`, aggregate `listBatches`; repair script |
+| 1.4.1 | `.modal` → `.npu-modal` (invisible dialog) |
+| 1.4.2 | Selection reset on wizard entry |
+| 1.4.3 | Sync via Run Once job (event queue 9–13 h), elapsed wait time; landing page + download counter |
+| 1.5–1.5.4 | Dependency impact: suite + `sys_app_version` branches, per-row expansion, suite-member expansion |
+| 1.6 | Observed dependency rows (`sys_execution_tracker`), confirm dialog lists the selection, cap notes, Home refresh from Monitor |
+| 1.6.1 | `u_dependency_snapshot`; complete from-scratch update set; brand icon removed |
+| 1.6.2 | Menu, module, table and labels tracked in the update set |
+| 1.6.3 | Server B1–B5 / O1–O5 / explicit sync state S1–S4; suite banner removed; `ROW_CAP` notice |
+| 1.6.4 | ACL-role records for the install-log ACLs; ACL payload re-alignment |
+| 1.6.5 | Uniform background, pagination, Monitor KPI filter, pager label fix. **Client regression of the 1.6.3/1.6.4 client changes (§19.2)** |
+| 1.6.6 | Failures before a worker exists (tracker fallback), version rule on failed/cancelled, suite banner hidden, `cancelRemaining` checks first, `_reconcile` + Refresh now reconciles, `listBatches` newest first. **Certified on Brazil**; first native merge/export and from-scratch install after an instance reset (§12.4) |
