@@ -13,6 +13,8 @@
 > Both were verified byte for byte against the records installed from the final `NowPluginUpdater166.xml` (367,720 bytes, remote set `0360940c…`, built on the published 1.6.5 lineage, §12.2; includes the tracker failure reason, §19.13) on 2026-10-15. On the **from-scratch** import of `empgmarongiu1` the preview gave 59 / inserted 59 / updated 0 / collisions 0 (§12.4). On the **upgrade from the published 1.6.5** on `democrmfalectriae163723` it gave 59 / updated 53 / inserted 6 / collisions 0. Both were committed. §19 lists the gaps that are still open. **Read §19 before changing anything.**
 >
 > Where this document says "server", it describes the **v1.6.6 Script Include**. The update set and `src/` now agree.
+>
+> **Proposed v1.7.0 (2026-11-09, not released).** It adds the **platform install queue health**: detection of an install queue blocked by orphan resource locks, and their release on explicit admin request (§4.6, §14.7, §18.6). `src/` now carries the v1.7.0 Script Include (103,598 chars) and UI Page (115,479 chars) plus `src/fix_scripts/release_orphan_install_lock.js`. They were deployed with `GlideRecord.setValue` and tested end to end on a **Brazil Patch 2** development instance. **No update set has been exported for it yet** (lineage rule, §12.2), so the downloadable release is still v1.6.6 and the two `src/` files are ahead of `NowPluginUpdater166.xml`. The v1.6.6 statements in this block are unchanged.
 
 ---
 
@@ -75,6 +77,9 @@ These are root causes of the prior, non-working implementation. Do not reintrodu
 │  sys_suite_config, sys_suite_config_app_version_m2m,              │
 │  sys_progress_worker, sys_execution_tracker, sys_cluster_state,   │
 │  sys_upgrade_history · properties glide.*, sn_appclient.*         │
+│ v1.7.0 queue health: sys_padlock, sys_nowmq_message, sys_choice   │
+│  (writes only on release: sys_execution_tracker, sys_padlock,     │
+│   sys_attachment — §4.6)                                          │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -101,7 +106,10 @@ Created **at runtime** (not in the update set):
 - system property `x_npu.sync_state` (JSON Store-sync state, §11.2);
 - system property `__npu_sync_job_id` (sys_id of the latest one-shot sync job);
 - Scheduled Script `Plugin Updater - Store Sync (once)` (one per sync; deletes itself);
-- the `sys_trigger` of `Plugin Updater - Monitor Batches` (created by the platform when the job is committed).
+- the `sys_trigger` of `Plugin Updater - Monitor Batches` (created by the platform when the job is committed);
+- **v1.7.0:** one `npu_release_backup_<utc digits>.json` attachment on the root `sys_execution_tracker` of each released operation (§4.6). It goes with the tracker when the platform cleans trackers up (table cleaner, 30 days from creation on the Brazil instance tested).
+
+**Not created by anything (v1.7.0):** the optional system property `x_npu.stuck_op_hours` (default 6, minimum 1, §4.6). It is deliberately **not** in the update set: every release is a complete set (§18.3.3), so shipping it would reset an admin's value to the default on each upgrade. v1.7.0 adds **no** update-set object; it changes the `script` of the Script Include and the `html` of the UI Page, plus their `description`.
 
 Created **by the platform** when the table is created, and deleted with it by cascade: `ua_table_licensing_config` for `u_plugin_updater_install_log`. On instances that received an early version, also `snc_internal` ACL-role rows from the platform fallback (§19.6). Neither is in the update set. The reset script (§12.4) removes their history.
 
@@ -109,9 +117,10 @@ Created **by the platform** when the table is created, and deleted with it by ca
 
 | Path | Content | Status |
 |---|---|---|
-| `src/ui_page/pgi_plugin_updater.xhtml` | UI Page `html` field (Jelly) | = v1.6.6 (certified) |
-| `src/script_include/PluginUpdaterAjax.js` | Script Include | = v1.6.6 (certified) |
+| `src/ui_page/pgi_plugin_updater.xhtml` | UI Page `html` field (Jelly) | v1.7.0, proposed (§18.6); v1.6.6 is in the XML |
+| `src/script_include/PluginUpdaterAjax.js` | Script Include | v1.7.0, proposed (§18.6); v1.6.6 is in the XML |
 | `src/fix_scripts/repair_install_log_140.js` | one-off history repair (§9.2) | current |
+| `src/fix_scripts/release_orphan_install_lock.js` | background-script alternative to *Release blocked operation…* (§4.6) | v1.7.0 |
 | `src/fix_scripts/reset_npu_instance.js` | full uninstall of the app and its history on the test instance (§12.4) | current |
 | `NowPluginUpdater<ver>.xml` | exported update sets 1.3.7 → 1.6.6 | `166` is current |
 | `index.html` | public landing page with the XML embedded as base64 download (Netlify) | v1.6.6 |
@@ -172,6 +181,50 @@ Constants: `ROW_CAP=500`, `SYNC_JOB_NAME='Plugin Updater - Store Sync (once)'`, 
 
 **There is no `RESTMessageV2` anywhere**, and no `getProgress`, `verifyVersion` or `logInstall` method.
 
+### 4.6 Install queue health (v1.7.0, proposed)
+
+**Problem.** The platform runs install operations (Application Manager, CICD App Repository, this app) from the NowMQ subject `sys.applifecycle.operation`, one at a time. Each operation takes resource locks in `sys_padlock` with `lock_key = 'r*' + <root sys_execution_tracker sys_id>`. If the install's thread dies half-way, its padlocks stay. Every queued operation asks for `resources_to_lock`, does not get them, and is retried about once a second, forever. Observed on a two-node Brazil Patch 1 HF1 customer instance: an install froze at 95 % right after loading a dependency's updates and left two padlocks (`schema`/`**all**`, `**resource**`/`**all**`); every install stayed *Queued* for about three days. The manual fix that worked: check that no transaction of that install was still running, set the 6 *Running* trackers of its tree to *Failed*, delete only the 2 padlocks with that `lock_key`. The queue restarted within a minute.
+
+**Facts it relies on** (verified on Brazil Patch 1 during the incident; tables, fields and `sys_choice` values re-checked on Patch 2, where the lock behaviour was reproduced only with a simulation, §18.6):
+
+- `sys_padlock`: `resource_type`, `resource_id`, `lock_key`, `lock_count`. Operation locks have `lock_key = r*<tracker sys_id>`. Other rows have an empty or different key and are **never read** by v1.7.0: the temporary cluster latches (`*cluster-op-latch*`, `*cluster-queue-latch*`) and persistent `sys_repo_config` rows (6 on the Patch 2 instance, `lock_count=0`).
+- `sys_nowmq_message`, subject `sys.applifecycle.operation`: `state` (`READY`/`ATTEMPTED`/`DELIVERED`), `attempt_count`, `sequence`, `queue_expiration` (about 3 days after enqueue), `last_attempted`, `body` (JSON with `sys_execution_tracker_id`).
+- `sys_execution_tracker`: `state` (read from `sys_choice`, language `en`: 0 Pending, 1 Running, 2 Successful, 3 Failed, 4 Cancelled), `parent`, `node`, `type` (`sys.applifecycle.operation` on roots), `message`, `detail_message` (`operation=app_install, app=<sys_store_app sys_id>, version=<v>, …`), `percent_complete`. An operation waiting for locks says "Pending resource locks".
+- `sys_mutex` `nowmq:messages:sys.applifecycle.operation` errors ("Failed to obtain mutex") are normal contention, not a symptom.
+- **Limits of server scripts:** `v_cluster_transaction` returns 0 rows, so a server script cannot tell whether the thread is alive; `gs.getNodeName()` throws a `ClassCastException` on Brazil (`new GlideClusterSynchronizer().getSystemID()` works); the scheduler's `current_job` in `sys_cluster_node_stats` is not proof of life (installs run in a progress worker).
+
+| Method | Params | Returns / effect |
+|---|---|---|
+| `getQueueHealth` | — | Read only. `{ status, waiting, thresholdHours, checkedAt, releasable, queue:{byState, maxAttempts, oldest:{since, attempts, lastAttempted, expires, trackerId}\|null}, owners:[…], ownersTruncated, reason? }` |
+| `releaseStuckOperation` | `tracker_id`, `confirm_no_active_tx` (must be exactly `'true'`) | Checks, backup, release (below). `{ ok, released, trackersFailed, trackersExpected, trackerErrors, locksDeleted, locksExpected, locksLeft, lockErrors, backupId, backupFile, message }`, or `{ ok:false, released:false, error }`, or `{ ok:true, released:false, message }` when there is nothing to release |
+| `getHomeData` | — | Adds `queueHealth: { status, waiting }` (light version) and `queueHealthError?`, failing independently of the other two halves |
+
+**Status** (`_queueHealth`):
+
+- `healthy` — no padlock with `lock_key STARTSWITH 'r*'`. Waiting messages are reported, not judged: they are being served.
+- `busy` — operation padlocks exist, and every owner's tree was updated within the threshold.
+- `blocked` — at least one owner is **stale**: its tree has had no update for ≥ threshold **and** its newest padlock (`sys_created_on`/`sys_updated_on`) is ≥ threshold old. Waiting messages are **not** required: such a lock blocks the next install anyway.
+- `unavailable` — an expected table or field is missing (`QH_SCHEMA`, checked with `isValid`/`isValidField`), or `getQueueHealth` threw. Nothing can be released.
+
+Each owner: `{ trackerId, lockCount, locks:[{type, resource}], lockedSince, lockAgeHours, state, stale, releasable, reason, idleHours, lastUpdated, treeSize, toFail, node, percent, operation, appId, app, scope, version, message }`. `app`/`scope` are resolved server-side from `app=<sys_id>` in `detail_message` (`sys_store_app`, readable only server-side, §15.13). **`releasable`** = stale **and** root `Running` **and** root has no `parent` **and** `type = sys.applifecycle.operation` **and** the tree is fully verifiable (≤ `QH_TREE_CAP` 500 trackers, ≤ 8 levels). Otherwise `reason` says why it is not offered (for example "The operation that holds the lock is Failed, not running. Release it manually (see the README)."). The client only shows the release button when the server says `releasable`.
+
+**`releaseStuckOperation`** (`_releaseStuck` → `_releasePlan`):
+
+1. `_guard()`; `tracker_id` through `_sysId()`; refuse without `confirm_no_active_tx='true'`. That parameter is the admin's attestation that *Active Transactions* shows no transaction of this install (the server cannot check it). The UI sends it only after the mandatory checkbox.
+2. `_releasePlan` repeats **every** check server-side (read only): schema; padlocks with `lock_key = 'r*'+id` (none → `{ok:true, released:false, "Nothing to release"}`: idempotent); root exists, has no parent, is an install operation, is `Running`; tree verifiable; **no tracker of the tree** updated within the threshold; **no padlock** newer than the threshold. Any failure → `{ok:false, error:"… Nothing was changed."}`.
+3. Backup: the trackers to change (with their state before) and the padlocks to delete, as JSON, written with `GlideSysAttachment.write` as `npu_release_backup_<utc digits>.json` on the root tracker. **If the attachment is not saved, nothing is changed.**
+4. Every `Running`/`Pending` tracker of the tree → `Failed`, `message` = "Marked Failed by Now Plugin Updater (<user>, <utc> UTC): no progress since … and its resource locks were blocking the install queue. Backup: <file> on this tracker." A tracker whose state changed meanwhile is skipped.
+5. Delete **only** the padlocks with that exact `lock_key` (`setWorkflow(false)`). Some may already have been released by the platform in step 4; that is not an error.
+6. Count the padlocks left with that key; `gs.info('[PluginUpdater] releaseStuckOperation tracker=… by=… app=… version=… idleSince=… trackersFailed=n/N locksDeleted=m/M locksLeft=k backup=sys_attachment:…')`. Refusals are logged with `gs.warn`, exceptions with `gs.error`.
+
+**Never:** no job calls these methods; NowMQ messages, latches and other padlocks, trackers outside the tree and triggers are never touched; no transaction is terminated, no node restarted.
+
+Constants: `QH_SUBJECT='sys.applifecycle.operation'`, `QH_HOURS_PROP='x_npu.stuck_op_hours'`, `QH_HOURS_DEFAULT=6`, `QH_HOURS_MIN=1`, `QH_TREE_DEPTH=8`, `QH_TREE_CAP=500`, `QH_LOCK_CAP=100`, `QH_OWNER_CAP=10`, `QH_BACKUP_PREFIX='npu_release_backup_'`, `QH_SCHEMA`. Helpers: `_queueHealth(detail)`, `_qhSchemaMissing`, `_stuckHours`, `_trackerStates` (cached per instance), `_stateLabel`, `_ageHours`, `_round1`, `_fmtHours`, `_recordToObj`, `_parseOpDetail`, `_opTree` (one query per level, like `_dependencyTreeForBatch`), `_qhMessages`, `_qhLockOwners`, `_qhLockOwner`, `_releasePlan` (read only, usable from a background script for a dry run), `_releaseStuck`.
+
+**Cost.** With a healthy queue: one `sys_padlock` query and one `GlideAggregate` on `sys_nowmq_message` (2–8 ms measured), so the light version is safe in `getHomeData`. The tree walk only runs for padlock owners.
+
+**Background-script alternative.** `src/fix_scripts/release_orphan_install_lock.js` (ES5, Scripts - Background) repeats the same checks and effects **without** the Script Include. `DRY_RUN` by default; `APPLY` also needs `CONFIRM_NO_ACTIVE_TX = true`. With `TRACKER_ID` empty it chooses by itself only if exactly one operation is releasable. It prints the JSON backup between `BEGIN BACKUP`/`END BACKUP` and, in `APPLY`, also saves it as an attachment before changing anything.
+
 ---
 
 ## 5. Data sources
@@ -194,6 +247,10 @@ Constants: `ROW_CAP=500`, `SYNC_JOB_NAME='Plugin Updater - Store Sync (once)'`, 
 | Instance name | `instance_name` | |
 | Last Store sync | `sn_appclient.apps_last_sync_time` | |
 | Store sync % | `sn_appclient.apps_sync_progress` | **0–100 scale** (observed "85.0"), reset to 0 at the end |
+| Operation locks (v1.7.0) | `sys_padlock` | `lock_key STARTSWITH 'r*'`, limit 100; other rows never read (§4.6) |
+| Waiting operations (v1.7.0) | `sys_nowmq_message` (GlideAggregate) | `subject=sys.applifecycle.operation`, grouped by `state`; waiting = not `DELIVERED` |
+| Tracker states (v1.7.0) | `sys_choice` | `sys_execution_tracker.state`, language `en`; defaults 0–4 if missing |
+| Stuck-op threshold (v1.7.0) | `x_npu.stuck_op_hours` | optional, default 6, minimum 1; not in the update set (§3.1) |
 
 ### 5.2 Release label
 
@@ -601,6 +658,7 @@ Never built. Step 1 is a flat table and Step 2 filters by exact scope. `getUpdat
 - **KPIs:** **Apps** (= up to date + updates available, "managed (active & visible)"), **Up to Date**, **Updates Available** (warning colour when > 0), **Installing** (running CICD workers instance-wide). When Installing > 0 the card is clickable: `getActiveBatch` → Monitor.
 - **Actions:** **Start Wizard** (disabled when there are 0 updates), **Refresh Data**, **Sync with Store** (§11.4), **Monitor installs** (current or latest batch).
 - A sync status area, an error alert (`infoError`/`appsError`/transport error) and the footer "Now Plugin Updater v1.6.6 · by Gianmario Marongiu" (built from `S.version`).
+- **v1.7.0:** when `getHomeData.queueHealth.status` is `blocked`, an `alert-danger` below the banner: "The platform install queue is blocked. N installs are waiting. New installs will stay queued until the blocking operation is released. **Open the Monitor**". Kept in `S.queueHome`; nothing is shown for the other states.
 - Loaded through **one** `getHomeData` call. The data is re-fetched on Home-tab entry the first time **and whenever the user comes from the Monitor** (so KPIs are never stale after a batch).
 
 ### 14.3 Wizard Step 1 — Discover (`wizard1`)
@@ -632,6 +690,7 @@ Built by `confirmModal` in `#modal-host` (`.modal-back` + `.npu-modal`, `role=di
 - **Impact union:** a fresh `getUpdateImpact(scopes=selection)` call. Suite and dependency results are merged and deduplicated by scope, with selected scopes removed: "**N** more applications will be updated as a result. Show all ▾". It is omitted when empty or when the call fails.
 - Both lists render at most **150** entries, with "Showing 150 of N — refine your selection to see the rest."
 - Buttons: **Review selection** / **Install N** → `startInstalls` (§7.3).
+- **v1.7.0 options of `confirmModal`, backward compatible:** `extraHtml` (rendered **after** the body paragraph: lists and inputs inside a `<p>` would be split by the browser), `requireCheckId` (id of a checkbox in `extraHtml`; the confirm button stays disabled until it is ticked, and focus goes to the checkbox; a missing checkbox leaves the dialog unconfirmable), `wide` (`.npu-modal-wide`, 560 px).
 
 ### 14.6 Step 3 — Launch (`wizard3`)
 
@@ -641,6 +700,14 @@ Built by `confirmModal` in `#modal-host` (`.modal-back` + `.npu-modal`, `role=di
 
 ### 14.7 Monitor
 
+- **v1.7.0 — Platform install queue card** (`#mon-queue`, above the info box). Title "Platform install queue" + status pill (`healthy` ✓, `busy` ⟳, `blocked` !, `unavailable` ?) + **Check again**. Loaded with `getQueueHealth` when the Monitor opens, on **Refresh now**, on **Check again** and after a release; no timer of its own. One delegated click handler on `#mon-queue`.
+  - *Healthy:* "Installs are processed normally: no operation is holding the queue." (+ "N operations waiting").
+  - *Busy:* "An install is in progress: <app> <version> on <node>, last progress <date>."
+  - *Blocked:* "**Blocked since <date>** by <app> <version> on <node> · no progress for N h · N operations waiting" (or "the next install will wait"), red outline. With `releasable` → **Release blocked operation…** (`btn-danger`); otherwise the server's `reason` underneath.
+  - *Unavailable:* "The install queue cannot be checked on this instance." + the server's reason (also used for `forbidden` and transport errors).
+  - Meta lines: several owners, the oldest waiting operation ("queued <date>, 241,322 attempts"), "Checked <date> · blocked after N h without progress".
+  - **Release dialog:** `confirmModal` with `danger`, `wide`, `extraHtml` and `requireCheckId`. Title "Release the blocked operation?"; body: app, node, hours, waiting; list: "mark N trackers of this operation as Failed", "release N resource locks held by this operation only" (each `type` on `resource`), "first save a backup … as an attachment on the operation's tracker"; then what is not touched and "run it again afterwards". **Mandatory checkbox:** "I checked Active Transactions (link to `/v_cluster_transaction_list.do`, new tab) and no transaction of this install is still running." Buttons **Keep as is** / **Release** (disabled until ticked).
+  - After the call: a result alert inside the card (`npu-alert-ok`/`-warn`/`-info`, or `alert-danger`) with counts and the backup file name, an announcement in `#mon-live`, a reload of the card and, if a batch is open, a reconciling refresh of the batch.
 - A permanent info box: "Installs run on the server. You can close this page…". A filter bar with:
   - a **Batch** selector (`listBatches`: "<started> · N apps · M failed | running"; the newest batch first, at most 20, only the user's own, §10.5);
   - **Refresh now**, which sends `reconcile:1` so the server aligns the log with tracker and installed version before answering (v1.6.6, §10.3). The 15 s auto-poll does not reconcile;
@@ -667,13 +734,13 @@ Built by `confirmModal` in `#modal-host` (`.modal-back` + `.npu-modal`, `role=di
 
 ### 14.10 Guide
 
-A static card in English: Overview · Home · Wizard Discover · Wizard Select · Confirm & Launch · Launch & Monitor · Notes · Access Control, plus a version footer (`S.version`). Revised in v1.6.6: it describes pagination, the per-row *N more* links (no suite banner) and what Cancel queued really does (§19.7).
+A static card in English: Overview · Home · Wizard Discover · Wizard Select · Confirm & Launch · Launch & Monitor · **Platform install queue (v1.7.0)** · Notes · Access Control, plus a version footer (`S.version`). Revised in v1.6.6: it describes pagination, the per-row *N more* links (no suite banner) and what Cancel queued really does (§19.7).
 
 ### 14.11 Client state (`S`) and main functions
 
 State: `info`, `appData`, `selected`, `version`, `page`, `pageSize`, `PAGE_SIZES`, `whyOpen`, `launchWhyOpen`, `monFilter`, `treeOpenW1`, `treeOpenSel`, `loadedHome`, `appsFetchedAt`, and at runtime `wizSort`, `monSort`, `currentBatch`, `monData`, `monTimer`, `syncing`, `launch*`. These are leftovers that nothing reads (§19.2): `installRows`, `historyRows`, `sessionId`, `pollTimers`, `pollDeadlines`, `POLL_INTERVAL`, `POLL_TIMEOUT`, `BATCH`.
 
-Main functions: `ajax`, `showView`, `loadHome/renderHome/kpi`, `syncStore/renderSync/finishSync/keepGoingInBackground`, `startWizard/renderWizard1`, `openSelect/renderSelect/filteredApps/buildScopeFilter/toggleApp/selectedIds/updateSelCount`, `impactData/impactRowsHtml/renderSuitePanel/wireSuitePanel/rowImpactList/rowDepCount/rowDepTreeHtml`, `confirmInstalls/selectedListHtml/confirmUnionHtml/confirmModal`, `startInstalls/renderLaunch/triggerOne/fire/handleTrigger/retryOrFail/failTrigger`, `openMonitor/loadBatchList/startMonitorPolling/pollMonitor/renderMonitor/batchSummary/cancelQueued`, pagination helpers, `init`. Utilities: `esc`, `num`, `plural`, `once`, `debounce`, `statusPill`, `announce`.
+Main functions: `ajax`, `showView`, `loadHome/renderHome/kpi`, `syncStore/renderSync/finishSync/keepGoingInBackground`, `startWizard/renderWizard1`, `openSelect/renderSelect/filteredApps/buildScopeFilter/toggleApp/selectedIds/updateSelCount`, `impactData/impactRowsHtml/renderSuitePanel/wireSuitePanel/rowImpactList/rowDepCount/rowDepTreeHtml`, `confirmInstalls/selectedListHtml/confirmUnionHtml/confirmModal`, `startInstalls/renderLaunch/triggerOne/fire/handleTrigger/retryOrFail/failTrigger`, `openMonitor/loadBatchList/startMonitorPolling/pollMonitor/renderMonitor/batchSummary/cancelQueued`, **v1.7.0** `loadQueueHealth/renderQueueCard/qhOwner/qhNode/qhOwnerLabel/openReleaseDialog/releaseStuck` (state `queue`, `queueHome`, `queueResult`), pagination helpers, `init`. Utilities: `esc`, `num`, `plural`, `once`, `debounce`, `statusPill`, `announce`.
 
 ---
 
@@ -694,6 +761,10 @@ Main functions: `ajax`, `showView`, `loadHome/renderHome/kpi`, `syncStore/render
 13. `sys_store_app` is 403 via REST. Verify server-side.
 14. The update-set export must include `sys_security_acl_role` rows and in-place payload updates (§12.2).
 15. **Always rebuild from the deployed version, not from a local copy that may be stale.** v1.6.5 lost v1.6.3/1.6.4 client work this way (§19.2).
+16. **No angle brackets in the UI Page outside `<script>`, not even in CSS comments (v1.7.0).** The `html` field is parsed as Jelly XML. Script content is tolerated (v1.6.6 contains `/&/g` and works), the rest is not: a literal paragraph tag in a comment inside `<style>` stayed unclosed and the deployed page rendered **blank**, with the record byte-identical to `src/`. A browser preview cannot catch it (the browser ignores tags in CSS). Check before every deploy: mask the `<script>` content and parse the rest as strict XML.
+17. **In the global-scope Rhino of Brazil, an empty array is falsy (v1.7.0).** `(owners && owners.length)` returned the array itself. Never test an array for truthiness on the server: use `.length` or `hasOwnProperty`. `JSON.stringify` is not affected (`"owners":[]` reaches the client).
+18. **Glide APIs return Java strings (v1.7.0).** `new GlideDateTime().getValue().replace(/[^0-9]/g, '')` threw "The choice of Java method java.lang.String.replace … is ambiguous". Convert with `'' +` before using JavaScript string methods, and before testing an emptiness that could be a Java `""`.
+19. **Reading an attachment back in global scope (v1.7.0):** `GlideSysAttachment.getContent(gr)` and `getContentBase64(gr)` returned `undefined`; only `getBytes(gr)` + `new Packages.java.lang.String(bytes, 'UTF-8')` returned the content. `write(gr, name, type, string)` works. The app only writes backups; admins download them from the tracker.
 
 ---
 
@@ -807,6 +878,36 @@ The selection is listed by name (`selectedListHtml`), separate from the impact u
   - a failed download ("Unable to download app package", point 1). It was deliberately not reproduced: both `upload_base_url` properties are empty on `empgmarongiu1`.
 - **Known limit:** **Cancel queued** does not remove the operation from the platform queue (§19.12). No unverified API was used to cancel the tracker.
 
+### 18.6 v1.7.0 — Install queue health (proposed, 2026-11-09)
+
+**Trigger.** A two-node Brazil Patch 1 HF1 customer instance with v1.6.6: every install stayed *Queued* for about three days behind two orphan padlocks of an install that died at 95 % (§4.6). The manual fix (trackers of the tree → Failed, only the padlocks with that `lock_key` deleted) restarted the queue within a minute. v1.7.0 turns that procedure into a guarded feature. The design was proposed to the author in an issue; the provisional choices are marked *(provisional)*.
+
+1. **The server decides everything.** The client shows the state and the reason; `releaseStuckOperation` repeats every check at release time, whatever the client says.
+2. **The "no active transaction" confirmation is an API parameter.** A server script cannot see whether the install's thread is alive (§4.6). The admin attests it after checking *Active Transactions*; `confirm_no_active_tx='true'` is mandatory, so even a direct GlideAjax call cannot skip it. The UI sends it only after the checkbox.
+3. **`blocked` does not require waiting messages.** A stale lock blocks the next install anyway; calling it `busy` (which means "updated recently") would be false. The waiting count is shown, not required.
+4. **Threshold 6 h, minimum 1 h, optional property not shipped.** The incident's script used 24 h; 6 h is the value proposed in the issue. How long a live install can go without updating any tracker of its tree was **not measured**; the threshold is configurable and the admin confirmation is a second gate. The property is not in the update set because every release is a complete set and would reset an admin's value (§3.1).
+5. **Backup as an attachment on the root tracker + an audit line; no new table** *(provisional)*. Fail closed: no backup, no change.
+6. **Only the exact `lock_key` is touched.** Latches, `sys_repo_config` padlocks and other operations' locks are never even read.
+7. **Owners that are not `Running` (or no longer exist) are shown but not released** from the page or the script: the checks that make the release safe (a live-looking tree that stopped) do not apply. The diagnosis gives the exact `lock_key` for a targeted manual delete.
+8. **The existing confirm dialog was extended** (`extraHtml`, `requireCheckId`, `wide`) instead of adding a second dialog; existing callers are unchanged.
+9. **No timer** for the card: Monitor open, Refresh now, Check again, after a release.
+10. **The background script is independent of the Script Include**, so it still works when the app is not installed or the page does not open.
+11. **Version 1.7.0, content of the PR = `src/` + documentation** *(provisional)*. No XML and no `index.html` until the author agrees, because of the lineage rule (§12.2).
+
+**Verification** — a two-node **Brazil Patch 2** development instance with v1.6.6 installed from scratch from the published XML, 2026-11-09:
+
+- **Before any change:** `src/` = installed records (length, SHA-256 and 10,000-char chunk hashes of `script` and `html`).
+- **Server without deploy:** the v1.7.0 block, mounted on a probe class extending the installed Script Include, passed 18/18 read-only checks (shape, light version, refusals, idempotence, state logic with in-memory locks, a real tree).
+- **Simulation:** a fake *Running* root tracker with three children (Running, Pending, Successful) and two padlocks (`schema`/`**all**`, `**resource**`/`**all**`, `lock_key r*<fake>`), back-dated 8 h with `autoSysFields(false)`:
+  - detected as `blocked`, releasable, with app, node and hours;
+  - a child "touched" now → `busy`, release refused, nothing changed;
+  - release: 3/3 trackers Failed, 2/2 padlocks deleted (the platform did not release them by itself), backup of 2,692 bytes read back and correct, second call "Nothing to release", the 6 `sys_repo_config` padlocks and the NowMQ queue unchanged.
+- **Deploy** with `GlideRecord.setValue`, verified by exact length and chunk hashes. The first UI Page deploy rendered blank (§15.16) and was fixed.
+- **End to end in the UI:** healthy queue without a button; simulated block with a **real install queued, which stayed queued**; `busy` hides the button; a GlideAjax call without the confirmation is refused; release from the dialog (button disabled until the checkbox); **the queued install then ran**; a second call answers "Nothing to release"; an impersonated non-admin gets `forbidden`.
+- **Background script:** dry run and apply on the same simulation.
+- **Not tested:** a lock left by a really dead thread (only simulated); Australia and Zurich; several blocked operations at once (offline only).
+- **Bugs found and fixed on the way:** the Java string `replace` (§15.18, stopped before any change), the blank page (§15.16). The empty-array behaviour (§15.17) only affected the test harness.
+
 ---
 
 ## 19. Known gaps and discrepancies (as of 2026-10-15)
@@ -906,6 +1007,17 @@ When the CICD worker exists, it ends `state=complete` with the generic message "
 - Platform: `deleteMultiple` on `sys_properties` is refused ("Not allowing multiple record update to sys_property"). Delete properties one by one.
 - Platform: a REST write of `sys_ui_page.html` escapes `<script>` into `&lt;script&gt;` and still returns 200. Write it with `GlideRecord` (§12.1).
 
+### 19.14 Install queue health — limits (v1.7.0, proposed)
+
+- **Thread liveness is not verifiable server-side** (`v_cluster_transaction` returns 0 rows). The threshold and the admin's *Active Transactions* check are the only protection against releasing a live install.
+- **Owners that are not `Running`, or whose tracker no longer exists**, are reported (`blocked`, `releasable:false`, `reason`) but released neither by the page nor by the background script. Its dry run prints the tracker sys_id and the `lock_key`; the delete of those `sys_padlock` rows stays manual.
+- **The stuck install is not completed:** its trackers become *Failed* and it must be launched again. If this app launched it, `monitorBatches` finalizes its row by the version rule (§10.2), with the tracker message as the reason.
+- **Backup lifetime:** the attachment goes with the tracker (table cleaner, 30 days from creation on the Brazil instance tested). A release also leaves a `[PluginUpdater] releaseStuckOperation …` line in the system log.
+- **Caps:** at most 100 operation padlocks and 10 owners are evaluated (`ownersTruncated`), and a tree of more than 500 trackers or 8 levels is not releasable.
+- **Only operations of type `sys.applifecycle.operation`** are released.
+- **Compatibility:** verified on Brazil Patch 1 (facts) and Patch 2 (feature). On a release without the expected tables or fields the card is `unavailable` and nothing is released; Australia and Zurich were not checked.
+- **Packaging pending:** no update set yet for v1.7.0 (§18.6.11).
+
 ---
 
 ## 20. Release history (summary)
@@ -929,3 +1041,4 @@ When the CICD worker exists, it ends `state=complete` with the generic message "
 | 1.6.4 | ACL-role records for the install-log ACLs; ACL payload re-alignment |
 | 1.6.5 | Uniform background, pagination, Monitor KPI filter, pager label fix. **Client regression of the 1.6.3/1.6.4 client changes (§19.2)** |
 | 1.6.6 | Failures before a worker exists (tracker fallback), version rule on failed/cancelled, suite banner hidden, `cancelRemaining` checks first, `_reconcile` + Refresh now reconciles, `listBatches` newest first. **Certified on Brazil**; first native merge/export and from-scratch install after an instance reset (§12.4) |
+| 1.7.0 (proposed) | **Platform install queue health:** `getQueueHealth` / `releaseStuckOperation`, Monitor card and release dialog with a mandatory *Active Transactions* confirmation, Home warning, `release_orphan_install_lock.js`. Tested on Brazil Patch 2; **not packaged yet** (§18.6) |
