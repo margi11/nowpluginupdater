@@ -227,7 +227,7 @@
     if (!ids.length) { log('nessun lock di operazione: la coda non e\' bloccata da lock orfani. Niente da fare.'); return; }
     for (var e = 0; e < ids.length; e++) {
         var r = evaluate(ids[e], st);
-        log('---- proprietario ' + r.id + ': ' + (r.ok ? 'SBLOCCABILE' : 'non sbloccabile'));
+        log('---- proprietario ' + r.id + ' (lock_key ' + r.key + '): ' + (r.ok ? 'SBLOCCABILE' : 'non sbloccabile'));
         if (r.info) { log('     ' + r.info); }
         log('     padlock: ' + r.locks.length + ' | tracker da portare a Failed: ' + r.toFail.length);
         for (var m = 0; m < r.reasons.length; m++) { log('     - ' + r.reasons[m]); }
