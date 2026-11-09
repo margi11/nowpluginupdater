@@ -255,6 +255,37 @@ html,body{background:#f5f5f7;margin:0}
 #app tr.dep-row td{background:var(--surface-2)}
 #app tr.dep-row .col-name{padding-left:32px;font-weight:400;color:var(--text-2);font-size:12.5px}
 #app .badge-dep{background:rgba(0,113,227,.10);color:var(--accent);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:2px 7px;border-radius:var(--r-pill);margin-right:8px;white-space:nowrap}
+
+/* --- Coda di installazione della piattaforma (v1.7.0) -----------------------
+   Scheda in cima al Monitor: stato della coda condivisa da tutte le install
+   (Application Manager, CICD, questa app). Lo stato lo decide il server. */
+#app .npu-qh{margin-bottom:20px}
+#app .npu-qh.npu-qh-blocked{box-shadow:0 0 0 1px rgba(255,59,48,.35),var(--sh-sm)}
+#app .npu-qh-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+#app .npu-qh-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:var(--text);letter-spacing:-.01em}
+#app .npu-qh-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#app .npu-qh-text{font-size:13px;color:var(--text-2);line-height:1.55;margin-top:10px}
+#app .npu-qh-text strong{color:var(--text)}
+#app .npu-qh-meta{font-size:12px;color:var(--text-3);margin-top:6px;line-height:1.5}
+#app .npu-qh-result{margin:14px 0 0}
+#app .pill-healthy{background:rgba(52,199,89,.15);color:#1a8c37}
+#app .pill-busy{background:rgba(255,159,10,.14);color:#bf7e00}
+#app .pill-blocked{background:rgba(255,59,48,.13);color:#d0021b}
+#app .pill-unavailable{background:rgba(110,110,115,.1);color:var(--text-2)}
+#app .npu-alert-ok{background:rgba(52,199,89,.10);color:#1a6e2e}
+#app .npu-alert-warn{background:rgba(255,159,10,.12);color:#8a5a00}
+#app .npu-alert-info{background:var(--accent-soft);color:var(--text-2)}
+/* Dialog: elenco delle modifiche e checkbox obbligatoria. Stanno fuori dal <p>
+   del corpo: dentro un paragrafo il browser lo chiuderebbe prima della lista. */
+#app .npu-modal.npu-modal-wide{max-width:560px}
+#app .npu-modal-extra{font-size:13px;color:var(--text-2);line-height:1.55;margin-top:6px}
+#app .npu-modal-extra ul{padding-left:20px;margin:6px 0 10px}
+#app .npu-modal-extra ul ul{margin:4px 0 2px}
+#app .npu-modal-extra li{margin-bottom:4px}
+#app .npu-modal-extra code{font-family:ui-monospace,'SF Mono',monospace;font-size:11.5px;background:var(--bg);border-radius:5px;padding:1px 5px;color:var(--text)}
+#app .npu-ack{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:12px 14px;border-radius:var(--r-md);background:var(--surface-2);box-shadow:inset 0 0 0 1px var(--border-2);font-size:13px;color:var(--text);line-height:1.45;cursor:pointer}
+#app .npu-ack input{margin-top:2px;flex-shrink:0}
+#app .npu-ack a{color:var(--accent);font-weight:500}
 </style>
 <div id="app">
 
@@ -342,6 +373,7 @@ html,body{background:#f5f5f7;margin:0}
     <!-- MONITOR (server-side, persistent) -->
     <div class="view" data-view="monitor">
       <div class="section-title">Installation Monitor</div>
+      <div id="mon-queue"></div>
       <div class="info-box">Installs run on the server. You can close this page and reopen it later &#8212; this monitor reloads your most recent batch automatically.</div>
       <div class="filter-bar">
         <label style="font-size:12px;color:var(--text-2);font-weight:500" for="mon-batch">Batch</label>
@@ -395,6 +427,12 @@ html,body{background:#f5f5f7;margin:0}
           </ul>
         </div>
         <div class="guide-section mt16">
+          <h3>6 &#183; Platform install queue</h3>
+          <p>Every install on the instance goes through the platform's own install queue, one operation at a time &#8212; the Application Manager, CICD and this app alike. The top of the&#160;<strong>Monitor</strong>&#160;shows its state:&#160;<strong>Healthy</strong>,&#160;<strong>Busy</strong>&#160;(an install is running),&#160;<strong>Blocked</strong>, or&#160;<strong>Unavailable</strong>&#160;(this release does not expose what the check needs). It is refreshed when you open the Monitor, with&#160;<strong>Refresh now</strong>&#160;and with&#160;<strong>Check again</strong>.</p>
+          <p>If an install dies half-way, it can leave its resource locks behind, and every install queued after it waits for hours. The queue is shown as&#160;<strong>Blocked</strong>&#160;when the operation holding the locks has made no progress for longer than a threshold &#8212; 6 hours by default, adjustable with the system property&#160;<code>x_npu.stuck_op_hours</code>&#160;&#8212; and Home shows a warning.</p>
+          <p><strong>Release blocked operation&#8230;</strong>&#160;appears only when the server confirms that the operation can be released. Before you confirm, open&#160;<strong>Active Transactions</strong>&#160;and check that no transaction of that install is still running: the page cannot check this for you. The server repeats every check, saves a backup of the records it changes as an attachment on the operation's tracker, marks the stuck operation's trackers as&#160;<em>Failed</em>&#160;and deletes only that operation's own locks. Queued operations, other locks and running transactions are never touched, and nothing happens without your confirmation. Queued installs should start within a minute or two; the stuck install itself did not complete and has to be run again.</p>
+        </div>
+        <div class="guide-section mt16">
           <h3>Notes</h3>
           <ul>
             <li>Because the list mirrors the Application Manager, a few platform-bundled apps that cannot be updated via the Store API will end as&#160;<strong>Failed</strong>&#160;&#8212; this is expected.</li>
@@ -422,7 +460,7 @@ html,body{background:#f5f5f7;margin:0}
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.6.6',
+    version:'1.7.0',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -443,7 +481,11 @@ html,body{background:#f5f5f7;margin:0}
     // Alberi di dipendenza per-riga aperti (v1.5.2, §6), per scope — separati
     // tra Step 1 e Step 2 così aprirne uno in una vista non apre l'altro.
     treeOpenW1:{}, treeOpenSel:{},
-    loadedHome:false, appsFetchedAt:0
+    loadedHome:false, appsFetchedAt:0,
+    // Coda di installazione della piattaforma (v1.7.0): queue = risposta
+    // completa di getQueueHealth (Monitor), queueHome = versione leggera di
+    // getHomeData, queueResult = esito dell'ultimo sblocco mostrato nella scheda.
+    queue:null, queueHome:null, queueResult:null
   };
 
   function $(id){ return document.getElementById(id); }
@@ -463,7 +505,8 @@ html,body{background:#f5f5f7;margin:0}
 
   // Pill di stato con icona oltre al colore: il colore da solo non è distinguibile
   // per chi ha una deficienza nella visione dei colori.
-  var STATUS_ICO = { complete:'✓', failed:'✕', installing:'⟳', queued:'•', cancelled:'⊘', running:'⟳', partial:'!' };
+  var STATUS_ICO = { complete:'✓', failed:'✕', installing:'⟳', queued:'•', cancelled:'⊘', running:'⟳', partial:'!',
+                     healthy:'✓', busy:'⟳', blocked:'!', unavailable:'?' };
   function statusPill(st){
     st=(st||'queued');
     var ico=STATUS_ICO[st]||'•';
@@ -472,14 +515,21 @@ html,body{background:#f5f5f7;margin:0}
 
   // ---- Modal di conferma (nessuna dipendenza esterna) ----
   function closeModal(){ var h=$('modal-host'); if(h){ h.innerHTML=''; } }
+  // v1.7.0 — opzioni aggiuntive, retrocompatibili (i chiamanti esistenti non cambiano):
+  //   extraHtml       HTML reso DOPO il paragrafo del corpo (liste, checkbox)
+  //   requireCheckId  id di una checkbox dentro extraHtml: il pulsante di
+  //                   conferma resta disabilitato finche' non e' spuntata
+  //   wide            dialog piu' largo
   function confirmModal(opts){
-    var host=$('modal-host'); if(!host){ if(opts.onConfirm) opts.onConfirm(); return; }
+    var host=$('modal-host');
+    if(!host){ if(opts.onConfirm && !opts.requireCheckId) opts.onConfirm(); return; }
     var danger = !!opts.danger;
     host.innerHTML=''
       + '<div class="modal-back" id="modal-back">'
-      +   '<div class="npu-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">'
+      +   '<div class="npu-modal'+(opts.wide?' npu-modal-wide':'')+'" role="dialog" aria-modal="true" aria-labelledby="modal-title">'
       +     '<h3 id="modal-title">'+esc(opts.title||'Confirm')+'</h3>'
       +     '<p>'+(opts.bodyHtml||esc(opts.body||''))+'</p>'
+      +     (opts.extraHtml?('<div class="npu-modal-extra">'+opts.extraHtml+'</div>'):'')
       +     '<div class="modal-btns">'
       +       '<button class="btn btn-secondary" id="modal-no">'+esc(opts.cancelLabel||'Cancel')+'</button>'
       +       '<button class="btn '+(danger?'btn-danger':'btn-primary')+'" id="modal-yes">'+esc(opts.confirmLabel||'Confirm')+'</button>'
@@ -487,13 +537,22 @@ html,body{background:#f5f5f7;margin:0}
       +   '</div>'
       + '</div>';
     var yes=$('modal-yes'), no=$('modal-no'), back=$('modal-back');
+    var ck=opts.requireCheckId?$(opts.requireCheckId):null;
     function bail(){ closeModal(); if(opts.onCancel) opts.onCancel(); }
-    yes.onclick=function(){ closeModal(); if(opts.onConfirm) opts.onConfirm(); };
+    yes.onclick=function(){ if(yes.disabled) return; closeModal(); if(opts.onConfirm) opts.onConfirm(); };
     no.onclick=bail;
     // Click sullo sfondo = annulla; Esc idem.
     back.onclick=function(e){ if(e.target===back) bail(); };
     host.onkeydown=function(e){ if(e.key==='Escape'||e.keyCode===27) bail(); };
-    yes.focus();
+    if(opts.requireCheckId){
+      // Senza la checkbox (id sbagliato) la conferma resta bloccata: meglio un
+      // dialog inutilizzabile che un'azione distruttiva senza attestazione.
+      yes.disabled=!(ck && ck.checked);
+      if(ck){ ck.onchange=function(){ yes.disabled=!ck.checked; }; ck.focus(); }
+      else { no.focus(); }
+    } else {
+      yes.focus();
+    }
   }
 
   function announce(msg){ var el=$('mon-live'); if(el){ el.textContent=msg; } }
@@ -528,9 +587,10 @@ html,body{background:#f5f5f7;margin:0}
   function loadHome(){
     $('home-body').innerHTML='<div class="loading"><div class="spinner"></div> Loading instance data&#8230;</div>';
     ajax('getHomeData',{},function(e,d){
-      if(e || !d){ S.info={}; S.appData=normalizeApps(null); renderHome(e||'No data returned'); return; }
+      if(e || !d){ S.info={}; S.appData=normalizeApps(null); S.queueHome=null; renderHome(e||'No data returned'); return; }
       S.info=d.info||{};
       S.appData=normalizeApps(d.appData);
+      S.queueHome=d.queueHealth||null;   // v1.7.0: { status, waiting }
       S.appsFetchedAt=new Date().getTime();
       renderHome(d.infoError||d.appsError||'');
     });
@@ -552,11 +612,21 @@ html,body{background:#f5f5f7;margin:0}
     function mrow(k,v){ return v?('<div class="meta-item"><div class="meta-k">'+k+'</div><div class="meta-v">'+esc(v)+'</div></div>'):''; }
     var grid=mrow('Release',info.versionLabel)+mrow('Data Center',info.dataCenter)+mrow('Database',info.dbType)
       + mrow('Signed in',who)+mrow('Last Upgraded',info.lastUpgraded)+mrow('Store Synced',info.lastStoreSync);
+    // v1.7.0 — coda della piattaforma bloccata: avviso in Home, il dettaglio e
+    // l'eventuale sblocco stanno nel Monitor.
+    var qh=S.queueHome, qWait=(qh&&qh.waiting)||0;
+    var qAlert=(qh && qh.status==='blocked')
+      ? ('<div class="alert alert-danger" role="alert"><div><strong>The platform install queue is blocked.</strong> '
+         + (qWait?esc(plural(qWait,'install is','installs are'))+' waiting. ':'')
+         + 'New installs will stay queued until the blocking operation is released. '
+         + '<button class="link-btn" id="home-queue">Open the Monitor</button></div></div>')
+      : '';
     var h=''
       + '<div class="version-banner">'
       +   '<div class="version-label">'+esc(info.instanceName||info.versionLabel||'ServiceNow')+'</div>'
       +   '<div class="meta-grid">'+grid+'</div>'
       + '</div>'
+      + qAlert
       + '<div class="kpi-grid">'
       +   kpi('Apps', storeTotal, 'managed (active &amp; visible)','')
       +   kpi('Up to Date', num(a.appsUpToDate), 'no update available','success')
@@ -578,6 +648,7 @@ html,body{background:#f5f5f7;margin:0}
     $('home-refresh').onclick=refresh;
     $('home-sync').onclick=syncStore;
     $('home-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
+    var hq=$('home-queue'); if(hq){ hq.onclick=function(){ openMonitor(S.currentBatch||''); }; }
     var ip=$('kpi-inprogress');
     if(ip && inProg>0){ ip.onclick=function(){ ajax('getActiveBatch',{},function(e,d){ openMonitor((d&&d.batch)||''); }); }; }
   }
@@ -1381,6 +1452,7 @@ html,body{background:#f5f5f7;margin:0}
   function monitorActive(){ var el=document.querySelector('.view[data-view="monitor"]'); return !!(el && el.classList.contains('active')); }
   function openMonitor(batch){
     showView('monitor');
+    S.queueResult=null; loadQueueHealth();   // v1.7.0: stato della coda a ogni apertura
     if(batch){ S.currentBatch=batch; loadBatchList(batch); startMonitorPolling(); }
     else { ajax('getMyLatestBatch',{},function(e,d){ S.currentBatch=(d&&d.batch)||''; loadBatchList(S.currentBatch); if(S.currentBatch){ startMonitorPolling(); } else { renderMonitorEmpty(); } }); }
   }
@@ -1440,6 +1512,151 @@ html,body{background:#f5f5f7;margin:0}
       }
     });
   }
+  // ---- CODA DI INSTALLAZIONE DELLA PIATTAFORMA (v1.7.0) ----
+  // Il server decide tutto: stato, se lo sblocco e' proponibile, e ripete ogni
+  // verifica al momento dello sblocco. Il client mostra, chiede conferma e
+  // inoltra l'attestazione dell'admin (checkbox). Nessun timer: la scheda si
+  // aggiorna all'apertura del Monitor, su Refresh now, su Check again e dopo
+  // uno sblocco.
+  var QH_LABEL={ healthy:'Healthy', busy:'Busy', blocked:'Blocked', unavailable:'Unavailable' };
+
+  function loadQueueHealth(){
+    var box=$('mon-queue'); if(!box) return;
+    if(!S.queue){
+      box.innerHTML='<div class="card npu-qh"><div class="card-body"><div class="npu-qh-head"><div class="npu-qh-title">Platform install queue</div></div>'
+        + '<div class="npu-qh-text"><span class="spinner" style="display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:8px"></span>Checking the install queue&#8230;</div></div></div>';
+    }
+    ajax('getQueueHealth',{},function(e,d){
+      if(e || !d || (d.error && !d.status)){
+        S.queue={ status:'unavailable', reason:(e||(d&&d.error)||'No data returned'), owners:[], waiting:0 };
+      } else {
+        S.queue=d;
+      }
+      renderQueueCard();
+    });
+  }
+
+  // Proprietario da mostrare: prima quello sbloccabile, poi uno fermo, poi il primo.
+  function qhOwner(q){
+    var o=(q&&q.owners)||[], i;
+    for(i=0;i<o.length;i++){ if(o[i].releasable) return o[i]; }
+    for(i=0;i<o.length;i++){ if(o[i].stale) return o[i]; }
+    return o.length?o[0]:null;
+  }
+  // "app0001.dc01.service-now.com:node-a" -> "node-a"
+  function qhNode(n){ n=''+(n||''); var i=n.lastIndexOf(':'); return (i>=0)?n.substring(i+1):n; }
+  function qhOwnerLabel(o){
+    var name=o.app || (o.appId?('application '+o.appId):'an operation that no longer exists');
+    return name+(o.version?(' '+o.version):'');
+  }
+
+  function renderQueueCard(){
+    var box=$('mon-queue'); if(!box) return;
+    var q=S.queue||{ status:'unavailable', owners:[], waiting:0 };
+    var st=QH_LABEL[q.status]?q.status:'unavailable';
+    var o=qhOwner(q), w=q.waiting||0, n=(q.owners||[]).length;
+    var waitTxt=w?plural(w,'operation','operations')+' waiting':'';
+    var text='', meta=[], act='';
+    if(st==='healthy'){
+      text='Installs are processed normally: no operation is holding the queue.'+(w?(' '+esc(waitTxt)+'.'):'');
+    } else if(st==='busy'){
+      text=o ? ('An install is in progress: <strong>'+esc(qhOwnerLabel(o))+'</strong>'+(o.node?(' on '+esc(qhNode(o.node))):'')
+                + (o.lastUpdated?(', last progress '+esc(o.lastUpdated)):'')+'.')
+             : 'An install is in progress.';
+      if(w){ text+=' '+esc(waitTxt)+'.'; }
+    } else if(st==='blocked'){
+      var since=o?(o.lastUpdated||o.lockedSince||''):'';
+      text='<strong>Blocked'+(since?(' since '+esc(since)):'')+'</strong> by '+(o?esc(qhOwnerLabel(o)):'an operation')
+        + ((o&&o.node)?(' on '+esc(qhNode(o.node))):'')
+        + ((o&&o.idleHours!=null)?(' &#183; no progress for '+esc(o.idleHours)+' h'):'')
+        + ' &#183; '+(w?esc(waitTxt):'the next install will wait')+'.';
+      if(q.releasable){
+        act='<button class="btn btn-danger btn-sm" id="qh-release">Release blocked operation&#8230;</button>';
+      } else {
+        meta.push(esc((o&&o.reason)||'This lock cannot be released from this page.'));
+      }
+    } else {
+      text='The install queue cannot be checked on this instance.';
+      if(q.reason){ meta.push(esc(q.reason)); }
+    }
+    if(n>1){ meta.push(esc(plural(n,'operation holds','operations hold'))+' install locks'+(q.ownersTruncated?' (only the first are shown)':'')+'.'); }
+    var old=q.queue&&q.queue.oldest;
+    if(old && (st==='blocked'||st==='busy')){
+      // Separatore delle migliaia: i tentativi arrivano a centinaia di migliaia (~1/s).
+      var att=old.attempts||0, attTxt=att?(', '+esc(Number(att).toLocaleString('en-US'))+' '+(att===1?'attempt':'attempts')):'';
+      meta.push('Oldest waiting operation queued '+esc(old.since)+attTxt+'.');
+    }
+    var foot=[];
+    if(q.checkedAt){ foot.push('Checked '+esc(q.checkedAt)); }
+    if(q.thresholdHours){ foot.push('blocked after '+esc(q.thresholdHours)+' h without progress'); }
+    var res=S.queueResult;
+    var resHtml=res?('<div class="alert npu-qh-result '+(res.cls==='danger'?'alert-danger':('npu-alert-'+res.cls))+'" role="status"><div>'+res.html+'</div></div>'):'';
+    box.innerHTML='<div class="card npu-qh'+(st==='blocked'?' npu-qh-blocked':'')+'"><div class="card-body">'
+      + '<div class="npu-qh-head"><div class="npu-qh-title">Platform install queue '+statusPill(st)+'</div>'
+      +   '<div class="npu-qh-actions">'+act+'<button class="btn btn-ghost btn-sm" id="qh-check">Check again</button></div></div>'
+      + '<div class="npu-qh-text">'+text+'</div>'
+      + (meta.length?('<div class="npu-qh-meta">'+meta.join('<br/>')+'</div>'):'')
+      + (foot.length?('<div class="npu-qh-meta">'+foot.join(' &#183; ')+'</div>'):'')
+      + resHtml
+      + '</div></div>';
+  }
+
+  function openReleaseDialog(){
+    var q=S.queue, o=qhOwner(q);
+    if(!o || !o.releasable){ return; }
+    var locks=o.locks||[], li='';
+    for(var i=0;i<locks.length;i++){ li+='<li><code>'+esc(locks[i].type)+'</code> on <code>'+esc(locks[i].resource)+'</code></li>'; }
+    var w=q.waiting||0;
+    confirmModal({
+      title:'Release the blocked operation?',
+      bodyHtml:'The install of <strong>'+esc(qhOwnerLabel(o))+'</strong>'+(o.node?(' on '+esc(qhNode(o.node))):'')
+        + ' has made no progress for <strong>'+esc(o.idleHours)+' h</strong> and is holding the platform install queue'
+        + (w?(': '+esc(plural(w,'operation is','operations are'))+' waiting'):'')+'.',
+      extraHtml:'This will:'
+        + '<ul>'
+        +   '<li>mark <strong>'+esc(plural(o.toFail||0,'tracker','trackers'))+'</strong> of this operation as <strong>Failed</strong>;</li>'
+        +   '<li>release '+esc(plural(o.lockCount||locks.length,'resource lock','resource locks'))+' held by this operation only:<ul>'+li+'</ul></li>'
+        +   '<li>first save a backup of these records as an attachment on the operation&#8217;s tracker.</li>'
+        + '</ul>'
+        + 'Queued operations, other locks and running transactions are not touched. The stuck install will not complete: run it again afterwards.'
+        + '<label class="npu-ack" for="qh-ack"><input type="checkbox" id="qh-ack" class="check"/>'
+        +   '<span>I checked <a href="/v_cluster_transaction_list.do" target="_blank" rel="noopener">Active Transactions</a> and no transaction of this install is still running.</span></label>',
+      requireCheckId:'qh-ack', wide:true,
+      confirmLabel:'Release', cancelLabel:'Keep as is', danger:true,
+      onConfirm:function(){ releaseStuck(o.trackerId); }
+    });
+  }
+
+  // La conferma "nessuna transazione attiva" parte solo da qui, cioe' solo dopo
+  // la checkbox. Il server rifiuta qualsiasi chiamata senza.
+  function releaseStuck(trackerId){
+    S.queueResult={ cls:'info', html:'Releasing the blocked operation&#8230;' };
+    renderQueueCard();
+    var rb=$('qh-release'); if(rb){ rb.disabled=true; }
+    ajax('releaseStuckOperation',{ tracker_id:trackerId, confirm_no_active_tx:'true' },function(e,d){
+      var said;
+      if(e || !d){
+        said='Release failed: '+(e||'no response from the server');
+        S.queueResult={ cls:'danger', html:esc(said) };
+      } else if(d.released){
+        said=(d.ok?'Blocked operation released. ':'Blocked operation partly released. ')+(d.message||'');
+        S.queueResult={ cls:(d.ok?'ok':'warn'), html:'<strong>'+(d.ok?'Released.':'Partly released.')+'</strong> '
+          + esc(plural(d.trackersFailed||0,'tracker','trackers'))+' marked Failed, '
+          + esc(plural(d.locksDeleted||0,'lock','locks'))+' deleted'+(d.locksLeft?(', '+esc(d.locksLeft)+' left'):'')+'. '
+          + esc(d.message||'')+(d.backupFile?(' Backup: <code>'+esc(d.backupFile)+'</code> on the operation tracker.'):'') };
+      } else if(d.ok){
+        said=d.message||'Nothing to release.';
+        S.queueResult={ cls:'info', html:esc(said) };
+      } else {
+        said='Release refused: '+(d.error||'unknown error');
+        S.queueResult={ cls:'danger', html:esc(said) };
+      }
+      announce(said);
+      loadQueueHealth();
+      if(S.currentBatch){ S.monForce=true; startMonitorPolling(); }
+    });
+  }
+
   function monSortRows(list){
     var s=S.monSort; if(!s||!s.k) return list;
     var k=s.k, dir=(s.dir===-1)?-1:1;
@@ -1656,8 +1873,16 @@ html,body{background:#f5f5f7;margin:0}
     $('launch-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     $('launch-home').onclick=function(){ showView('home'); refresh(); };
     $('mon-batch').onchange=function(){ S.currentBatch=this.value; S.monFilter=''; resetPage('mon'); startMonitorPolling(); };
-    $('mon-refresh').onclick=function(){ S.monForce=true; startMonitorPolling(); };
+    $('mon-refresh').onclick=function(){ S.monForce=true; startMonitorPolling(); S.queueResult=null; loadQueueHealth(); };
     $('mon-cancel').onclick=cancelQueued;
+    // v1.7.0 — un solo handler per la scheda della coda (event delegation): i
+    // pulsanti vengono ricreati a ogni render.
+    $('mon-queue').onclick=function(e){
+      var b=e.target.closest?e.target.closest('button'):null;
+      if(!b || b.disabled) return;
+      if(b.id==='qh-check'){ S.queueResult=null; loadQueueHealth(); }
+      else if(b.id==='qh-release'){ openReleaseDialog(); }
+    };
     refresh();
   }
 
