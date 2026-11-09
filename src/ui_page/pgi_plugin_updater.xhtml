@@ -275,8 +275,10 @@ html,body{background:#f5f5f7;margin:0}
 #app .npu-alert-ok{background:rgba(52,199,89,.10);color:#1a6e2e}
 #app .npu-alert-warn{background:rgba(255,159,10,.12);color:#8a5a00}
 #app .npu-alert-info{background:var(--accent-soft);color:var(--text-2)}
-/* Dialog: elenco delle modifiche e checkbox obbligatoria. Stanno fuori dal <p>
-   del corpo: dentro un paragrafo il browser lo chiuderebbe prima della lista. */
+/* Dialog: elenco delle modifiche e checkbox obbligatoria. Stanno fuori dal
+   paragrafo del corpo: dentro un paragrafo il browser lo chiuderebbe prima della
+   lista. ATTENZIONE: in questo blocco style niente parentesi angolari, nemmeno nei
+   commenti: Jelly le legge come tag e la pagina resta bianca (v1.7.0, CP6). */
 #app .npu-modal.npu-modal-wide{max-width:560px}
 #app .npu-modal-extra{font-size:13px;color:var(--text-2);line-height:1.55;margin-top:6px}
 #app .npu-modal-extra ul{padding-left:20px;margin:6px 0 10px}
