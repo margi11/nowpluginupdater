@@ -1604,7 +1604,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         if (owners.list.length) { res.status = stale ? 'blocked' : 'busy'; }
         if (detail) {
             res.thresholdHours = hours;
-            res.checkedAt = new GlideDateTime().getDisplayValue();
+            res.checkedAt = '' + new GlideDateTime().getDisplayValue();
             res.queue = q;
             res.owners = owners.list;
             res.ownersTruncated = owners.truncated;
@@ -1670,6 +1670,8 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         return (new GlideDateTime().getNumericValue() - new GlideDateTime('' + utc).getNumericValue()) / 3600000;
     },
     _round1: function(h) { return Math.round(h * 10) / 10; },
+    // Durata leggibile per i messaggi: minuti sotto l'ora, ore con un decimale sopra.
+    _fmtHours: function(h) { return (1 > h) ? (Math.max(0, Math.round(h * 60)) + ' min') : (this._round1(h) + ' h'); },
 
     // Copia di un record in un oggetto (solo campi valorizzati): forma del backup.
     _recordToObj: function(gr) {
@@ -1841,7 +1843,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             } else if (rs !== st.v.running) {
                 o.reason = 'The operation that holds the lock is ' + this._stateLabel(rs, st) +
                            ', not running. Release it manually (see the README).';
-            } else if (root.getValue('parent')) {
+            } else if (('' + (root.getValue('parent') || '')).length) {
                 o.reason = 'The lock owner is not the root of an operation.';
             } else if ('' + root.getValue('type') !== this.QH_SUBJECT) {
                 o.reason = 'The lock owner is not an application install operation.';
@@ -1896,7 +1898,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         var tree = this._opTree(id);
         if (!tree) { return { ok: false, error: 'The operation tracker was not found.' + NOTHING }; }
         var root = tree.root, rs = '' + root.getValue('state');
-        if (root.getValue('parent')) { return { ok: false, error: 'The tracker is not the root of the operation.' + NOTHING }; }
+        if (('' + (root.getValue('parent') || '')).length) { return { ok: false, error: 'The tracker is not the root of the operation.' + NOTHING }; }
         if ('' + root.getValue('type') !== this.QH_SUBJECT) { return { ok: false, error: 'The tracker is not an application install operation.' + NOTHING }; }
         if (rs !== st.v.running) { return { ok: false, error: 'The operation is not running (state: ' + this._stateLabel(rs, st) + ').' + NOTHING }; }
         if (tree.truncated) { return { ok: false, error: 'The operation is too large to verify (more than ' + this.QH_TREE_CAP + ' trackers).' + NOTHING }; }
@@ -1904,7 +1906,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         for (var i = 0; i < tree.nodes.length; i++) {
             var age = this._ageHours(tree.nodes[i].updated);
             if (hours > age) {
-                return { ok: false, error: 'A tracker of this operation was updated ' + this._round1(age) + ' h ago (threshold ' +
+                return { ok: false, error: 'A tracker of this operation was updated ' + this._fmtHours(age) + ' ago (threshold ' +
                          hours + ' h): the install may still be alive.' + NOTHING };
             }
             if (tree.nodes[i].state === st.v.running || tree.nodes[i].state === st.v.pending) { toFail.push(tree.nodes[i].sysId); }
@@ -1913,7 +1915,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             var lu = locks[j].sys_updated_on || '', lc = locks[j].sys_created_on || '';
             var lAge = this._ageHours(lu > lc ? lu : lc);
             if (hours > lAge) {
-                return { ok: false, error: 'A lock of this operation is only ' + this._round1(lAge) + ' h old (threshold ' + hours + ' h).' + NOTHING };
+                return { ok: false, error: 'A lock of this operation is only ' + this._fmtHours(lAge) + ' old (threshold ' + hours + ' h).' + NOTHING };
             }
         }
         return { ok: true, rootId: id, key: key, hours: hours, toFail: toFail, locks: locks, treeSize: tree.nodes.length,
@@ -1924,7 +1926,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // Failed, cancellazione dei padlock con la lock_key esatta, verifica finale.
     // Senza backup salvato non si modifica nulla.
     _releaseStuck: function(id) {
-        var user = gs.getUserName();
+        // '' + : le API Glide restituiscono stringhe Java. Su una stringa Java,
+        // replace() con una regex e' ambiguo e lancia un InternalError (CP4).
+        var user = '' + gs.getUserName();
         var plan = this._releasePlan(id);
         if (plan.ok && plan.nothing) {
             gs.info('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ': nothing to release');
@@ -1934,7 +1938,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             gs.warn('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ' refused: ' + plan.error);
             return { ok: false, released: false, error: plan.error };
         }
-        var st = this._trackerStates(), now = new GlideDateTime().getValue();
+        var st = this._trackerStates(), now = '' + new GlideDateTime().getValue();
 
         // 1. Backup: solo i record che verranno modificati o cancellati.
         var trackers = [];
