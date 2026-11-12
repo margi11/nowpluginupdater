@@ -655,6 +655,13 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             p.setValue('is_private', true);
             p.setValue('ignore_cache', true);
             p.setValue('value', JSON.stringify(st));
+            // is_private da solo NON basta: misurato su Brazil Patch 2 (2026-11-12),
+            // insert e update della property finiscono comunque nell'update set
+            // corrente dell'admin. Con setWorkflow(false) nessuna delle due scritture
+            // viene catturata (0 sys_update_xml, 0 sys_update_version). I business
+            // rule di sys_properties (flush della cache) non servono: lo stato si
+            // legge sempre con GlideRecord.
+            p.setWorkflow(false);
             return !!(exists ? p.update() : p.insert());
         } catch (e) {
             gs.error('[PluginUpdater] impossibile scrivere ' + this.SYNC_STATE_PROP + ': ' + e);
@@ -717,31 +724,32 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
         this._cleanupSyncJobs();
 
-        // v1.7.1 (F34) — il job viene creato INATTIVO con un segnaposto, poi lo
-        // script riceve il PROPRIO sys_id e il job viene attivato. Fino alla v1.7.0
-        // tutti i job condividevano __npu_sync_job_id: un job tardivo poteva
-        // cancellare il record del job nuovo. Il job scrive l'esito solo se lo stato
-        // e' ancora quello della SUA sync (stesso startedAt): un job scaduto non
-        // sovrascrive la sync successiva.
+        // v1.7.1 (F34) — il job conosce il PROPRIO sys_id: e' generato prima
+        // dell'insert (gs.generateGUID + setNewGuidValue) e incorporato nello
+        // script. Fino alla v1.7.0 tutti i job condividevano __npu_sync_job_id: un
+        // job tardivo poteva cancellare il record del job nuovo. Il job scrive
+        // l'esito solo se lo stato e' ancora quello della SUA sync (stesso
+        // startedAt): un job scaduto non sovrascrive la sync successiva.
+        // Il job va inserito GIA' attivo: misurato su Brazil Patch 2, un job
+        // run_type=once inserito inattivo e attivato con un update non riceve
+        // nessun sys_trigger (run_start e' gia' passato) e non parte mai.
+        var jobId = this._sysId(gs.generateGUID());
         var job = new GlideRecord('sysauto_script');
         job.initialize();
+        if (jobId) { job.setNewGuidValue(jobId); }
         job.setValue('name', this.SYNC_JOB_NAME);
-        job.setValue('script', '// Now Plugin Updater - one-shot Store sync (being created)');
-        job.setValue('active', false);
+        job.setValue('script', this._syncJobScript('' + startedAt, jobId));
+        job.setValue('active', true);
         job.setValue('run_type', 'once');
         job.setValue('run_start', startedAt);
         job.setValue('run_as', gs.getUserID());
         job.setValue('conditional', false);
-        var jobId = this._sysId(job.insert());
-
-        if (jobId) {
-            job.setValue('script', this._syncJobScript('' + startedAt, jobId));
-            job.setValue('active', true);
-            if (!job.update()) {
-                gs.error('[PluginUpdater] syncStore: impossibile attivare il job ' + jobId);
-                job.deleteRecord();
-                jobId = '';
+        if (!jobId || this._sysId(job.insert()) !== jobId) {
+            if (jobId) {
+                var stray = new GlideRecord('sysauto_script');
+                if (stray.get(jobId)) { stray.deleteRecord(); }
             }
+            jobId = '';
         }
 
         if (!jobId) {
@@ -791,6 +799,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             + "                finishedAt: '' + new GlideDateTime(),\n"
             + "                message: msg || '', by: '' + gs.getUserName()\n"
             + "            }));\n"
+            + "            p.setWorkflow(false);   // D7: non catturata nell'update set\n"
             + "            p.update();\n"
             + "        } catch (e) { gs.error('[PluginUpdater] sync state write failed: ' + e); }\n"
             + "    }\n"
