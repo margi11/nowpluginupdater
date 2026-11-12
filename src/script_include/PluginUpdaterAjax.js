@@ -244,15 +244,29 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // il target esplicito per ogni app membro.
     _suiteImpact: function(index, selectedScopes) {
         var result = null, memberScopes = {};
+        // v1.7.1 (F31) — sys_suite_config.version e' una STRINGA (verificato su
+        // Brazil Patch 2): orderByDesc('version') ordina come testo e 30.10
+        // finirebbe sotto 30.9. Inoltre setLimit(1) su tutte le suite considerava
+        // una sola famiglia. Ora si legge ogni config compatibile, si sceglie in
+        // memoria la versione piu' alta con _cmpVer PER NOME di suite, e si
+        // uniscono i membri di tutte le famiglie.
+        var bestByName = {}, names = [];
         var sc = new GlideRecord('sys_suite_config');
         sc.addQuery('compatible', true);
-        sc.orderByDesc('version');
-        sc.setLimit(1);
+        sc.setLimit(1000);
         sc.query();
-        if (sc.next()) {
-            var suiteApps = [];
+        while (sc.next()) {
+            var sName = ('' + (sc.getValue('name') || 'Suite')).trim();
+            var sVer  = ('' + (sc.getValue('version') || '')).trim();
+            if (!bestByName.hasOwnProperty(sName)) { names.push(sName); }
+            else if (this._cmpVer(sVer, bestByName[sName].version) <= 0) { continue; }
+            bestByName[sName] = { id: '' + sc.getUniqueValue(), name: sName, version: sVer };
+        }
+        var suiteApps = [], byScope = {}, usedNames = [], usedVersion = '';
+        for (var sn = 0; sn < names.length; sn++) {
+            var cfg = bestByName[names[sn]], cfgHasApps = false;
             var m2m = new GlideRecord('sys_suite_config_app_version_m2m');
-            m2m.addQuery('suite_config', sc.getUniqueValue());
+            m2m.addQuery('suite_config', cfg.id);
             m2m.setLimit(5000);
             m2m.query();
             while (m2m.next()) {
@@ -264,14 +278,24 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 var local = index[mScope];                              // non installata (§6.2)
                 if (this._cmpVer(mTarget, local.current) <= 0) { continue; } // gia' a versione
                 memberScopes[mScope] = true;
-                suiteApps.push({
+                cfgHasApps = true;
+                if (byScope.hasOwnProperty(mScope)) {
+                    // Scope in due famiglie: resta il target piu' alto.
+                    if (this._cmpVer(mTarget, byScope[mScope].target) > 0) { byScope[mScope].target = mTarget; }
+                    continue;
+                }
+                byScope[mScope] = {
                     scope: mScope, name: local.name,
                     current: local.current, target: mTarget, hidden: local.hideOnUi
-                });
+                };
+                suiteApps.push(byScope[mScope]);
             }
-            if (suiteApps.length) {
-                result = { name: sc.getValue('name') || 'Suite', version: sc.getValue('version') || '', apps: suiteApps };
-            }
+            if (cfgHasApps) { usedNames.push(cfg.name); usedVersion = cfg.version; }
+        }
+        if (suiteApps.length) {
+            // Forma invariata ({ name, version, apps }): con una sola famiglia (il caso
+            // di oggi) name e version sono quelli della config scelta.
+            result = { name: usedNames.join(', '), version: (usedNames.length === 1) ? usedVersion : '', apps: suiteApps };
         }
         // §6.9 — nessuna suite compatible=true, o nessun membro con impatto:
         // non e' un errore, semplicemente non c'e' nulla da mostrare.
