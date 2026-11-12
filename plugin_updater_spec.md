@@ -10,7 +10,7 @@
 > - **UI Page** `pgi_plugin_updater` — client **v1.7.0** (`S.version='1.7.0'`). Identical to `src/ui_page/pgi_plugin_updater.xhtml` (115,479 chars).
 > - **Script Include** `PluginUpdaterAjax` — server **v1.7.0**. Identical to `src/script_include/PluginUpdaterAjax.js` (103,598 chars).
 >
-> Both were verified byte for byte (length and SHA-256) against the records installed from `NowPluginUpdater170.xml`, built on the **published 1.6.6 lineage** (§12.2: 59/59 guids of `NowPluginUpdater166.xml` are in the new history). On the **from-scratch** import of `empgmarongiu1` the preview gave 59 / inserted 59 / updated 0 / collisions 0; on the **upgrade from the published 1.6.6** it gave 59 / updated 53 / inserted 6 / collisions 0, with 0 preview problems. Both were committed. §19 lists the gaps that are still open. **Read §19 before changing anything.**
+> Both were verified byte for byte (length and SHA-256) against the records installed from `NowPluginUpdater170.xml`, built on the **published 1.6.6 lineage** (§12.2: 59/59 guids of `NowPluginUpdater166.xml` are in the new history). On the **from-scratch** import of `empgmarongiu1` the preview gave 59 / inserted 59 / updated 0 / collisions 0; on the **upgrade from the published 1.6.6** it gave 59 / updated 53 / inserted 6 / collisions 0, with 0 preview problems, on `empgmarongiu1` and on `gmbrazil`. All were committed. §19 lists the gaps that are still open. **Read §19 before changing anything.**
 >
 > Where this document says "server", it describes the **v1.7.0 Script Include**. The update set and `src/` agree. v1.7.0 adds the **platform install queue health** (§4.6, §14.7, §18.6), contributed through PR #2.
 ---
@@ -911,6 +911,7 @@ The selection is listed by name (`selectedListHtml`), separate from the impact u
 - **Offline check of `NowPluginUpdater170.xml`** (413,717 bytes): 59 entries, all with `remote_update_set` and an empty `update_set`; same 59 names as 1.6.6; only the Script Include and UI Page payloads changed, both identical to `src/`; **lineage 59/59** (every `update_guid` of 1.6.6 is in the history of the same entry).
 - **Upgrade 1.6.6 → 1.7.0** (after a new reset and a clean install of the published 1.6.6): 59 / updated 53 / inserted 6 / collisions 0 / 0 preview problems, committed. The same counts as the 1.6.5 → 1.6.6 upgrade.
 - **From scratch** (after a further reset): 59 / inserted 59 / updated 0 / collisions 0 / 0 preview problems, committed.
+- **Upgrade on a second instance with real history** — `gmbrazil` (Brazil Patch 2, same build), with the published 1.6.6 installed and in use (installed records = git `0b17544` by SHA-256): 59 / updated 53 / inserted 6 / collisions 0 / 0 preview problems, committed.
 - **After each commit:** Script Include and UI Page byte-identical to `src/`; 9 ACL-role rows, all `admin`; table valid with 22 dictionary entries; job trigger scheduled; Home renders real data, the Monitor card shows *Healthy*, Guide section 6 present, 0 console errors.
 
 ---

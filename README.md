@@ -110,7 +110,7 @@ Because the application list mirrors the Application Manager, a few platform-bun
 |--------|--------|
 | Australia (Patch 6, Patch 7) | Verified — dependency impact, tracker, batches, upgrade path |
 | Brazil (Patch 1) | **v1.6.6 certified** — real batches, Monitor, Polaris rendering, from-scratch install |
-| Brazil (Patch 2) | **v1.7.0 certified** — from-scratch install and a clean 1.6.6 → 1.7.0 upgrade with 0 preview problems; install queue health tested on a development instance: detection, simulated blocked queue with a real install waiting, release from the Monitor and from the background script |
+| Brazil (Patch 2) | **v1.7.0 certified** — from-scratch install and a clean 1.6.6 → 1.7.0 upgrade on two instances, with 0 preview problems; install queue health tested on a development instance: detection, simulated blocked queue with a real install waiting, release from the Monitor and from the background script |
 | Zurich | Not verified |
 
 The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, `sys_execution_tracker`; since 1.7.0 also `sys_padlock` and `sys_nowmq_message`), so each new release family should be re-checked.
