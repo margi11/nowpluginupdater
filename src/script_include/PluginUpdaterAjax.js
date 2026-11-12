@@ -1076,52 +1076,68 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     },
 
     // -----------------------------------------------------------------------
-    // cancelRemaining — param: batch. Annulla le sole righe ancora in coda
-    // ('queued'): le installazioni già avviate non sono interrompibili, quindi
-    // le lascia proseguire. Restituisce quante righe sono state annullate.
+    // cancelRemaining — param: batch. Annulla le righe ancora in attesa che la
+    // piattaforma NON ha ancora preso in carico.
+    //
+    // v1.7.1 (F09, decisione D4) — l'annullamento tocca solo il log: non esiste
+    // un'API verificata per togliere un'operazione dalla coda della piattaforma
+    // (§19.12). Quindi:
+    //   - riga con progress id il cui worker o tracker radice e' pending/running:
+    //     resta 'queued' (o diventa 'installing') e viene contata in
+    //     alreadyQueued / alreadyStarted — si installera' comunque;
+    //   - worker gia' finale: esito con la stessa regola di _reconcile (versione
+    //     installata come arbitro), non 'cancelled';
+    //   - riga in lancio dal browser (claim recente, F05): non si tocca
+    //     (launching), il browser la salta da solo se non l'ha ancora inviata;
+    //   - solo le righe senza progress id, o senza worker ne' tracker, diventano
+    //     'cancelled'. La scrittura e' condizionata (_casRow): se nel frattempo la
+    //     riga e' cambiata, non viene sovrascritta.
     // -----------------------------------------------------------------------
     cancelRemaining: function() {
         if (!this._guard()) { return this._forbidden(); }
         var batch = ('' + (this.getParameter('sysparm_batch') || this.getParameter('batch') || '')).trim();
         if (!batch) { return JSON.stringify({ ok: false, error: 'batch required', cancelled: 0 }); }
-        var gr = new GlideRecord('u_plugin_updater_install_log');
-        gr.addQuery('u_session_id', batch);
-        gr.addQuery('u_status', 'queued');
-        gr.query();
-        var n = 0, kept = 0, verifyCache = {};
-        while (gr.next()) {
-            // v1.6.6 — il log puo' essere in ritardo sulla piattaforma (monitorBatches
-            // gira ogni minuto): una riga 'queued' puo' essere gia' in esecuzione o
-            // gia' installata. La versione installata resta l'arbitro (§10.1), quindi
-            // prima di annullare si controllano versione e tracker/worker.
-            var pid = gr.getValue('u_progress_id');
-            var w = pid ? this._findWorker(pid) : null;
-            var ws = w ? ('' + w.state).toLowerCase() : '';
-            var ver = this._verify(gr.getValue('u_store_app_id'), gr.getValue('u_target_version'), verifyCache);
-            if (gr.getValue('u_target_version') && ver.matches) {
-                gr.setValue('u_status', 'complete');
-                gr.setValue('u_error_message', '');
-                gr.setValue('u_percent_complete', 100);
-                gr.setValue('u_completed_at', new GlideDateTime());
-                gr.update();
-                kept++;
+        var rows = this._activeRows(batch, 'queued');
+        var ops = this._loadOps(this._pidsOf(rows));
+        var verifyCache = this._loadVersions(this._appIdsOf(rows));
+        var res = { ok: true, cancelled: 0, alreadyQueued: 0, alreadyStarted: 0, installed: 0, failed: 0, launching: 0, changed: 0 };
+        var nowMs = new GlideDateTime().getNumericValue(), who = '' + gs.getUserName();
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i];
+            if (!r.pid && this._claimFresh(r.msg, nowMs)) { res.launching++; continue; }
+            var v = this._verify(r.appId, r.target, verifyCache);
+            if (r.target && v.matches) {
+                if (this._casRow(r, { u_status: 'complete', u_error_message: '', u_percent_complete: 100, u_completed_at: new GlideDateTime() })) { res.installed++; }
+                else { res.changed++; }
                 continue;
             }
-            if (ws === 'running') {
-                gr.setValue('u_status', 'installing');
-                gr.update();
-                kept++;
+            var op = r.pid ? this._opState(r.pid, ops) : null;
+            if (op && op.active) {
+                // Gia' presa in carico dalla piattaforma: non annullabile.
+                if (op.state === 'running') {
+                    this._casRow(r, { u_status: 'installing' });
+                    res.alreadyStarted++;
+                } else {
+                    res.alreadyQueued++;
+                }
                 continue;
             }
-            gr.setValue('u_status', 'cancelled');
-            gr.setValue('u_error_message', 'Cancelled by ' + gs.getUserName() + ' before the install started');
-            gr.setValue('u_percent_complete', 100);
-            gr.setValue('u_completed_at', new GlideDateTime());
-            gr.update();
-            n++;
+            if (op && op.final) {
+                // Worker/tracker gia' chiuso sotto il target: stesso esito di _reconcile (SI-B4).
+                if (this._casRow(r, { u_status: 'failed', u_error_message: this._failMessage(op, v, r.target),
+                                      u_percent_complete: 100, u_completed_at: new GlideDateTime() })) { res.failed++; }
+                else { res.changed++; }
+                continue;
+            }
+            if (this._casRow(r, { u_status: 'cancelled', u_error_message: 'Cancelled by ' + who + ' before the install started',
+                                  u_percent_complete: 100, u_completed_at: new GlideDateTime() })) { res.cancelled++; }
+            else { res.changed++; }
         }
-        gs.info('[PluginUpdater] cancelRemaining batch=' + batch + ' cancelled=' + n + ' alreadyStarted=' + kept);
-        return JSON.stringify({ ok: true, cancelled: n, kept: kept });
+        res.kept = res.alreadyStarted + res.installed;   // campo della v1.7.0, per compatibilita'
+        gs.info('[PluginUpdater] cancelRemaining batch=' + batch + ' cancelled=' + res.cancelled + ' alreadyQueued=' + res.alreadyQueued +
+                ' alreadyStarted=' + res.alreadyStarted + ' installed=' + res.installed + ' failed=' + res.failed +
+                ' launching=' + res.launching + ' changed=' + res.changed);
+        return JSON.stringify(res);
     },
 
     // getBatchStatus — param: batch. Restituisce righe + conteggi.
@@ -1185,7 +1201,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 latest:     gr.getValue('u_target_version'),
                 status:     st,
                 pct:        parseInt(gr.getValue('u_percent_complete'), 10) || 0,
-                message:    gr.getValue('u_error_message') || '',
+                // v1.7.1 (F05) — il claim di lancio e' un marcatore interno: in UI
+                // diventa una frase leggibile.
+                message:    this._isClaim(gr.getValue('u_error_message')) ? 'Being launched from the browser.' : ('' + (gr.getValue('u_error_message') || '')),
                 startedAt:  gr.getDisplayValue('u_started_at'),
                 _pid:       pid,
                 _snapshot:  gr.getValue('u_dependency_snapshot')
@@ -1336,6 +1354,160 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         return out;
     },
 
+    // =======================================================================
+    // v1.7.1 — stato delle righe di log: lettura, scrittura condizionata, claim
+    // =======================================================================
+    LOG_TABLE:       'u_plugin_updater_install_log',
+    // F05 — claim di lancio. Variante senza modifiche allo schema (decisione v1.7.1,
+    // spec §18.7): la riga resta 'queued' e u_error_message porta questo prefisso
+    // con l'ora UTC del claim. Un claim piu' vecchio di CLAIM_TTL_MS e' considerato
+    // abbandonato (tab chiuso durante il lancio): il watchdog del client chiude
+    // ogni lancio entro 120 s.
+    CLAIM_PREFIX:    'Launching: claimed by the browser at ',
+    CLAIM_TTL_MS:    600000,
+    // F24 — oltre questa inattivita' di worker, tracker radice e albero, una riga
+    // non finale viene chiusa con la regola della versione.
+    ROW_STALE_HOURS: 24,
+
+    // Istantanea di una riga (stringhe JS). E' la base delle scritture condizionate.
+    _snap: function(gr) {
+        return {
+            id:      '' + gr.getUniqueValue(),
+            status:  '' + (gr.getValue('u_status') || 'queued'),
+            msg:     '' + (gr.getValue('u_error_message') || ''),
+            pid:     this._sysId(gr.getValue('u_progress_id')),
+            appId:   this._sysId(gr.getValue('u_store_app_id')),
+            target:  '' + (gr.getValue('u_target_version') || ''),
+            batch:   '' + (gr.getValue('u_session_id') || ''),
+            started: '' + (gr.getValue('u_started_at') || ''),
+            pct:     parseInt(gr.getValue('u_percent_complete'), 10) || 0
+        };
+    },
+    _rowSnap: function(logSysId) {
+        var gr = new GlideRecord(this.LOG_TABLE);
+        return (logSysId && gr.get(logSysId)) ? this._snap(gr) : null;
+    },
+    // Righe di un batch (o di tutti, batch='') negli stati indicati. F26: ordinate
+    // per sys_updated_on, cosi' il setLimit non affama sempre le stesse righe.
+    _activeRows: function(batch, statusCsv, limit) {
+        var out = [], gr = new GlideRecord(this.LOG_TABLE);
+        gr.addQuery('u_status', 'IN', statusCsv || this.ACTIVE_STATUSES);
+        if (batch) { gr.addQuery('u_session_id', batch); }
+        gr.orderBy('sys_updated_on');
+        gr.setLimit(limit || 2000);
+        gr.query();
+        while (gr.next()) { out.push(this._snap(gr)); }
+        return out;
+    },
+    _pidsOf: function(rows) { var o = []; for (var i = 0; i < rows.length; i++) { if (rows[i].pid) { o.push(rows[i].pid); } } return o; },
+    _appIdsOf: function(rows) { var o = []; for (var i = 0; i < rows.length; i++) { if (rows[i].appId) { o.push(rows[i].appId); } } return o; },
+
+    // Scrittura condizionata (F05, F08, F25): aggiorna la riga SOLO se stato e
+    // messaggio sono ancora quelli letti nell'istantanea. updateMultiple esegue un
+    // unico UPDATE con quella condizione, quindi due scrittori concorrenti (job,
+    // Refresh now, Cancel queued, browser) non si sovrascrivono a vicenda.
+    // Restituisce true se la riga riletta porta i valori scritti.
+    _casRow: function(r, set) {
+        var g = new GlideRecord(this.LOG_TABLE);
+        g.addQuery('sys_id', r.id);
+        g.addQuery('u_status', r.status);
+        if (r.msg) { g.addQuery('u_error_message', r.msg); } else { g.addNullQuery('u_error_message'); }
+        for (var k in set) { if (set.hasOwnProperty(k)) { g.setValue(k, set[k]); } }
+        g.updateMultiple();
+        var after = this._rowSnap(r.id);
+        if (!after) { return false; }
+        var wantStatus = set.hasOwnProperty('u_status') ? '' + set.u_status : r.status;
+        if (after.status !== wantStatus) { return false; }
+        if (set.hasOwnProperty('u_error_message') && after.msg !== ('' + set.u_error_message).substring(0, 1000)) { return false; }
+        if (set.hasOwnProperty('u_progress_id') && after.pid !== this._sysId(set.u_progress_id)) { return false; }
+        return true;
+    },
+    // La scrittura cambierebbe qualcosa? (O1: niente update a vuoto ogni minuto)
+    _differs: function(r, set) {
+        for (var k in set) {
+            if (!set.hasOwnProperty(k)) { continue; }
+            if (k === 'u_status') { if (r.status !== '' + set[k]) { return true; } }
+            else if (k === 'u_percent_complete') { if (r.pct !== (parseInt(set[k], 10) || 0)) { return true; } }
+            else if (k === 'u_error_message') { if (r.msg !== '' + set[k]) { return true; } }
+            else { return true; }
+        }
+        return false;
+    },
+
+    _isClaim: function(msg) { return ('' + (msg || '')).indexOf(this.CLAIM_PREFIX) === 0; },
+    _claimTimeMs: function(msg) {
+        if (!this._isClaim(msg)) { return 0; }
+        var m = ('' + msg).substring(this.CLAIM_PREFIX.length).match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
+        return m ? new GlideDateTime(m[1]).getNumericValue() : 0;
+    },
+    _claimFresh: function(msg, nowMs) {
+        var t = this._claimTimeMs(msg);
+        return !!t && (nowMs - t) < this.CLAIM_TTL_MS;
+    },
+
+    // -----------------------------------------------------------------------
+    // claimRow — param: log_sys_id. v1.7.1 (F05). Il browser lo chiama subito
+    // prima di ogni POST CICD: porta la riga da "in attesa" a "in lancio" in modo
+    // atomico e rifiuta se la riga non e' piu' lanciabile (annullata da Cancel
+    // queued, gia' lanciata, gia' finale). Il client salta le righe rifiutate.
+    // -----------------------------------------------------------------------
+    claimRow: function() {
+        if (!this._guard()) { return this._forbidden(); }
+        var id = this._sysId(this.getParameter('sysparm_log_sys_id') || this.getParameter('log_sys_id'));
+        if (!id) { return JSON.stringify({ ok: false, error: 'valid log_sys_id required' }); }
+        var r = this._rowSnap(id);
+        if (!r) { return JSON.stringify({ ok: false, error: 'log row not found' }); }
+        if (r.status !== 'queued') { return JSON.stringify({ ok: false, reason: 'status changed', status: r.status }); }
+        if (r.pid) { return JSON.stringify({ ok: false, reason: 'already launched', status: r.status }); }
+        if (this._isClaim(r.msg)) { return JSON.stringify({ ok: false, reason: 'already claimed', status: r.status }); }
+        var marker = this.CLAIM_PREFIX + new GlideDateTime().getValue() + ' UTC';
+        if (!this._casRow(r, { u_error_message: marker })) {
+            var now = this._rowSnap(id);
+            return JSON.stringify({ ok: false, reason: 'status changed', status: now ? now.status : '' });
+        }
+        return JSON.stringify({ ok: true });
+    },
+
+    // -----------------------------------------------------------------------
+    // findLaunch — param: log_sys_id. v1.7.1 (F07). Dopo un errore di rete sulla
+    // POST il browser non sa se la piattaforma ha accodato l'install (risposta
+    // persa). Prima di riprovare chiede qui: se la riga ha gia' un progress id, o
+    // se esiste un'operazione di install radice per la stessa app creata dopo il
+    // claim (sys_execution_tracker, type sys.applifecycle.operation, creata alla
+    // POST — verificato su Brazil Patch 2), la registra sulla riga e risponde
+    // found:true, e il browser NON ripete la POST.
+    // -----------------------------------------------------------------------
+    findLaunch: function() {
+        if (!this._guard()) { return this._forbidden(); }
+        var id = this._sysId(this.getParameter('sysparm_log_sys_id') || this.getParameter('log_sys_id'));
+        if (!id) { return JSON.stringify({ ok: false, error: 'valid log_sys_id required' }); }
+        var r = this._rowSnap(id);
+        if (!r) { return JSON.stringify({ ok: false, error: 'log row not found' }); }
+        if (r.pid) { return JSON.stringify({ ok: true, found: true, progressId: r.pid, status: r.status }); }
+        if (!r.appId) { return JSON.stringify({ ok: true, found: false }); }
+        var tr = new GlideRecord('sys_execution_tracker');
+        if (!tr.isValid() || !tr.isValidField('detail_message') || !tr.isValidField('type')) {
+            return JSON.stringify({ ok: true, found: false, unknown: true });
+        }
+        var fromMs = this._claimTimeMs(r.msg) || new GlideDateTime(r.started).getNumericValue();
+        var from = new GlideDateTime();
+        from.setNumericValue(fromMs - 120000);   // margine per orologi di nodi diversi
+        tr.addNullQuery('parent');
+        tr.addQuery('type', this.QH_SUBJECT);
+        tr.addQuery('detail_message', 'CONTAINS', 'app=' + r.appId);
+        tr.addQuery('sys_created_on', '>=', from);
+        tr.orderByDesc('sys_created_on');
+        tr.setLimit(1);
+        tr.query();
+        if (!tr.next()) { return JSON.stringify({ ok: true, found: false }); }
+        var pid = '' + tr.getUniqueValue();
+        if (r.status === 'queued') {
+            this._casRow(r, { u_progress_id: pid, u_error_message: this._isClaim(r.msg) ? '' : r.msg });
+        }
+        gs.info('[PluginUpdater] findLaunch: row ' + id + ' matched operation ' + pid + ' (response lost in the browser)');
+        return JSON.stringify({ ok: true, found: true, progressId: pid });
+    },
+
     // attachWorker — UPDATE ONLY: registra il worker sulla riga di log.
     //
     // v1.6.3 (B1) — lo stato viene riportato a 'queued' SOLO se la riga e' ancora
@@ -1343,40 +1515,68 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // job (che gira ogni minuto) girava fra la POST CICD e questa chiamata, una
     // riga gia' 'complete' o 'failed' tornava 'queued', il batch non chiudeva mai
     // e la riga riappariva in coda dopo essere finita.
+    // v1.7.1 — toglie anche il claim di lancio (F05): la riga ora ha un worker.
     attachWorker: function() {
         if (!this._guard()) { return this._forbidden(); }
         var logSysId = this._sysId(this.getParameter('sysparm_log_sys_id') || this.getParameter('log_sys_id'));
         var pid      = this._sysId(this.getParameter('sysparm_progress_id') || this.getParameter('progress_id'));
         if (!logSysId) { return JSON.stringify({ ok: false, error: 'valid log_sys_id required' }); }
-        var gr = new GlideRecord('u_plugin_updater_install_log');
+        var gr = new GlideRecord(this.LOG_TABLE);
         if (!gr.get(logSysId)) { return JSON.stringify({ ok: false, error: 'log row not found' }); }
 
         gr.setValue('u_progress_id', pid);
-        var cur = gr.getValue('u_status') || 'queued';
+        var cur = '' + (gr.getValue('u_status') || 'queued');
         if (cur === 'queued' || cur === 'in_progress') {
             gr.setValue('u_status', 'queued');
+            if (this._isClaim(gr.getValue('u_error_message'))) { gr.setValue('u_error_message', ''); }
         } else {
             gs.info('[PluginUpdater] attachWorker: riga ' + logSysId + ' gia\' in stato "' +
                     cur + '", stato preservato (worker registrato comunque)');
         }
         gr.update();
-        return JSON.stringify({ ok: true, status: gr.getValue('u_status') });
+        return JSON.stringify({ ok: true, status: '' + gr.getValue('u_status') });
     },
 
-    // failRow — UPDATE ONLY: mark a batch row failed.
+    // failRow — UPDATE ONLY: segna 'failed' una riga il cui lancio e' fallito.
+    // v1.7.1 (F08) — scrive SOLO se la riga e' ancora 'queued' (anche con il claim
+    // di lancio). Fino alla v1.7.0 sovrascriveva qualsiasi stato, anche 'complete'.
     failRow: function() {
         if (!this._guard()) { return this._forbidden(); }
         var logSysId = this._sysId(this.getParameter('sysparm_log_sys_id') || this.getParameter('log_sys_id'));
         var msg = ('' + (this.getParameter('sysparm_message') || this.getParameter('message') || 'Failed to launch')).substring(0, 1000);
         if (!logSysId) { return JSON.stringify({ ok: false, error: 'valid log_sys_id required' }); }
-        var gr = new GlideRecord('u_plugin_updater_install_log');
-        if (!gr.get(logSysId)) { return JSON.stringify({ ok: false, error: 'log row not found' }); }
-        gr.setValue('u_status', 'failed');
-        gr.setValue('u_error_message', msg);
-        gr.setValue('u_percent_complete', 100);
-        gr.setValue('u_completed_at', new GlideDateTime());
-        gr.update();
-        return JSON.stringify({ ok: true });
+        var r = this._rowSnap(logSysId);
+        if (!r) { return JSON.stringify({ ok: false, error: 'log row not found' }); }
+        if (r.status !== 'queued') { return JSON.stringify({ ok: false, reason: 'status changed', status: r.status }); }
+        var ok = this._casRow(r, { u_status: 'failed', u_error_message: msg, u_percent_complete: 100, u_completed_at: new GlideDateTime() });
+        return JSON.stringify(ok ? { ok: true } : { ok: false, reason: 'status changed' });
+    },
+
+    // failRows — params: log_sys_ids (CSV), message. v1.7.1 (D6). Sessione scaduta
+    // durante il lancio: il browser si ferma e segna in UNA chiamata le righe non
+    // lanciate. Tocca solo righe 'queued' senza progress id.
+    failRows: function() {
+        if (!this._guard()) { return this._forbidden(); }
+        var raw = ('' + (this.getParameter('sysparm_log_sys_ids') || this.getParameter('log_sys_ids') || '')).split(',');
+        var msg = ('' + (this.getParameter('sysparm_message') || this.getParameter('message') || 'Not launched')).substring(0, 1000);
+        var ids = [];
+        for (var i = 0; i < raw.length && ids.length < 1000; i++) { var v = this._sysId(raw[i]); if (v) { ids.push(v); } }
+        if (!ids.length) { return JSON.stringify({ ok: true, failed: 0, skipped: 0 }); }
+        var gr = new GlideRecord(this.LOG_TABLE);
+        gr.addQuery('sys_id', 'IN', ids.join(','));
+        gr.setLimit(1000);
+        gr.query();
+        var rows = [];
+        while (gr.next()) { rows.push(this._snap(gr)); }
+        var failed = 0, skipped = ids.length - rows.length;
+        for (var j = 0; j < rows.length; j++) {
+            var r = rows[j];
+            if (r.status !== 'queued' || r.pid) { skipped++; continue; }
+            if (this._casRow(r, { u_status: 'failed', u_error_message: msg, u_percent_complete: 100, u_completed_at: new GlideDateTime() })) { failed++; }
+            else { skipped++; }
+        }
+        gs.info('[PluginUpdater] failRows by=' + gs.getUserName() + ' failed=' + failed + ' skipped=' + skipped);
+        return JSON.stringify({ ok: true, failed: failed, skipped: skipped });
     },
 
     // monitorBatches — Scheduled Job (server-side, no params). Distinguishes
@@ -1396,6 +1596,21 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // allineare subito il log a tracker e versione installata senza aspettare il
     // ciclo di un minuto del job. Senza filtro e' identico al vecchio monitorBatches.
     // Non fa alcun controllo di ruolo: lo fanno i chiamanti (_guard / _guardServer).
+    //
+    // v1.7.1:
+    //   O1  worker, tracker e versioni sono letti con query "sys_id IN" per tutto
+    //       il giro (prima: due get() per riga), e una riga viene scritta solo se
+    //       qualcosa cambia (prima: update() di ogni riga ogni minuto);
+    //   F25 ogni scrittura e' condizionata allo stato letto (_casRow): job e
+    //       Refresh now non si annullano piu' a vicenda per un ciclo;
+    //   F26 righe ordinate per sys_updated_on;
+    //   F27 senza worker, 'complete' richiede una versione target;
+    //   F24 worker non finale ma tracker radice Failed/Cancelled, o nessun
+    //       progresso per ROW_STALE_HOURS: esito con la regola della versione;
+    //   N2  percentuale dal tracker radice quando quella del worker e' vuota;
+    //   F08 nuovo passaggio di riverifica delle righe 'failed' recenti;
+    //   F09 il passaggio sulle 'cancelled' copre senza limite di eta' le righe
+    //       con progress id, ordinate per u_completed_at.
     _reconcile: function(batchFilter) {
         // v1.6.3 (B2) — NON si filtra piu' su u_progress_id NOT NULL. Una riga
         // senza worker (tab chiuso durante il lancio, POST riuscita ma risposta
@@ -1403,13 +1618,10 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         // job: restava 'queued' per sempre, il batch restava 'running' a vita e
         // getActiveBatch continuava a restituirlo. Ora entra nel ciclo e viene
         // valutata come le altre: verifica di versione, poi timeout.
-        var gr = new GlideRecord('u_plugin_updater_install_log');
-        gr.addQuery('u_status', 'IN', 'queued,installing,in_progress');
-        if (batchFilter) { gr.addQuery('u_session_id', batchFilter); }
-        gr.setLimit(2000);
-        gr.query();
+        var rows = this._activeRows(batchFilter, this.ACTIVE_STATUSES, 2000);
+        var ops = this._loadOps(this._pidsOf(rows));
+        var verifyCache = this._loadVersions(this._appIdsOf(rows));
         var checked = 0, finalized = 0, nowMs = new GlideDateTime().getNumericValue(), batchLast = {};
-        var verifyCache = {};
         // Is the platform install queue still active? While any CICD install worker
         // is pending/running, the single-flight queue is draining — never time out
         // waiting rows (avoids false "did not start" on large/slow batches).
@@ -1419,49 +1631,43 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         qa.addAggregate('COUNT');
         qa.query();
         var queueActive = qa.next() ? ((parseInt(qa.getAggregate('COUNT'), 10) || 0) > 0) : false;
-        while (gr.next()) {
+
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i], set = null, isFinal = false;
             checked++;
-            var pid = gr.getValue('u_progress_id');
-            var w = pid ? this._findWorker(pid) : null;
-            if (!w) {
+            var op = r.pid ? this._opState(r.pid, ops) : null;
+            if (!op) {
                 // Worker not found. Under the single-flight CICD install queue the
                 // worker is created only when this app's turn comes, so a missing
                 // worker usually means "not started yet", not a failure.
                 // 1) Source of truth: if the app already reached the target version,
                 //    the install succeeded and the worker simply rotated away.
-                var ver = this._verify(gr.getValue('u_store_app_id'), gr.getValue('u_target_version'), verifyCache);
-                if (ver.matches) {
-                    gr.setValue('u_status', 'complete');
-                    gr.setValue('u_percent_complete', 100);
-                    gr.setValue('u_completed_at', new GlideDateTime());
-                    gr.update();
-                    finalized++;
-                    continue;
+                //    F27: serve un target dichiarato.
+                var ver = this._verify(r.appId, r.target, verifyCache);
+                if (r.target && ver.matches) {
+                    set = { u_status: 'complete', u_error_message: '', u_percent_complete: 100, u_completed_at: new GlideDateTime() };
+                    isFinal = true;
+                } else if (queueActive) {
+                    // 2) Not installed yet. While the install queue is still active
+                    //    (any CICD worker pending/running), keep waiting — never fail.
+                    set = null;
+                } else if (!r.pid && this._claimFresh(r.msg, nowMs)) {
+                    // Il browser sta lanciando questa riga adesso (F05).
+                    set = null;
+                } else {
+                    // 3) Queue is idle: fail only if the batch has made no progress for
+                    //    >60 min (genuinely stalled / install never enqueued).
+                    if (!batchLast.hasOwnProperty(r.batch)) { batchLast[r.batch] = this._batchLastActivityMs(r.batch); }
+                    var refMs = batchLast[r.batch] || new GlideDateTime(r.started).getNumericValue();
+                    if (refMs && (nowMs - refMs) > 3600000) {
+                        set = { u_status: 'failed', u_percent_complete: 100, u_completed_at: new GlideDateTime(),
+                                u_error_message: r.pid
+                                    ? 'Timed out: install did not start (install queue idle, no progress for 60 minutes)'
+                                    : 'Timed out: the install was never launched (no progress worker was ever attached to this row)' };
+                        isFinal = true;
+                    }
                 }
-                // 2) Not installed yet. While the install queue is still active
-                //    (any CICD worker pending/running), keep waiting — never fail.
-                if (queueActive) { continue; }
-                // 3) Queue is idle: fail only if the batch has made no progress for
-                //    >60 min (genuinely stalled / install never enqueued).
-                var batch = gr.getValue('u_session_id');
-                if (batchLast[batch] === undefined) { batchLast[batch] = this._batchLastActivityMs(batch); }
-                var refMs = batchLast[batch] || new GlideDateTime(gr.getValue('u_started_at')).getNumericValue();
-                if (refMs && (nowMs - refMs) > 3600000) {
-                    gr.setValue('u_status', 'failed');
-                    gr.setValue('u_error_message', pid
-                        ? 'Timed out: install did not start (install queue idle, no progress for 60 minutes)'
-                        : 'Timed out: the install was never launched (no progress worker was ever attached to this row)');
-                    gr.setValue('u_percent_complete', 100);
-                    gr.setValue('u_completed_at', new GlideDateTime());
-                    gr.update();
-                    finalized++;
-                }
-                continue;
-            }
-            var state = (w.state || '').toLowerCase();
-            if (w.pct) { gr.setValue('u_percent_complete', w.pct); }
-
-            if (state === 'complete' || state === 'success') {
+            } else if (op.final) {
                 // La versione effettivamente installata è l'ARBITRO UNICO dell'esito.
                 //
                 // Attenzione: NON si può usare state_code come criterio di fallimento.
@@ -1474,97 +1680,199 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 // questo fix corregge.
                 //
                 // Il mismatch di versione, invece, è inequivocabile: se l'app non ha
-                // raggiunto il target, l'update non è stato applicato.
-                var v = this._verify(gr.getValue('u_store_app_id'), gr.getValue('u_target_version'), verifyCache);
-                if (!v.matches) {
-                    gr.setValue('u_status', 'failed');
-                    gr.setValue('u_error_message', this._failMessage(w, v, gr.getValue('u_target_version')));
-                } else {
-                    gr.setValue('u_status', 'complete');
-                    gr.setValue('u_error_message', '');
-                }
-                gr.setValue('u_percent_complete', 100);
-                gr.setValue('u_completed_at', new GlideDateTime());
-                finalized++;
-            } else if (state === 'failed' || state === 'error' || state === 'cancelled') {
-                // v1.6.6 — anche qui la versione installata resta l'arbitro (§10.1):
-                // se l'app ha comunque raggiunto il target, la riga e' 'complete'.
-                var vf = this._verify(gr.getValue('u_store_app_id'), gr.getValue('u_target_version'), verifyCache);
-                if (vf.matches) {
-                    gr.setValue('u_status', 'complete');
-                    gr.setValue('u_error_message', '');
-                } else {
-                    gr.setValue('u_status', 'failed');
-                    gr.setValue('u_error_message', this._failMessage(w, vf, gr.getValue('u_target_version')));
-                }
-                gr.setValue('u_percent_complete', 100);
-                gr.setValue('u_completed_at', new GlideDateTime());
-                finalized++;
-            } else if (state === 'running') {
-                gr.setValue('u_status', 'installing');
+                // raggiunto il target, l'update non è stato applicato. Vale anche per
+                // worker/tracker failed, error o cancelled (v1.6.6).
+                var v = this._verify(r.appId, r.target, verifyCache);
+                set = v.matches
+                    ? { u_status: 'complete', u_error_message: '' }
+                    : { u_status: 'failed', u_error_message: this._failMessage(op, v, r.target) };
+                set.u_percent_complete = 100;
+                set.u_completed_at = new GlideDateTime();
+                isFinal = true;
             } else {
-                gr.setValue('u_status', 'queued'); // pending / unknown -> waiting in queue
+                // pending / running / sconosciuto
+                var staleMs = this.ROW_STALE_HOURS * 3600000;
+                // Solo 'running': un'operazione 'pending' puo' attendere a lungo in una
+                // coda lenta o bloccata (quel caso lo segnala la scheda della coda).
+                if (op.state === 'running' && op.updatedMs && (nowMs - op.updatedMs) > staleMs) {
+                    // F24 — nessun progresso su worker e tracker radice: guardo l'intero
+                    // albero (i figli si aggiornano anche quando la radice no).
+                    var tree = this._opTree(r.pid);
+                    var lastMs = (tree && tree.lastUpdated) ? new GlideDateTime(tree.lastUpdated).getNumericValue() : op.updatedMs;
+                    if ((nowMs - lastMs) > staleMs) {
+                        var vs = this._verify(r.appId, r.target, verifyCache);
+                        set = (r.target && vs.matches)
+                            ? { u_status: 'complete', u_error_message: '' }
+                            : { u_status: 'failed', u_error_message: ('No progress for ' + this.ROW_STALE_HOURS + ' h on the platform install (' +
+                                op.state + '): ' + this._failMessage(op, vs, r.target)).substring(0, 1000) };
+                        set.u_percent_complete = 100;
+                        set.u_completed_at = new GlideDateTime();
+                        isFinal = true;
+                    }
+                }
+                if (!set) {
+                    set = { u_status: (op.state === 'running') ? 'installing' : 'queued' };
+                    if (op.pct) { set.u_percent_complete = op.pct; }
+                }
             }
-            gr.update();
+            if (set && this._differs(r, set) && this._casRow(r, set) && isFinal) { finalized++; }
         }
-        // v1.6.6 — righe 'cancelled' di recente: l'annullamento tocca solo il log, non
-        // la coda della piattaforma, quindi un'operazione gia' accodata puo' installarsi
-        // comunque. Se la versione target risulta installata la riga e' 'complete'
-        // (§10.1): la versione installata prevale sullo stato scritto da cancelRemaining.
-        var cg = new GlideRecord('u_plugin_updater_install_log');
-        cg.addQuery('u_status', 'cancelled');
-        cg.addQuery('u_completed_at', '>=', gs.hoursAgo(6));
-        if (batchFilter) { cg.addQuery('u_session_id', batchFilter); }
-        cg.setLimit(200);
-        cg.query();
-        while (cg.next()) {
-            var vc = this._verify(cg.getValue('u_store_app_id'), cg.getValue('u_target_version'), verifyCache);
-            if (cg.getValue('u_target_version') && vc.matches) {
-                cg.setValue('u_status', 'complete');
-                cg.setValue('u_error_message', '');
-                cg.update();
-                finalized++;
-            }
-        }
+
+        finalized += this._reverifyPass('cancelled', batchFilter, verifyCache);
+        finalized += this._reverifyPass('failed', batchFilter, verifyCache);
         gs.info('[PluginUpdater] monitorBatches checked=' + checked + ' finalized=' + finalized);
         return checked + ':' + finalized;
     },
 
-    // _findWorker — legge il worker CICD. v1.6.3 (B5): rimossa la seconda query
-    // con setWorkflow(false), che duplicava la prima senza aggiungere nulla
-    // (gr.get() non esegue business rule in lettura), e rimosso il campo `code`
-    // (state_code), letto e mai usato: vedi il commento in monitorBatches sul
-    // perche' state_code NON e' utilizzabile come criterio di esito.
+    // Riverifica delle righe finali che la versione installata puo' smentire (§10.1).
+    //   cancelled (v1.6.6, F09) — l'annullamento tocca solo il log: un'operazione
+    //       gia' accodata puo' installarsi comunque. Righe chiuse nelle ultime 6 h,
+    //       piu' TUTTE quelle con progress id (nessun limite di eta').
+    //   failed (v1.7.1, F08) — una riga segnata 'failed' dal browser (lancio
+    //       dato per fallito, risposta persa) la cui app poi si installa. Righe
+    //       chiuse nelle ultime 6 h, con una versione target.
+    // Se la versione target risulta installata la riga diventa 'complete'.
+    _reverifyPass: function(status, batchFilter, verifyCache) {
+        var rows = [], seen = {}, self = this;
+        function collect(withPid) {
+            var g = new GlideRecord(self.LOG_TABLE);
+            g.addQuery('u_status', status);
+            g.addNotNullQuery('u_target_version');
+            if (withPid) { g.addNotNullQuery('u_progress_id'); }
+            else { g.addQuery('u_completed_at', '>=', gs.hoursAgo(6)); }
+            if (batchFilter) { g.addQuery('u_session_id', batchFilter); }
+            g.orderByDesc('u_completed_at');
+            g.setLimit(200);
+            g.query();
+            while (g.next()) {
+                var s = self._snap(g);
+                if (!seen.hasOwnProperty(s.id)) { seen[s.id] = true; rows.push(s); }
+            }
+        }
+        collect(false);
+        if (status === 'cancelled') { collect(true); }
+        var missing = [];
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].appId && !verifyCache.hasOwnProperty(rows[i].appId)) { missing.push(rows[i].appId); }
+        }
+        var more = this._loadVersions(missing);
+        for (var m in more) { if (more.hasOwnProperty(m)) { verifyCache[m] = more[m]; } }
+        var n = 0;
+        for (var j = 0; j < rows.length; j++) {
+            var r = rows[j];
+            var v = this._verify(r.appId, r.target, verifyCache);
+            if (r.target && v.matches && this._casRow(r, { u_status: 'complete', u_error_message: '' })) { n++; }
+        }
+        return n;
+    },
+
+    // Worker CICD e tracker radice per un insieme di progress id, in query
+    // "sys_id IN" a blocchi (O1). sys_progress_worker e sys_execution_tracker
+    // condividono il sys_id del nodo radice (misurato).
+    _loadOps: function(pids) {
+        var res = { w: {}, t: {} };
+        var uniq = [], seen = {};
+        for (var i = 0; i < pids.length; i++) {
+            var p = this._sysId(pids[i]);
+            if (p && !seen.hasOwnProperty(p)) { seen[p] = true; uniq.push(p); }
+        }
+        for (var c = 0; c < uniq.length; c += 400) {
+            var chunk = uniq.slice(c, c + 400).join(',');
+            var w = new GlideRecord('sys_progress_worker');
+            w.addQuery('sys_id', 'IN', chunk);
+            w.query();
+            while (w.next()) {
+                res.w['' + w.getUniqueValue()] = {
+                    state:   '' + (w.getValue('state') || ''),
+                    message: '' + (w.getValue('message') || ''),
+                    error:   '' + (w.getValue('error_message') || ''),
+                    pct:     parseInt(w.getValue('percent_complete'), 10) || 0,
+                    updated: '' + (w.getValue('sys_updated_on') || '')
+                };
+            }
+            var t = new GlideRecord('sys_execution_tracker');
+            t.addQuery('sys_id', 'IN', chunk);
+            t.query();
+            while (t.next()) {
+                res.t['' + t.getUniqueValue()] = {
+                    state:   '' + (t.getValue('state') || ''),
+                    message: '' + (t.getValue('message') || ''),
+                    pct:     parseInt(t.getValue('percent_complete'), 10) || 0,
+                    updated: '' + (t.getValue('sys_updated_on') || '')
+                };
+            }
+        }
+        return res;
+    },
+
+    // Stato combinato worker + tracker radice di un'operazione, o null se
+    // nessuno dei due esiste. state: pending|running|complete|success|failed|
+    // error|cancelled. active/final ne derivano.
+    //   v1.6.6 — senza worker vale il tracker (install fallita prima di partire).
+    //   v1.7.1 (F24) — worker ancora pending/running ma tracker radice Failed o
+    //   Cancelled (es. dopo uno sblocco della coda): vale il tracker.
+    //   v1.7.1 — worker gia' finale ma tracker radice ancora pending/running:
+    //   l'installazione sta ancora lavorando, quindi 'running'.
+    //   v1.7.1 (N2) — percentuale del tracker quando quella del worker manca.
+    _opState: function(pid, ops) {
+        var w = ops.w.hasOwnProperty(pid) ? ops.w[pid] : null;
+        var t = ops.t.hasOwnProperty(pid) ? ops.t[pid] : null;
+        if (!w && !t) { return null; }
+        var names = this._trackerStates().name;
+        var tName = t ? (names[t.state] || '') : '';
+        if (tName === 'successful') { tName = 'complete'; }
+        var tFinal = (tName === 'complete' || tName === 'failed' || tName === 'cancelled');
+        var tActive = (tName === 'pending' || tName === 'running');
+        var state;
+        if (w) {
+            state = w.state.toLowerCase();
+            var wActive = (state === 'pending' || state === 'running');
+            if (wActive && (tName === 'failed' || tName === 'cancelled')) { state = tName; }
+            else if (!wActive && tActive) { state = 'running'; }
+        } else {
+            state = tName;
+        }
+        var updated = '';
+        if (w && w.updated > updated) { updated = w.updated; }
+        if (t && t.updated > updated) { updated = t.updated; }
+        return {
+            id:          pid,
+            source:      w ? 'worker' : 'tracker',
+            state:       state,
+            active:      (state === 'pending' || state === 'running'),
+            final:       (state === 'complete' || state === 'success' || state === 'failed' || state === 'error' || state === 'cancelled'),
+            message:     w ? w.message : (t ? t.message : ''),
+            error:       w ? w.error : '',
+            pct:         (w && w.pct) ? w.pct : (t ? t.pct : 0),
+            trackerFail: (t && tFinal && tName !== 'complete') ? t.message.trim() : '',
+            updatedMs:   updated ? new GlideDateTime(updated).getNumericValue() : 0
+        };
+    },
+
+    // Versione installata per un insieme di sys_store_app (O1): appId -> versione,
+    // o null se il record non esiste. E' la cache usata da _verify.
+    _loadVersions: function(appIds) {
+        var cache = {}, uniq = [];
+        for (var i = 0; i < appIds.length; i++) {
+            var a = this._sysId(appIds[i]);
+            if (a && !cache.hasOwnProperty(a)) { cache[a] = null; uniq.push(a); }
+        }
+        for (var c = 0; c < uniq.length; c += 400) {
+            var g = new GlideRecord('sys_store_app');
+            g.addQuery('sys_id', 'IN', uniq.slice(c, c + 400).join(','));
+            g.query();
+            while (g.next()) { cache['' + g.getUniqueValue()] = '' + (g.getValue('version') || ''); }
+        }
+        return cache;
+    },
+
+    // _findWorker — stato di un singolo worker/tracker (stessa logica di _opState).
+    // v1.6.3 (B5): niente state_code — vedi il commento in _reconcile sul perche'
+    // state_code NON e' utilizzabile come criterio di esito.
     _findWorker: function(pid) {
         pid = this._sysId(pid);
         if (!pid) { return null; }
-        var gr = new GlideRecord('sys_progress_worker');
-        if (gr.get(pid)) {
-            return {
-                state:   gr.getValue('state'),
-                message: gr.getValue('message'),
-                error:   gr.getValue('error_message'),
-                pct:     parseInt(gr.getValue('percent_complete'), 10) || 0,
-                id:      pid,
-                source:  'worker'
-            };
-        }
-        // v1.6.6 — fallback su sys_execution_tracker. Quando l'install fallisce
-        // prima di partire (es. "Unable to download app package") la piattaforma
-        // crea solo il tracker e nessun sys_progress_worker: senza questo ramo la
-        // riga restava 'queued' per 60 minuti e chiudeva con un timeout fuorviante.
-        // Stati del tracker: 0 pending, 1 running, 2 successful, 3 failed, 4 cancelled.
-        var tr = new GlideRecord('sys_execution_tracker');
-        if (!tr.get(pid)) { return null; }
-        var TRACKER_STATE = { '0': 'pending', '1': 'running', '2': 'complete', '3': 'failed', '4': 'cancelled' };
-        return {
-            state:   TRACKER_STATE[tr.getValue('state')] || '',
-            message: tr.getValue('message'),
-            error:   '',
-            pct:     parseInt(tr.getValue('percent_complete'), 10) || 0,
-            id:      pid,
-            source:  'tracker'
-        };
+        return this._opState(pid, this._loadOps([pid]));
     },
 
     // _trackerFailure — v1.6.6. Il worker CICD chiude 'complete' con il solo
@@ -1579,8 +1887,8 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         if (!pid) { return ''; }
         var tr = new GlideRecord('sys_execution_tracker');
         if (!tr.get(pid)) { return ''; }
-        var st = '' + tr.getValue('state');
-        if (st !== '3' && st !== '4') { return ''; }
+        var st = this._trackerStates(), s = '' + tr.getValue('state');
+        if (s !== st.v.failed && s !== st.v.cancelled) { return ''; }
         return ('' + (tr.getValue('message') || '')).trim();
     },
 
@@ -1638,7 +1946,8 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         var useless = !m || m.toLowerCase().indexOf('executing queued operation') !== -1;
         // v1.6.6 — in quel caso il motivo vero si cerca sul tracker (§19.13).
         if (useless && w && w.source === 'worker' && w.id) {
-            m = this._trackerFailure(w.id);
+            // v1.7.1 (O1) — _opState porta gia' il messaggio del tracker radice.
+            m = w.hasOwnProperty('trackerFail') ? w.trackerFail : this._trackerFailure(w.id);
         }
         if (m && m.toLowerCase().indexOf('executing queued operation') === -1) {
             base += ' — ' + m;
