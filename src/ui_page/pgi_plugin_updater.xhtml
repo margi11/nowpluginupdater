@@ -1082,9 +1082,17 @@ html,body{background:#f5f5f7;margin:0}
   }
 
   // ---- WIZARD 2 (Select) ----
+  // v1.7.1 (F03) — chiave = sys_id di sys_store_app (appId). Fino alla v1.7.0 si
+  // usava il sys_id del worker, che non coincide mai con quello dell'app.
   function inFlightSet(){
     var s={}; var f=S.appData.inFlight||[];
-    for(var i=0;i<f.length;i++){ s[f[i].sys_id||f[i].sysId]=true; } return s;
+    for(var i=0;i<f.length;i++){ if(f[i] && f[i].appId){ s[f[i].appId]=true; } } return s;
+  }
+  // Quante app della lista aggiornabile sono in installazione (per il suggerimento).
+  function inFlightCount(){
+    var iff=inFlightSet(), apps=S.appData.apps||[], n=0;
+    for(var i=0;i<apps.length;i++){ if(iff[apps[i].sysId]) n++; }
+    return n;
   }
   function filteredApps(){
     var txt=($('sel-filter').value||'').toLowerCase();
@@ -1177,7 +1185,7 @@ html,body{background:#f5f5f7;margin:0}
   function toggleApp(id){ if(S.selected[id]){ delete S.selected[id]; } else { S.selected[id]=true; } updateSelCount(); }
   function selectedIds(){ var o=[]; for(var k in S.selected){ if(S.selected[k]) o.push(k); } return o; }
   function updateSelCount(){
-    var n=selectedIds().length, inf=(S.appData.inFlight||[]).length;
+    var n=selectedIds().length, inf=inFlightCount();
     $('sel-count').textContent=n+' selected';
     var hint=$('sel-hint');
     if(hint){ hint.innerHTML = inf ? (inf+' already installing (not selectable)') : ''; }

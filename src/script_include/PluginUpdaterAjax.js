@@ -150,21 +150,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         utd.query();
         result.appsUpToDate = utd.next() ? (parseInt(utd.getAggregate('COUNT'), 10) || 0) : 0;
 
-        // In-flight workers (pending + running) — used by the wizard to disable apps already being installed.
-        var wGr = new GlideRecord('sys_progress_worker');
-        wGr.addQuery('name', 'CICDAppRepoService$CICDInstallWorker');
-        wGr.addQuery('state', 'IN', 'pending,running');
-        wGr.query();
-        var inFlight = [];
-        while (wGr.next()) {
-            inFlight.push({
-                sys_id:           wGr.getUniqueValue(),
-                state:            wGr.getValue('state'),
-                message:          wGr.getValue('message') || '',
-                percent_complete: parseInt(wGr.getValue('percent_complete'), 10) || 0
-            });
-        }
-        result.inFlight = inFlight;
+        // In-flight apps — used by the wizard to disable apps already being installed.
+        // v1.7.1 (F03): ogni voce porta appId (sys_id di sys_store_app).
+        result.inFlight = this._inFlightApps();
 
         var gr = new GlideRecord('sys_store_app');
         gr.addQuery('update_available', true);
@@ -192,6 +180,66 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         catch (eImpact) { result.impact = null; result.impactError = '' + eImpact; }
 
         return result;
+    },
+
+    // Stati "attivi" di una riga di log: la riga non e' ancora finale.
+    ACTIVE_STATUSES: 'queued,installing,in_progress',
+
+    // _inFlightApps — v1.7.1 (F03). Fino alla v1.7.0 inFlight conteneva i sys_id
+    // dei sys_progress_worker, che il client confrontava con i sys_id di
+    // sys_store_app: non coincidevano mai, quindi le app in installazione restavano
+    // selezionabili. Ora ogni voce e' risolta all'app:
+    //   1) righe di log attive (queued/installing) di QUALSIASI batch: coprono
+    //      anche i primi minuti dopo il lancio, quando il worker non esiste ancora
+    //      (misurato su Brazil: inFlight vuoto subito dopo il lancio). Le righe senza
+    //      progress id sono incluse di proposito: createBatch rifiuta comunque
+    //      un'app con una riga attiva, quindi mostrarla selezionabile sarebbe falso;
+    //   2) worker CICD pending/running e operazioni di install radice
+    //      (sys_execution_tracker, type sys.applifecycle.operation) pending/running:
+    //      coprono le installazioni avviate fuori da questa app, risolte con
+    //      detail_message "app=<sys_id>" (stesso parsing di _parseOpDetail).
+    // Restituisce [{ appId, state, source }], senza duplicati per appId.
+    _inFlightApps: function() {
+        var out = [], seen = {};
+        function add(appId, state, source) {
+            if (!appId || seen.hasOwnProperty(appId)) { return; }
+            seen[appId] = true;
+            out.push({ appId: appId, state: state, source: source });
+        }
+
+        var lg = new GlideRecord('u_plugin_updater_install_log');
+        lg.addQuery('u_status', 'IN', this.ACTIVE_STATUSES);
+        lg.addNotNullQuery('u_store_app_id');
+        lg.setLimit(2000);
+        lg.query();
+        while (lg.next()) {
+            var st = '' + lg.getValue('u_status');
+            add(this._sysId(lg.getValue('u_store_app_id')), (st === 'queued') ? 'queued' : 'installing', 'log');
+        }
+
+        var rootIds = [];
+        var wGr = new GlideRecord('sys_progress_worker');
+        wGr.addQuery('name', 'CICDAppRepoService$CICDInstallWorker');
+        wGr.addQuery('state', 'IN', 'pending,running');
+        wGr.setLimit(200);
+        wGr.query();
+        while (wGr.next()) { rootIds.push('' + wGr.getUniqueValue()); }
+
+        var tr = new GlideRecord('sys_execution_tracker');
+        if (tr.isValid() && tr.isValidField('detail_message') && tr.isValidField('type')) {
+            var ts = this._trackerStates();
+            var q = 'sys_idIN' + (rootIds.length ? rootIds.join(',') : '-') +
+                    '^NQparentISEMPTY^type=' + this.QH_SUBJECT + '^stateIN' + ts.v.pending + ',' + ts.v.running;
+            tr.addEncodedQuery(q);
+            tr.setLimit(400);
+            tr.query();
+            while (tr.next()) {
+                var d = this._parseOpDetail(tr.getValue('detail_message'));
+                var s = '' + tr.getValue('state');
+                add(d.appId, (s === ts.v.running) ? 'installing' : 'queued', 'platform');
+            }
+        }
+        return out;
     },
 
     // -----------------------------------------------------------------------
@@ -804,8 +852,48 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         var appsJson = this.getParameter('sysparm_apps') || this.getParameter('apps') || '[]';
         var apps;
         try { apps = JSON.parse(appsJson); } catch (e) { apps = []; }
-        if (!apps || !apps.length) { return JSON.stringify({ error: 'no apps', batch: '', rows: [] }); }
-        if (apps.length > 1000) { apps = apps.slice(0, 1000); } // safety cap
+        if (!apps || !apps.length) { return JSON.stringify({ error: 'no apps', batch: '', rows: [], skipped: [] }); }
+
+        // v1.7.1 (F15) — le app oltre il tetto non vengono piu' troncate in silenzio:
+        // sono riportate in `skipped` e il client non le lancia. Prima il client
+        // lanciava comunque ogni app selezionata, anche senza riga di log.
+        var CAP = 1000, skipped = [];
+        for (var c = CAP; c < apps.length; c++) {
+            skipped.push({ sysId: this._sysId((apps[c] || {}).sysId), name: '' + ((apps[c] || {}).name || ''), reason: 'over the ' + CAP + '-application limit of one batch' });
+        }
+        if (apps.length > CAP) { apps = apps.slice(0, CAP); }
+
+        // v1.7.1 (F15) — nome, scope, versione corrente e target vengono dal record
+        // sys_store_app validato, non dal client. Una sola query per tutte le app.
+        var ids = [];
+        for (var k = 0; k < apps.length; k++) { var vid = this._sysId((apps[k] || {}).sysId); if (vid) { ids.push(vid); } }
+        var store = {};
+        if (ids.length) {
+            var sa = new GlideRecord('sys_store_app');
+            sa.addQuery('sys_id', 'IN', ids.join(','));
+            sa.setLimit(CAP);
+            sa.query();
+            while (sa.next()) {
+                store['' + sa.getUniqueValue()] = {
+                    name:    '' + (sa.getValue('name') || ''),
+                    scope:   '' + (sa.getValue('scope') || ''),
+                    current: '' + (sa.getValue('version') || ''),
+                    latest:  '' + (sa.getValue('latest_version') || ''),
+                    ok:      ('' + sa.getValue('active')) === '1' || ('' + sa.getValue('active')) === 'true'
+                };
+            }
+        }
+        // v1.7.1 (F03) — un'app con una riga attiva (queued/installing) in un
+        // QUALSIASI batch non viene accodata due volte.
+        var busy = {};
+        if (ids.length) {
+            var bz = new GlideRecord('u_plugin_updater_install_log');
+            bz.addQuery('u_store_app_id', 'IN', ids.join(','));
+            bz.addQuery('u_status', 'IN', this.ACTIVE_STATUSES);
+            bz.setLimit(CAP);
+            bz.query();
+            while (bz.next()) { busy['' + bz.getValue('u_store_app_id')] = true; }
+        }
 
         // u_session_id è un campo da 32 char: la chiave va tenuta corta con margine.
         // Timestamp in base36 (~8 char per i prossimi secoli) + 8 char di user id
@@ -815,16 +903,24 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         var batchKey = 'b_' + Number(new GlideDateTime().getNumericValue()).toString(36) +
                        '_' + ('' + gs.getUserID()).substring(0, 8);
         var now = new GlideDateTime();
-        var rows = [];
+        var rows = [], queuedIds = {};
         for (var i = 0; i < apps.length; i++) {
             var a = apps[i] || {};
+            var sid = this._sysId(a.sysId), rec = sid ? store[sid] : null;
+            var label = rec ? rec.name : ('' + (a.name || '')).substring(0, 255);
+            var why = '';
+            if (!rec) { why = 'application record not found'; }
+            else if (!rec.ok) { why = 'application is not active'; }
+            else if (!rec.latest || this._cmpVer(rec.latest, rec.current) <= 0) { why = 'no update available any more'; }
+            else if (busy.hasOwnProperty(sid) || queuedIds.hasOwnProperty(sid)) { why = 'already queued or installing'; }
+            if (why) { skipped.push({ sysId: sid, name: label, reason: why }); continue; }
             var gr = new GlideRecord('u_plugin_updater_install_log');
             gr.initialize();
-            gr.setValue('u_app_name',         ('' + (a.name || '')).substring(0, 255));
-            gr.setValue('u_app_scope',        ('' + (a.scope || '')).substring(0, 100));
-            gr.setValue('u_store_app_id',     this._sysId(a.sysId));
-            gr.setValue('u_previous_version', ('' + (a.current || '')).substring(0, 40));
-            gr.setValue('u_target_version',   ('' + (a.latest || '')).substring(0, 40));
+            gr.setValue('u_app_name',         rec.name.substring(0, 255));
+            gr.setValue('u_app_scope',        rec.scope.substring(0, 100));
+            gr.setValue('u_store_app_id',     sid);
+            gr.setValue('u_previous_version', rec.current.substring(0, 40));
+            gr.setValue('u_target_version',   rec.latest.substring(0, 40));
             // Snapshot of each dependency's pre-install version, taken from the
             // client's getUpdateImpact result at launch time — sys_execution_tracker
             // (§10.3) only carries the target version GlideAppLoader installs, never
@@ -839,9 +935,23 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             gr.setValue('u_triggered_by',     gs.getUserID());
             gr.setValue('u_started_at',       now);
             gr.setValue('u_percent_complete', 0);
-            rows.push({ sysId: a.sysId, logSysId: gr.insert() });
+            var logId = gr.insert();
+            if (!this._sysId(logId)) {
+                gs.error('[PluginUpdater] createBatch: insert failed for app ' + sid + ' in batch ' + batchKey);
+                skipped.push({ sysId: sid, name: label, reason: 'the install log row could not be created' });
+                continue;
+            }
+            queuedIds[sid] = true;
+            // target: il client lancia la versione validata qui, non la sua copia.
+            rows.push({ sysId: sid, logSysId: '' + logId, target: rec.latest });
         }
-        return JSON.stringify({ batch: batchKey, total: apps.length, rows: rows });
+        if (skipped.length) {
+            gs.info('[PluginUpdater] createBatch batch=' + batchKey + ' queued=' + rows.length + ' skipped=' + skipped.length);
+        }
+        if (!rows.length) {
+            return JSON.stringify({ error: 'None of the selected applications could be queued.', batch: '', total: 0, rows: [], skipped: skipped });
+        }
+        return JSON.stringify({ batch: batchKey, total: rows.length, rows: rows, skipped: skipped });
     },
 
     // getMyLatestBatch — most recent batch key for the current user
