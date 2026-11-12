@@ -858,11 +858,24 @@ html,body{background:#f5f5f7;margin:0}
   function wth(k,label,extra){
     return '<th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.wizSort,k)+(extra||'')+'>'+label+wizSortInd(k)+'</th>';
   }
+  // v1.7.1 (F28) — confronto di versione per segmenti numerici, stessa logica di
+  // _cmpVer sul server: 1.0.2 prima di 1.0.10, 9.2.0 prima di 10.0.1.
+  function cmpVer(a,b){
+    var pa=(''+(a||'')).split(/[.\-]/), pb=(''+(b||'')).split(/[.\-]/), n=Math.max(pa.length,pb.length);
+    for(var i=0;i!==n;i++){
+      var x=parseInt(pa[i],10); if(isNaN(x)) x=0;
+      var y=parseInt(pb[i],10); if(isNaN(y)) y=0;
+      if(x!==y) return (x>y)?1:-1;
+    }
+    return 0;
+  }
+  var VERSION_KEYS={ current:true, latest:true };
   function appSortRows(list){
     var s=S.wizSort; if(!s||!s.k) return list;
     var k=s.k, dir=(s.dir===-1)?-1:1, iff=null, out=list.slice();
     out.sort(function(a,b){
       if(k==='status'){ if(!iff) iff=inFlightSet(); return ((iff[a.sysId]?1:0)-(iff[b.sysId]?1:0))*dir; }
+      if(VERSION_KEYS[k]){ return cmpVer(a[k],b[k])*dir; }
       var x=(''+(a[k]||'')).toLowerCase(), y=(''+(b[k]||'')).toLowerCase();
       if(x<y) return -dir; if(x>y) return dir; return 0;
     });
@@ -1721,6 +1734,7 @@ html,body{background:#f5f5f7;margin:0}
     var out=list.slice();
     out.sort(function(a,b){
       if(k==='pct'){ return ((a.pct||0)-(b.pct||0))*dir; }
+      if(VERSION_KEYS[k]){ return cmpVer(a[k],b[k])*dir; }
       var x=(''+(a[k]||'')).toLowerCase(), y=(''+(b[k]||'')).toLowerCase();
       if(x<y) return -dir; if(x>y) return dir; return 0;
     });
