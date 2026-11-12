@@ -1189,7 +1189,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 }
                 continue;
             }
-            if (op && op.final) {
+            if (op && op.terminal) {
                 // Worker/tracker gia' chiuso sotto il target: stesso esito di _reconcile (SI-B4).
                 if (this._casRow(r, { u_status: 'failed', u_error_message: this._failMessage(op, v, r.target),
                                       u_percent_complete: 100, u_completed_at: new GlideDateTime() })) { res.failed++; }
@@ -1752,7 +1752,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                         isFinal = true;
                     }
                 }
-            } else if (op.final) {
+            } else if (op.terminal) {
                 // La versione effettivamente installata è l'ARBITRO UNICO dell'esito.
                 //
                 // Attenzione: NON si può usare state_code come criterio di fallimento.
@@ -1925,7 +1925,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             source:      w ? 'worker' : 'tracker',
             state:       state,
             active:      (state === 'pending' || state === 'running'),
-            final:       (state === 'complete' || state === 'success' || state === 'failed' || state === 'error' || state === 'cancelled'),
+            // 'terminal', non 'final': in Rhino 'final' e' una parola riservata (ES3)
+            // e come chiave non quotata rompe il parse dell'intero Script Include.
+            terminal:    (state === 'complete' || state === 'success' || state === 'failed' || state === 'error' || state === 'cancelled'),
             message:     w ? w.message : (t ? t.message : ''),
             error:       w ? w.error : '',
             pct:         (w && w.pct) ? w.pct : (t ? t.pct : 0),
