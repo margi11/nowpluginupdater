@@ -1219,6 +1219,11 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         // tracker/worker e versione installata (stessa logica del job), cosi' la
         // risposta riflette lo stato reale e non quello dell'ultimo ciclo del job.
         var wantReconcile = ('' + (this.getParameter('sysparm_reconcile') || this.getParameter('reconcile') || '')) === '1';
+        // v1.7.1 (O2) — deps=active: l'albero delle dipendenze viene risolto solo per
+        // le righe non finali (il polling automatico del Monitor). L'albero di una
+        // riga finale non cambia piu': il client tiene quello ricevuto al primo
+        // caricamento (deps=all, il default, compatibile con i client precedenti).
+        var activeDepsOnly = ('' + (this.getParameter('sysparm_deps') || this.getParameter('deps') || '')) === 'active';
         if (wantReconcile) {
             try { this._reconcile(batch); }
             catch (er) { gs.warn('[PluginUpdater] getBatchStatus reconcile failed: ' + er); }
@@ -1252,7 +1257,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             var st = (raw === 'in_progress') ? 'installing' : raw;
             if (['complete','failed','installing','cancelled','queued'].indexOf(st) < 0) { st = 'queued'; }
             var pid = gr.getValue('u_progress_id');
-            if (pid) { progressIds.push(pid); }
+            var rowFinal = (st === 'complete' || st === 'failed' || st === 'cancelled');
+            var skipDeps = activeDepsOnly && rowFinal;
+            if (pid && !skipDeps) { progressIds.push(pid); }
             rows.push({
                 logSysId:   gr.getUniqueValue(),
                 name:       gr.getValue('u_app_name'),
@@ -1265,7 +1272,8 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 // diventa una frase leggibile.
                 message:    this._isClaim(gr.getValue('u_error_message')) ? 'Being launched from the browser.' : ('' + (gr.getValue('u_error_message') || '')),
                 startedAt:  gr.getDisplayValue('u_started_at'),
-                _pid:       pid,
+                _pid:       skipDeps ? '' : pid,
+                _skipDeps:  skipDeps,
                 _snapshot:  gr.getValue('u_dependency_snapshot')
             });
         }
@@ -1274,8 +1282,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         var tree = this._dependencyTreeForBatch(progressIds);
         var depScopeSet = {};
         for (var ri = 0; ri < rows.length; ri++) {
-            rows[ri].deps = this._depRowsFor(tree, rows[ri]._pid, rows[ri].scope, rows[ri]._snapshot);
-            delete rows[ri]._pid; delete rows[ri]._snapshot;
+            rows[ri].deps = this._depRowsFor(tree.byRoot, rows[ri]._pid, rows[ri].scope, rows[ri]._snapshot);
+            if (rows[ri]._skipDeps) { rows[ri].depsOmitted = true; }
+            delete rows[ri]._pid; delete rows[ri]._snapshot; delete rows[ri]._skipDeps;
             for (var di = 0; di < rows[ri].deps.length; di++) { depScopeSet[rows[ri].deps[di].scope] = true; }
         }
 
@@ -1309,7 +1318,11 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             counts:   counts,
             rows:     rows,
             rowsShown: rows.length,
-            truncated: (counts.total > rows.length)
+            truncated: (counts.total > rows.length),
+            depsTruncated: tree.truncated,
+            // v1.7.1 (N3) — ora del server nel fuso e formato dell'utente, come
+            // "Checked" della scheda della coda: una sola convenzione per schermata.
+            checkedAt: '' + new GlideDateTime().getDisplayValue()
         });
     },
 
@@ -1330,9 +1343,12 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // discendente "Installing application <scope>:<version>". Le dipendenze gia'
     // soddisfatte non producono nodi (§6.1): questo mostra cio' che e' realmente
     // avvenuto, non cio' che avevamo previsto con getUpdateImpact.
+    // v1.7.1 (O2) — restituisce { byRoot, truncated }: truncated=true se un livello
+    // ha raggiunto il tetto di 5000 nodi (prima il taglio era silenzioso).
     _dependencyTreeForBatch: function(rootIds) {
         var byRoot = {};   // progressId -> { scope -> nodo }
-        if (!rootIds || !rootIds.length) { return byRoot; }
+        var res = { byRoot: byRoot, truncated: false };
+        if (!rootIds || !rootIds.length) { return res; }
 
         var owner = {};    // trackerId -> progressId radice di appartenenza
         var frontier = [];
@@ -1343,7 +1359,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             owner[rid] = rid;
             frontier.push(rid);
         }
-        if (!frontier.length) { return byRoot; }
+        if (!frontier.length) { return res; }
 
         var re = /^Installing application ([A-Za-z0-9_.]+):(.+)$/;
         var stMap = { 0: 'queued', 1: 'installing', 2: 'complete', 3: 'failed', 4: 'cancelled' };
@@ -1355,8 +1371,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             gr.addQuery('parent', 'IN', frontier.join(','));
             gr.setLimit(5000);
             gr.query();
-            var next = [];
+            var next = [], levelCount = 0;
             while (gr.next()) {
+                levelCount++;
                 var childId  = gr.getUniqueValue();
                 var parentId = gr.getValue('parent');
                 var rootOf   = owner[parentId];
@@ -1376,10 +1393,11 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                     pct:     parseInt(gr.getValue('percent_complete'), 10) || 0
                 };
             }
+            if (levelCount >= 5000) { res.truncated = true; }
             frontier = next;
             depth++;
         }
-        return byRoot;
+        return res;
     },
 
     // _depRowsFor — proietta l'albero risolto sulla singola riga: esclude lo scope
