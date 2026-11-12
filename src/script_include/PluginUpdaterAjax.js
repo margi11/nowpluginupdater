@@ -256,12 +256,12 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             m2m.setLimit(5000);
             m2m.query();
             while (m2m.next()) {
-                var mScope  = m2m.getValue('app_scope') || '';
-                var mTarget = m2m.getValue('app_version') || '';
+                var mScope  = ('' + (m2m.getValue('app_scope') || '')).trim();
+                var mTarget = ('' + (m2m.getValue('app_version') || '')).trim();
                 if (!mScope) { continue; }
-                if (selectedScopes && !selectedScopes[mScope]) { continue; }
-                var local = index[mScope];
-                if (!local) { continue; }                              // non installata (§6.2)
+                if (selectedScopes && !selectedScopes.hasOwnProperty(mScope)) { continue; }
+                if (!index.hasOwnProperty(mScope)) { continue; }
+                var local = index[mScope];                              // non installata (§6.2)
                 if (this._cmpVer(mTarget, local.current) <= 0) { continue; } // gia' a versione
                 memberScopes[mScope] = true;
                 suiteApps.push({
@@ -324,10 +324,10 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         // produceva un risultato vuoto.
         var roots = [];
         if (selectedScopes) {
-            for (var rs0 in selectedScopes) { if (index[rs0]) { roots.push(rs0); } }
+            for (var rs0 in selectedScopes) { if (selectedScopes.hasOwnProperty(rs0) && index.hasOwnProperty(rs0)) { roots.push(rs0); } }
         } else {
             for (var allScope in index) {
-                if (index[allScope].updateAvailable && !index[allScope].hideOnUi) { roots.push(allScope); }
+                if (index.hasOwnProperty(allScope) && index[allScope].updateAvailable && !index[allScope].hideOnUi) { roots.push(allScope); }
             }
         }
 
@@ -348,7 +348,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         function loadVersionsFor(scopeList) {
             var todo = [];
             for (var i = 0; i < scopeList.length; i++) {
-                if (!loadedScopes[scopeList[i]]) { loadedScopes[scopeList[i]] = true; todo.push(scopeList[i]); }
+                if (!loadedScopes.hasOwnProperty(scopeList[i])) { loadedScopes[scopeList[i]] = true; todo.push(scopeList[i]); }
             }
             if (!todo.length) { return []; }
             var discovered = {};
@@ -357,10 +357,12 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             av.setLimit(20000);
             av.query();
             while (av.next()) {
-                var avScope = av.getValue('scope') || '';
-                var avVersion = av.getValue('version') || '';
+                // v1.7.1 (O7) — '' + : valori Glide come stringhe JS; trim di scope,
+                // versione e di ogni voce "scope:minVersion" della glide_list.
+                var avScope = ('' + (av.getValue('scope') || '')).trim();
+                var avVersion = ('' + (av.getValue('version') || '')).trim();
                 if (!avScope || !avVersion) { continue; }
-                var depsRaw = av.getValue('dependencies') || '';
+                var depsRaw = '' + (av.getValue('dependencies') || '');
                 var deps = [];
                 if (depsRaw) {
                     var depEntries = depsRaw.split(',');
@@ -368,14 +370,18 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                         var entry = depEntries[d];
                         var colon = entry.indexOf(':');
                         if (colon < 0) { continue; }
-                        deps.push({ scope: entry.substring(0, colon), minVersion: entry.substring(colon + 1) });
+                        var depS = entry.substring(0, colon).trim(), depV = entry.substring(colon + 1).trim();
+                        if (!depS) { continue; }
+                        deps.push({ scope: depS, minVersion: depV });
                     }
                 }
                 versionIndex[avScope + '@' + avVersion] = deps;
                 for (var dq = 0; dq < deps.length; dq++) { discovered[deps[dq].scope] = true; }
             }
             var outList = [];
-            for (var dk in discovered) { if (!loadedScopes[dk]) { outList.push(dk); } }
+            for (var dk in discovered) {
+                if (discovered.hasOwnProperty(dk) && !loadedScopes.hasOwnProperty(dk)) { outList.push(dk); }
+            }
             return outList;
         }
         // Carico per livelli finche' emergono nuovi scope (profondita' misurata 2-3).
@@ -470,9 +476,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         if (selectedScopes) {
             var rootSet = {};
             for (var rr = 0; rr < roots.length; rr++) { rootSet[roots[rr]] = true; }
-            for (var us in unionNodes) { if (!rootSet[us]) { unionList.push(unionNodes[us]); } }
+            for (var us in unionNodes) { if (unionNodes.hasOwnProperty(us) && !rootSet.hasOwnProperty(us)) { unionList.push(unionNodes[us]); } }
         } else {
-            for (var us2 in unionNodes) { unionList.push(unionNodes[us2]); }
+            for (var us2 in unionNodes) { if (unionNodes.hasOwnProperty(us2)) { unionList.push(unionNodes[us2]); } }
         }
 
         return {
