@@ -15,6 +15,24 @@ The native Application Manager updates one application at a time. Now Plugin Upd
 - **Early failure detection** — an install that fails before it even starts (for example, the package cannot be downloaded) is shown as Failed with the platform's reason, not left Queued.
 - **No stored credentials** — installs are triggered with the admin's own session; no passwords or tokens are stored.
 - **Built on the platform** — a single UI Page using vanilla JavaScript (no React, no bundler, no external libraries).
+- **Install queue health** — the Monitor shows whether the platform's own install queue is moving, and lets an admin release an operation that died and left its locks behind (1.7.0, proposed).
+
+## What's new in 1.7.0 (proposed)
+
+*Not yet in a downloadable update set: the current download is still 1.6.6.*
+
+A blocked platform install queue is detected and can be released from the Monitor, safely and only on request.
+
+When an install dies half-way, it can leave its resource locks behind (`sys_padlock` rows owned by its tracker). Every install queued after it — from the Application Manager, CICD or this app — then waits, retried about once a second, for hours or days. Observed on Brazil: installs stuck *Queued* for about three days.
+
+- **Platform install queue card** at the top of the Monitor: *Healthy*, *Busy* (an install is running), *Blocked* or *Unavailable*. When blocked it says since when, by which application and version, on which node, and how many operations are waiting.
+- **Warning on Home** when the queue is blocked, with a link to the Monitor.
+- **Release blocked operation…** — offered only when the server confirms the operation can be released: its whole tracker tree has made no progress for longer than the threshold (6 hours by default, optional system property `x_npu.stuck_op_hours`) and its locks are as old. The confirmation lists what will change and requires you to confirm that you checked *Active Transactions*.
+- **The server decides and repeats every check** at release time. It saves a JSON backup of the records it changes as an attachment on the operation's tracker, marks the stuck operation's Running/Pending trackers as *Failed*, deletes **only** that operation's locks and writes an audit line to the system log. Calling it again is harmless.
+- **Never automatic, and nothing else is touched:** no job, no release without a click and a confirmation; queued operations, other locks, other trackers and running transactions are left as they are.
+- **Background-script alternative:** `src/fix_scripts/release_orphan_install_lock.js` does the same from *Scripts - Background* (dry run by default), even if the app is not installed or the page does not open.
+
+**Known limits:** the page cannot tell whether the install's thread is still alive (the platform does not expose it to server scripts), so checking *Active Transactions* stays with the admin. A lock whose operation is no longer *Running* (for example already *Failed*), or whose tracker no longer exists, is shown but not released from the page. The backup attachment lives on the tracker, so it is removed when the platform cleans up old trackers (30 days on the Brazil instance tested); download it if you need to keep it. On a release that does not expose the expected tables or fields, the card shows *Unavailable* and nothing can be released.
 
 ## What's new in 1.6.6
 
@@ -94,9 +112,10 @@ Because the application list mirrors the Application Manager, a few platform-bun
 |--------|--------|
 | Australia (Patch 6, Patch 7) | Verified — dependency impact, tracker, batches, upgrade path |
 | Brazil (Patch 1) | **v1.6.6 certified** — real batches, Monitor, Polaris rendering, from-scratch install |
+| Brazil (Patch 2) | 1.7.0 install queue health tested on a development instance: detection, simulated blocked queue with a real install waiting, release from the Monitor and from the background script |
 | Zurich | Not verified |
 
-The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, `sys_execution_tracker`), so each new release family should be re-checked.
+The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, `sys_execution_tracker`; since 1.7.0 also `sys_padlock` and `sys_nowmq_message`), so each new release family should be re-checked.
 
 ## Repository layout
 
@@ -106,6 +125,7 @@ The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, 
 | `src/script_include/PluginUpdaterAjax.js` | Client-callable GlideAjax (`AbstractAjaxProcessor`), admin role-guarded, `sys_id`-sanitized |
 | `src/fix_scripts/repair_install_log_140.js` | One-off background script — reclassifies historical rows wrongly marked Complete (dry-run by default) |
 | `src/fix_scripts/reset_npu_instance.js` | Test-instance reset — removes the app completely so a from-scratch install can be re-tested |
+| `src/fix_scripts/release_orphan_install_lock.js` | Background-script alternative to *Release blocked operation…* (1.7.0) — dry run by default |
 | `NowPluginUpdater166.xml` | Exported update set (v1.6.6) — portable install file, 59 objects |
 | `NowPluginUpdater1xx.xml` | Earlier releases, kept for reference |
 | `index.html` | Self-contained distribution page (screens, download, install/use guide) — published to Netlify |
@@ -128,6 +148,14 @@ It runs as a **dry run by default** — it prints what it would change without w
 **Every install fails with "Unable to download app package":** a platform issue, not an app error — the Application Manager fails the same way. Check that the system properties `sn_appclient.upload_base_url` and `sn_appauthor.upload_base_url` are not set to `https://disabled.service-now.com`; clearing them fixes it. Since 1.6.6 the Monitor shows this as Failed with the reason instead of leaving the rows Queued.
 
 **The first install starts a few minutes after launch:** installs go through the platform's `AppOperationQueue` one operation at a time, so about 3 minutes can pass before the first worker appears. This is normal.
+
+**Installs stay Queued for hours** (in this app, the Application Manager and CICD alike): an earlier install may have died and left its resource locks behind. Since 1.7.0 the Monitor's *Platform install queue* card shows *Blocked* and Home shows a warning.
+1. Open *System Diagnostics → Active Transactions* (`v_cluster_transaction_list.do`) and check that no transaction of the blocked install is still running on the node the card names.
+2. In the Monitor, click **Release blocked operation…**, confirm the Active Transactions check, and click **Release**. Queued installs should start within a minute or two; the blocked install itself did not complete and must be run again.
+3. If the page cannot be opened, use `src/fix_scripts/release_orphan_install_lock.js` in *Scripts - Background* instead: run it as a dry run first, read its output, then apply it.
+4. If the card shows the lock with a reason instead of a release button — the operation that holds it is no longer *Running* (for example *Failed*) or its tracker no longer exists — neither the page nor the script releases it, because the checks that make the release safe do not apply. The script's dry run prints the operation's tracker sys_id and its `lock_key` (`r*<sys_id>`); after the same *Active Transactions* check, delete only the `sys_padlock` rows with that exact `lock_key`.
+
+The backup of the changed records is a `npu_release_backup_<timestamp>.json` attachment on the operation's tracker (*Install from the App Repository* in `sys_execution_tracker`).
 
 ## Notes
 

@@ -892,6 +892,11 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         catch (e) { out.info = {}; out.infoError = '' + e; }
         try { out.appData = this._updatableApps(); }
         catch (e2) { out.appData = { apps: [], inFlight: [], appsUpToDate: 0 }; out.appsError = '' + e2; }
+        // v1.7.0 — stato della coda di installazione in versione leggera
+        // ({ status, waiting }): con la coda sana costa una query su sys_padlock e
+        // una GlideAggregate su sys_nowmq_message. Fallisce in modo indipendente.
+        try { out.queueHealth = this._queueHealth(false); }
+        catch (e3) { out.queueHealth = { status: 'unavailable', waiting: 0 }; out.queueHealthError = '' + e3; }
         return JSON.stringify(out);
     },
 
@@ -1477,6 +1482,534 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         gr.query();
         if (gr.next()) { return new GlideDateTime(gr.getValue('u_completed_at')).getNumericValue(); }
         return 0;
+    },
+
+    // =======================================================================
+    // v1.7.0 — Salute della coda di installazione della piattaforma (§4.6)
+    //
+    // PERCHE'
+    // La piattaforma esegue le operazioni di installazione (CICD, App Repository)
+    // da una coda NowMQ (subject sys.applifecycle.operation), una alla volta. Ogni
+    // operazione chiede dei lock di risorsa su sys_padlock, con
+    // lock_key = 'r*' + <sys_id del tracker radice>. Se il thread di
+    // un'installazione muore a meta', i suoi padlock restano: ogni operazione in
+    // coda viene ritentata circa una volta al secondo senza ottenerli mai, e
+    // tutte le installazioni restano Queued. Osservato su Brazil: circa 3 giorni,
+    // fino allo sblocco manuale (tracker dell'albero a Failed, cancellazione dei
+    // soli padlock con quella lock_key; la coda e' ripartita entro un minuto).
+    //
+    // COSA FA
+    //   getQueueHealth()         sola lettura: stato della coda e proprietari dei lock
+    //   releaseStuckOperation()  solo su richiesta esplicita dell'admin: ripete TUTTE
+    //                            le verifiche, salva un backup, porta a Failed i
+    //                            tracker Running/Pending dell'albero e cancella SOLO i
+    //                            padlock con lock_key 'r*<radice>'
+    //
+    // COSA NON FA, MAI
+    //   - niente di automatico: nessun job chiama questi metodi;
+    //   - non tocca i messaggi NowMQ, i latch e gli altri padlock con lock_key
+    //     vuota o diversa, i tracker fuori dall'albero, i trigger;
+    //   - non termina transazioni e non riavvia nodi.
+    //
+    // LIMITI
+    //   - da script server non si puo' sapere se il thread e' vivo
+    //     (v_cluster_transaction restituisce 0 righe): per questo la conferma
+    //     "nessuna transazione attiva" e' un parametro OBBLIGATORIO dell'API,
+    //     che l'admin attesta dopo aver controllato Active Transactions;
+    //   - tabelle e campi sono interni e non documentati: se mancano, lo stato e'
+    //     'unavailable' e lo sblocco rifiuta.
+    // =======================================================================
+
+    QH_SUBJECT:       'sys.applifecycle.operation',
+    QH_HOURS_PROP:    'x_npu.stuck_op_hours', // opzionale, non nell'update set (§18.6)
+    QH_HOURS_DEFAULT: 6,
+    QH_HOURS_MIN:     1,     // valori piu' bassi nella proprieta' vengono alzati a 1
+    QH_TREE_DEPTH:    8,
+    QH_TREE_CAP:      500,   // oltre, l'albero non e' verificabile: niente sblocco
+    QH_LOCK_CAP:      100,
+    QH_OWNER_CAP:     10,
+    QH_BACKUP_PREFIX: 'npu_release_backup_',
+    QH_SCHEMA: {
+        sys_padlock:           ['resource_type', 'resource_id', 'lock_key'],
+        sys_execution_tracker: ['state', 'parent', 'node', 'type', 'message', 'detail_message', 'percent_complete'],
+        sys_nowmq_message:     ['subject', 'state', 'attempt_count', 'sequence', 'queue_expiration', 'last_attempted', 'body']
+    },
+
+    // -----------------------------------------------------------------------
+    // getQueueHealth — sola lettura. Restituisce:
+    // { status: healthy|busy|blocked|unavailable, waiting, thresholdHours,
+    //   checkedAt, releasable, queue:{byState,maxAttempts,oldest}, owners:[...],
+    //   ownersTruncated, reason? }
+    //   healthy     nessun padlock 'r*' (le operazioni in coda vengono servite)
+    //   busy        padlock 'r*' di un albero aggiornato entro la soglia
+    //   blocked     padlock 'r*' di un albero fermo oltre la soglia, anche senza
+    //               messaggi in attesa: il lock blocchera' la prossima install
+    //   unavailable tabelle o campi attesi assenti (altra release), o eccezione
+    // releasable dice solo se lo sblocco puo' essere proposto: il server rifa'
+    // comunque tutte le verifiche in releaseStuckOperation.
+    // -----------------------------------------------------------------------
+    getQueueHealth: function() {
+        if (!this._guard()) { return this._forbidden(); }
+        try { return JSON.stringify(this._queueHealth(true)); }
+        catch (e) {
+            gs.warn('[PluginUpdater] getQueueHealth failed: ' + e);
+            return JSON.stringify({ status: 'unavailable', reason: 'error', error: '' + e, waiting: 0, owners: [], releasable: false });
+        }
+    },
+
+    // -----------------------------------------------------------------------
+    // releaseStuckOperation — params: tracker_id, confirm_no_active_tx ('true').
+    // Equivalente server dello sblocco manuale: verifiche, backup, tracker a
+    // Failed, cancellazione dei soli padlock 'r*<tracker_id>'. Idempotente: se
+    // l'operazione non possiede piu' lock risponde { ok:true, released:false }.
+    // -----------------------------------------------------------------------
+    releaseStuckOperation: function() {
+        if (!this._guard()) { return this._forbidden(); }
+        var id = this._sysId(this.getParameter('sysparm_tracker_id') || this.getParameter('tracker_id'));
+        var ack = ('' + (this.getParameter('sysparm_confirm_no_active_tx') || this.getParameter('confirm_no_active_tx') || '')).trim();
+        if (!id) { return JSON.stringify({ ok: false, released: false, error: 'tracker_id required' }); }
+        if (ack !== 'true') {
+            return JSON.stringify({ ok: false, released: false,
+                error: 'Confirmation required: check Active Transactions first and confirm that no transaction of this install is still running.' });
+        }
+        try { return JSON.stringify(this._releaseStuck(id)); }
+        catch (e) {
+            gs.error('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + gs.getUserName() + ' failed: ' + e);
+            return JSON.stringify({ ok: false, released: false, error: '' + e });
+        }
+    },
+
+    // Corpo di getQueueHealth (detail=true) e della versione leggera usata da
+    // getHomeData (detail=false: solo { status, waiting }).
+    _queueHealth: function(detail) {
+        var hours = this._stuckHours();
+        var res = { status: 'healthy', waiting: 0 };
+        var miss = this._qhSchemaMissing();
+        if (miss.length) {
+            res.status = 'unavailable';
+            if (detail) {
+                res.reason = 'This release does not expose the expected install-queue tables or fields (missing: ' + miss.join(', ') + ').';
+                res.thresholdHours = hours; res.owners = []; res.releasable = false;
+            }
+            return res;
+        }
+        var q = this._qhMessages(detail);
+        res.waiting = q.waiting;
+        var owners = this._qhLockOwners(detail, hours);
+        var stale = false, releasable = false;
+        for (var i = 0; i < owners.list.length; i++) {
+            if (owners.list[i].stale) { stale = true; }
+            if (owners.list[i].releasable) { releasable = true; }
+        }
+        if (owners.list.length) { res.status = stale ? 'blocked' : 'busy'; }
+        if (detail) {
+            res.thresholdHours = hours;
+            res.checkedAt = '' + new GlideDateTime().getDisplayValue();
+            res.queue = q;
+            res.owners = owners.list;
+            res.ownersTruncated = owners.truncated;
+            res.releasable = releasable;
+        }
+        return res;
+    },
+
+    // Tabelle e campi attesi (verificati su Brazil). Restituisce cio' che manca.
+    _qhSchemaMissing: function() {
+        var miss = [];
+        for (var t in this.QH_SCHEMA) {
+            if (!this.QH_SCHEMA.hasOwnProperty(t)) { continue; }
+            var gr = new GlideRecord(t);
+            if (!gr.isValid()) { miss.push(t); continue; }
+            var f = this.QH_SCHEMA[t];
+            for (var i = 0; i < f.length; i++) {
+                if (!gr.isValidField(f[i])) { miss.push(t + '.' + f[i]); }
+            }
+        }
+        return miss;
+    },
+
+    // Soglia in ore oltre la quale un albero senza aggiornamenti e' "fermo".
+    // La proprieta' e' opzionale: non e' nell'update set, perche' ogni release e'
+    // un set completo e la riporterebbe al default a ogni upgrade.
+    _stuckHours: function() {
+        var h = parseFloat(gs.getProperty(this.QH_HOURS_PROP, '' + this.QH_HOURS_DEFAULT));
+        if (isNaN(h)) { h = this.QH_HOURS_DEFAULT; }
+        return (this.QH_HOURS_MIN > h) ? this.QH_HOURS_MIN : h;
+    },
+
+    // Valori di sys_execution_tracker.state letti da sys_choice (lingua en),
+    // come lo sblocco manuale; i default sono quelli osservati su Brazil.
+    _trackerStates: function() {
+        if (this._qhStates) { return this._qhStates; }
+        var v = { pending: '0', running: '1', successful: '2', failed: '3', cancelled: '4' };
+        var c = new GlideRecord('sys_choice');
+        c.addQuery('name', 'sys_execution_tracker');
+        c.addQuery('element', 'state');
+        c.addQuery('language', 'en');
+        c.setLimit(20);
+        c.query();
+        while (c.next()) {
+            var k = ('' + c.getValue('label')).toLowerCase();
+            if (v.hasOwnProperty(k)) { v[k] = '' + c.getValue('value'); }
+        }
+        var name = {};
+        for (var n in v) { if (v.hasOwnProperty(n)) { name[v[n]] = n; } }
+        this._qhStates = { v: v, name: name };
+        return this._qhStates;
+    },
+    // Etichetta leggibile di uno stato del tracker ("Failed"), per i messaggi.
+    _stateLabel: function(value, st) {
+        var n = st.name['' + value];
+        return n ? (n.charAt(0).toUpperCase() + n.substring(1)) : ('state ' + value);
+    },
+
+    // Ore trascorse da un datetime interno (UTC); -1 se vuoto. Non arrotondato:
+    // i confronti con la soglia usano il valore esatto, la UI quello arrotondato.
+    _ageHours: function(utc) {
+        if (!utc) { return -1; }
+        return (new GlideDateTime().getNumericValue() - new GlideDateTime('' + utc).getNumericValue()) / 3600000;
+    },
+    _round1: function(h) { return Math.round(h * 10) / 10; },
+    // Durata leggibile per i messaggi: minuti sotto l'ora, ore con un decimale sopra.
+    _fmtHours: function(h) { return (1 > h) ? (Math.max(0, Math.round(h * 60)) + ' min') : (this._round1(h) + ' h'); },
+
+    // Copia di un record in un oggetto (solo campi valorizzati): forma del backup.
+    _recordToObj: function(gr) {
+        var o = { _table: '' + gr.getTableName() }, els = gr.getElements(), n = els.size ? els.size() : els.length;
+        for (var i = 0; i < n; i++) {
+            var el = els.get ? els.get(i) : els[i], name = '' + el.getName(), val = gr.getValue(name);
+            if (val !== null && val !== '') { o[name] = '' + val; }
+        }
+        return o;
+    },
+
+    // detail_message del tracker radice, es.
+    // "operation=app_install, app=<sys_id sys_store_app>, version=1.2.3, baseVersion=null, ..."
+    _parseOpDetail: function(dm) {
+        dm = '' + (dm || '');
+        function pick(k) {
+            var m = dm.match(new RegExp('(?:^|,)\\s*' + k + '=([^,]*)'));
+            var s = m ? ('' + m[1]).trim() : '';
+            return s === 'null' ? '' : s;
+        }
+        var app = pick('app');
+        return { operation: pick('operation'), appId: /^[0-9a-f]{32}$/i.test(app) ? app : '', version: pick('version') };
+    },
+
+    // Albero dei tracker sotto una radice, un livello per query (come
+    // _dependencyTreeForBatch). truncated=true se supera QH_TREE_CAP o
+    // QH_TREE_DEPTH: in quel caso l'albero non e' verificabile per intero.
+    _opTree: function(rootId) {
+        var root = new GlideRecord('sys_execution_tracker');
+        if (!root.get(rootId)) { return null; }
+        var nodes = [{ sysId: rootId, state: '' + root.getValue('state'), updated: '' + root.getValue('sys_updated_on') }];
+        var seen = {}, frontier = [rootId], truncated = false;
+        seen[rootId] = true;
+        for (var depth = 0; depth < this.QH_TREE_DEPTH && frontier.length && !truncated; depth++) {
+            var gr = new GlideRecord('sys_execution_tracker');
+            gr.addQuery('parent', 'IN', frontier.join(','));
+            gr.setLimit(this.QH_TREE_CAP + 1);
+            gr.query();
+            var next = [];
+            while (gr.next()) {
+                var id = gr.getUniqueValue();
+                if (seen[id]) { continue; }
+                if (nodes.length >= this.QH_TREE_CAP) { truncated = true; break; }
+                seen[id] = true;
+                nodes.push({ sysId: id, state: '' + gr.getValue('state'), updated: '' + gr.getValue('sys_updated_on') });
+                next.push(id);
+            }
+            frontier = next;
+        }
+        if (!truncated && frontier.length) {
+            // profondita' esaurita: se c'e' ancora un livello sotto, non lo conosciamo
+            var more = new GlideRecord('sys_execution_tracker');
+            more.addQuery('parent', 'IN', frontier.join(','));
+            more.setLimit(1);
+            more.query();
+            truncated = more.hasNext();
+        }
+        var last = '';
+        for (var i = 0; i < nodes.length; i++) { if (nodes[i].updated > last) { last = nodes[i].updated; } }
+        return { root: root, nodes: nodes, lastUpdated: last, truncated: truncated };
+    },
+
+    // Messaggi della coda NowMQ delle operazioni. waiting = non DELIVERED.
+    _qhMessages: function(detail) {
+        var out = { waiting: 0 };
+        var ga = new GlideAggregate('sys_nowmq_message');
+        ga.addQuery('subject', this.QH_SUBJECT);
+        ga.addAggregate('COUNT');
+        if (detail) { ga.addAggregate('MAX', 'attempt_count'); }
+        ga.groupBy('state');
+        ga.query();
+        var byState = {}, maxAtt = 0;
+        while (ga.next()) {
+            var st = '' + ga.getValue('state'), n = parseInt(ga.getAggregate('COUNT'), 10) || 0;
+            byState[st] = n;
+            if (st === 'DELIVERED') { continue; }
+            out.waiting += n;
+            if (detail) {
+                var a = parseInt(ga.getAggregate('MAX', 'attempt_count'), 10) || 0;
+                if (a > maxAtt) { maxAtt = a; }
+            }
+        }
+        if (!detail) { return out; }
+        out.byState = byState;
+        out.maxAttempts = maxAtt;
+        out.oldest = null;
+        if (out.waiting > 0) {
+            var h = new GlideRecord('sys_nowmq_message');
+            h.addQuery('subject', this.QH_SUBJECT);
+            h.addQuery('state', '!=', 'DELIVERED');
+            h.orderBy('sequence');
+            h.setLimit(1);
+            h.query();
+            if (h.next()) {
+                var body = '' + (h.getValue('body') || '');
+                out.oldest = {
+                    since:         this._fmtDateTime(h.getValue('sys_created_on')),
+                    attempts:      parseInt(h.getValue('attempt_count'), 10) || 0,
+                    lastAttempted: this._fmtDateTime(h.getValue('last_attempted')),
+                    expires:       this._fmtDateTime(h.getValue('queue_expiration')),
+                    trackerId:     (body.match(/"sys_execution_tracker_id"\s*:\s*"([0-9a-f]{32})"/) || [])[1] || ''
+                };
+            }
+        }
+        return out;
+    },
+
+    // Padlock di operazione (lock_key 'r*'), raggruppati per proprietario.
+    // I padlock con lock_key vuota o diversa (latch di cluster, sys_repo_config,
+    // ...) non vengono nemmeno letti.
+    _qhLockOwners: function(detail, hours) {
+        var st = this._trackerStates();
+        var p = new GlideRecord('sys_padlock');
+        p.addQuery('lock_key', 'STARTSWITH', 'r*');
+        p.orderBy('sys_created_on');
+        p.setLimit(this.QH_LOCK_CAP);
+        p.query();
+        var byKey = {}, keys = [];
+        while (p.next()) {
+            var k = '' + p.getValue('lock_key');
+            // hasOwnProperty, non !byKey[k]: nel Rhino dello scope global un array
+            // vuoto e' falsy (verificato su Brazil), quindi mai testare un array.
+            if (!byKey.hasOwnProperty(k)) { byKey[k] = []; keys.push(k); }
+            byKey[k].push({
+                sysId:    p.getUniqueValue(),
+                type:     '' + (p.getValue('resource_type') || ''),
+                resource: '' + (p.getValue('resource_id') || ''),
+                created:  '' + (p.getValue('sys_created_on') || ''),
+                updated:  '' + (p.getValue('sys_updated_on') || '')
+            });
+        }
+        var list = [];
+        for (var i = 0; i < keys.length && this.QH_OWNER_CAP > list.length; i++) {
+            list.push(this._qhLockOwner(keys[i].substring(2), byKey[keys[i]], detail, hours, st));
+        }
+        return { list: list, truncated: keys.length > list.length };
+    },
+
+    // Un proprietario di lock. stale = albero E lock fermi oltre la soglia.
+    // releasable = stale + radice Running di un'operazione di install + albero
+    // verificabile per intero. Altrimenti reason spiega perche' non si propone.
+    _qhLockOwner: function(rawId, locks, detail, hours, st) {
+        var o = { trackerId: rawId, lockCount: locks.length, state: 'missing', stale: false, releasable: false, reason: '' };
+        var newestLock = '', oldestLock = '';
+        for (var j = 0; j < locks.length; j++) {
+            var t = (locks[j].updated > locks[j].created) ? locks[j].updated : locks[j].created;
+            if (t > newestLock) { newestLock = t; }
+            if (!oldestLock || oldestLock > locks[j].created) { oldestLock = locks[j].created; }
+        }
+        var lockAge = this._ageHours(newestLock);
+        var id = this._sysId(rawId);
+        var tree = id ? this._opTree(id) : null;
+        if (!tree) {
+            o.stale = lockAge >= hours;
+            o.reason = id ? 'The operation that holds the lock no longer exists. Release it manually (see the README).'
+                          : 'Unrecognised lock owner.';
+        } else {
+            var root = tree.root, rs = '' + root.getValue('state'), idle = this._ageHours(tree.lastUpdated);
+            o.state = st.name[rs] || ('state ' + rs);
+            o.idleHours = this._round1(idle);
+            o.treeSize = tree.nodes.length;
+            o.toFail = 0;
+            for (var n = 0; n < tree.nodes.length; n++) {
+                if (tree.nodes[n].state === st.v.running || tree.nodes[n].state === st.v.pending) { o.toFail++; }
+            }
+            o.stale = (idle >= hours) && (lockAge >= hours);
+            if (!o.stale) {
+                o.reason = '';
+            } else if (rs !== st.v.running) {
+                o.reason = 'The operation that holds the lock is ' + this._stateLabel(rs, st) +
+                           ', not running. Release it manually (see the README).';
+            } else if (('' + (root.getValue('parent') || '')).length) {
+                o.reason = 'The lock owner is not the root of an operation.';
+            } else if ('' + root.getValue('type') !== this.QH_SUBJECT) {
+                o.reason = 'The lock owner is not an application install operation.';
+            } else if (tree.truncated) {
+                o.reason = 'The operation is too large to verify (more than ' + this.QH_TREE_CAP + ' trackers).';
+            } else {
+                o.releasable = true;
+            }
+            if (detail) {
+                var d = this._parseOpDetail(root.getValue('detail_message'));
+                o.lastUpdated = this._fmtDateTime(tree.lastUpdated);
+                o.node = '' + (root.getValue('node') || '');
+                o.percent = parseInt(root.getValue('percent_complete'), 10) || 0;
+                o.operation = d.operation;
+                o.appId = d.appId;
+                o.version = d.version;
+                o.app = '';
+                if (d.appId) {
+                    var a = new GlideRecord('sys_store_app');
+                    if (a.get(d.appId)) { o.app = '' + (a.getValue('name') || ''); o.scope = '' + (a.getValue('scope') || ''); }
+                }
+                o.message = ('' + (root.getValue('message') || '')).substring(0, 300);
+            }
+        }
+        if (detail) {
+            o.lockedSince = this._fmtDateTime(oldestLock);
+            o.lockAgeHours = this._round1(lockAge);
+            o.locks = [];
+            for (var q = 0; q < locks.length; q++) { o.locks.push({ type: locks[q].type, resource: locks[q].resource }); }
+        }
+        return o;
+    },
+
+    // Verifiche dello sblocco, in sola lettura. Usato da _releaseStuck e
+    // richiamabile da script per una prova a secco. Restituisce:
+    //   { ok:true, nothing:true, message }   nessun lock: niente da fare
+    //   { ok:false, error }                  una verifica non e' passata
+    //   { ok:true, rootId, key, hours, toFail[], locks[], lastUpdated, detail }
+    _releasePlan: function(id) {
+        var NOTHING = ' Nothing was changed.';
+        var miss = this._qhSchemaMissing();
+        if (miss.length) { return { ok: false, error: 'Not available on this release (missing: ' + miss.join(', ') + ').' + NOTHING }; }
+        var hours = this._stuckHours(), st = this._trackerStates(), key = 'r*' + id;
+        var locks = [];
+        var p = new GlideRecord('sys_padlock');
+        p.addQuery('lock_key', key);
+        p.setLimit(this.QH_LOCK_CAP);
+        p.query();
+        while (p.next()) { locks.push(this._recordToObj(p)); }
+        if (!locks.length) { return { ok: true, nothing: true, message: 'Nothing to release: this operation holds no resource lock.' }; }
+
+        var tree = this._opTree(id);
+        if (!tree) { return { ok: false, error: 'The operation tracker was not found.' + NOTHING }; }
+        var root = tree.root, rs = '' + root.getValue('state');
+        if (('' + (root.getValue('parent') || '')).length) { return { ok: false, error: 'The tracker is not the root of the operation.' + NOTHING }; }
+        if ('' + root.getValue('type') !== this.QH_SUBJECT) { return { ok: false, error: 'The tracker is not an application install operation.' + NOTHING }; }
+        if (rs !== st.v.running) { return { ok: false, error: 'The operation is not running (state: ' + this._stateLabel(rs, st) + ').' + NOTHING }; }
+        if (tree.truncated) { return { ok: false, error: 'The operation is too large to verify (more than ' + this.QH_TREE_CAP + ' trackers).' + NOTHING }; }
+        var toFail = [];
+        for (var i = 0; i < tree.nodes.length; i++) {
+            var age = this._ageHours(tree.nodes[i].updated);
+            if (hours > age) {
+                return { ok: false, error: 'A tracker of this operation was updated ' + this._fmtHours(age) + ' ago (threshold ' +
+                         hours + ' h): the install may still be alive.' + NOTHING };
+            }
+            if (tree.nodes[i].state === st.v.running || tree.nodes[i].state === st.v.pending) { toFail.push(tree.nodes[i].sysId); }
+        }
+        for (var j = 0; j < locks.length; j++) {
+            var lu = locks[j].sys_updated_on || '', lc = locks[j].sys_created_on || '';
+            var lAge = this._ageHours(lu > lc ? lu : lc);
+            if (hours > lAge) {
+                return { ok: false, error: 'A lock of this operation is only ' + this._fmtHours(lAge) + ' old (threshold ' + hours + ' h).' + NOTHING };
+            }
+        }
+        return { ok: true, rootId: id, key: key, hours: hours, toFail: toFail, locks: locks, treeSize: tree.nodes.length,
+                 lastUpdated: tree.lastUpdated, detail: this._parseOpDetail(root.getValue('detail_message')) };
+    },
+
+    // Sblocco vero e proprio: verifiche (_releasePlan), backup, tracker a
+    // Failed, cancellazione dei padlock con la lock_key esatta, verifica finale.
+    // Senza backup salvato non si modifica nulla.
+    _releaseStuck: function(id) {
+        // '' + : le API Glide restituiscono stringhe Java. Su una stringa Java,
+        // replace() con una regex e' ambiguo e lancia un InternalError (CP4).
+        var user = '' + gs.getUserName();
+        var plan = this._releasePlan(id);
+        if (plan.ok && plan.nothing) {
+            gs.info('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ': nothing to release');
+            return { ok: true, released: false, message: plan.message };
+        }
+        if (!plan.ok) {
+            gs.warn('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ' refused: ' + plan.error);
+            return { ok: false, released: false, error: plan.error };
+        }
+        var st = this._trackerStates(), now = '' + new GlideDateTime().getValue();
+
+        // 1. Backup: solo i record che verranno modificati o cancellati.
+        var trackers = [];
+        for (var i = 0; i < plan.toFail.length; i++) {
+            var t = new GlideRecord('sys_execution_tracker');
+            if (t.get(plan.toFail[i])) { trackers.push(this._recordToObj(t)); }
+        }
+        var backup = {
+            _note: 'Now Plugin Updater - backup taken before releaseStuckOperation. trackers_to_fail are shown with their state ' +
+                   'before the change; padlocks_to_delete are the deleted sys_padlock records.',
+            taken_utc: now, by: user, threshold_hours: plan.hours, root: id, lock_key: plan.key,
+            trackers_to_fail: trackers, padlocks_to_delete: plan.locks
+        };
+        var fileName = this.QH_BACKUP_PREFIX + now.replace(/[^0-9]/g, '') + '.json';
+        var attId = '';
+        try {
+            var rootGr = new GlideRecord('sys_execution_tracker');
+            if (rootGr.get(id)) { attId = '' + (new GlideSysAttachment().write(rootGr, fileName, 'application/json', JSON.stringify(backup)) || ''); }
+        } catch (eB) {
+            gs.error('[PluginUpdater] releaseStuckOperation tracker=' + id + ' backup error: ' + eB);
+        }
+        if (!this._sysId(attId)) {
+            gs.error('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ': backup not saved, nothing changed');
+            return { ok: false, released: false, error: 'The backup could not be saved, so nothing was changed.' };
+        }
+
+        // 2. Tracker Running/Pending dell'albero -> Failed, con un messaggio esplicativo.
+        var note = ('Marked Failed by Now Plugin Updater (' + user + ', ' + now + ' UTC): no progress since ' + plan.lastUpdated +
+                    ' UTC and its resource locks were blocking the install queue. Backup: ' + fileName + ' on this tracker.').substring(0, 4000);
+        var failed = 0, failErr = 0;
+        for (var k = 0; k < plan.toFail.length; k++) {
+            var u = new GlideRecord('sys_execution_tracker');
+            if (!u.get(plan.toFail[k])) { failErr++; continue; }
+            var s = '' + u.getValue('state');
+            if (s !== st.v.running && s !== st.v.pending) { continue; } // cambiato nel frattempo: non lo tocco
+            u.setValue('state', st.v.failed);
+            u.setValue('message', note);
+            if (u.update()) { failed++; } else { failErr++; }
+        }
+
+        // 3. Solo i padlock con la lock_key esatta (alcuni possono essere gia'
+        //    stati rilasciati dalla piattaforma al passo 2).
+        var del = 0, delErr = 0;
+        var p = new GlideRecord('sys_padlock');
+        p.addQuery('lock_key', plan.key);
+        p.setLimit(this.QH_LOCK_CAP);
+        p.query();
+        while (p.next()) {
+            p.setWorkflow(false);
+            if (p.deleteRecord()) { del++; } else { delErr++; }
+        }
+
+        // 4. Verifica finale.
+        var ga = new GlideAggregate('sys_padlock');
+        ga.addQuery('lock_key', plan.key);
+        ga.addAggregate('COUNT');
+        ga.query();
+        var left = ga.next() ? (parseInt(ga.getAggregate('COUNT'), 10) || 0) : 0;
+
+        gs.info('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ' app=' + plan.detail.appId +
+                ' version=' + plan.detail.version + ' idleSince=' + plan.lastUpdated + 'Z trackersFailed=' + failed + '/' +
+                plan.toFail.length + ' locksDeleted=' + del + '/' + plan.locks.length + ' locksLeft=' + left +
+                ' backup=sys_attachment:' + attId);
+        return {
+            ok: left === 0 && failErr === 0 && delErr === 0, released: true,
+            trackersFailed: failed, trackersExpected: plan.toFail.length, trackerErrors: failErr,
+            locksDeleted: del, locksExpected: plan.locks.length, locksLeft: left, lockErrors: delErr,
+            backupId: attId, backupFile: fileName,
+            message: left === 0 ? 'The blocked operation was released. Queued installs should start within a minute or two.'
+                                : (left + ' lock(s) could not be released. Check the system log for [PluginUpdater].')
+        };
     },
 
     type: 'PluginUpdaterAjax'
