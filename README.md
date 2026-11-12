@@ -125,7 +125,7 @@ The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, 
 | `src/fix_scripts/reset_npu_instance.js` | Test-instance reset — removes the app completely so a from-scratch install can be re-tested |
 | `src/fix_scripts/release_orphan_install_lock.js` | Background-script alternative to *Release blocked operation…* (1.7.0) — dry run by default |
 | `NowPluginUpdater170.xml` | Exported update set (v1.7.0) — portable install file, 59 objects |
-| `NowPluginUpdater1xx.xml` | Earlier releases, kept for reference |
+| `Old Releases/NowPluginUpdater1xx.xml` | Earlier releases (1.3.7–1.6.6), kept for reference and for lineage checks |
 | `index.html` | Self-contained distribution page (screens, download, install/use guide) — published to Netlify |
 | `Now-Plugin-Updater-Briefing.html` | Build briefing |
 | `Update-Sets/README.md` | Update-set export/import notes |
