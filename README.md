@@ -2,7 +2,7 @@
 
 A ServiceNow administration application that lets an administrator discover, select, and batch-install the available updates for Store applications on an instance — replacing the per-app flow in the native Application Manager.
 
-**Version 1.7.0 · by Gianmario Marongiu · Global scope · no build, no external dependencies.**
+**Version 1.7.1 · by Gianmario Marongiu · Global scope · no build, no external dependencies.**
 
 ## What it does
 
@@ -16,6 +16,24 @@ The native Application Manager updates one application at a time. Now Plugin Upd
 - **No stored credentials** — installs are triggered with the admin's own session; no passwords or tokens are stored.
 - **Built on the platform** — a single UI Page using vanilla JavaScript (no React, no bundler, no external libraries).
 - **Install queue health** — the Monitor shows whether the platform's own install queue is moving, and lets an admin release an operation that died and left its locks behind (1.7.0).
+
+## What's new in 1.7.1
+
+A bug-fix release from a full review of 1.7.0 plus live tests: no new features.
+
+- **Select header checkbox** is tri-state (all, none, some) and the confirmation lists page through 25 applications at a time, alphabetically, so no row is capped away.
+- **Applications already installing are not selectable again**, in this tab or in a second one, and **a second launch cannot start** while one is running. *Cancel queued* stops the browser and reports how many installs the platform had already queued (they stay *Queued* and will install).
+- **An expired session stops the launch** with "Session expired — sign in again and relaunch the remaining apps." The rows not launched are marked in one call; the row already launched is never marked failed by mistake. The install POST is no longer retried blindly.
+- **Guarded row updates.** A row that is already *Complete*, *Cancelled* or *Failed* is not overwritten by a late write, and *Failed* rows are re-verified against the installed version.
+- **A Monitor and a Store sync that recover.** Every GlideAjax call has a 45 s watchdog: one failed poll no longer stops the Monitor or leaves the sync stuck. The sync ends on the server outcome, follows a sync started from the Application Manager, and no longer reads stale platform values (`sn_appclient.apps_last_sync_time`, `apps_sync_progress`).
+- **The sync leaves your update set alone.** Its runtime state (`x_npu.sync_runtime_state`) is written with workflow off, so nothing is captured in your current update set, and the one-shot sync job is inserted active with its own sys_id, so it starts reliably.
+- **Fail-closed maintenance.** Release of a stuck install re-checks that the install is still dead right before the first write and refuses if anything changed; the reset script guards empty lists.
+- **Correct dependency impact** (the highest required version is kept) and a visible error when the impact lookup fails.
+- **Smaller fixes:** numeric version sorting, the launch summary count, the Monitor keeps focus and scroll on refresh, keyboard access for the *Installing* card and the dialog, the real tracker percentage when the worker has none, one consistent time source.
+
+**Certified on Brazil Patch 2** (`glide-brazil-08-25-2026__patch2-10-22-2026`): from-scratch install (59 / inserted 59 / collisions 0) and a 1.7.0 → 1.7.1 upgrade (59 / updated 53 / inserted 6 / collisions 0), both with 0 preview problems, and 12 functional tests driven in the browser (see `plugin_updater_spec.md` §18.7). **Australia and Zurich are not tested yet.**
+
+**Known notes:** on instances upgraded from earlier releases the old properties `x_npu.sync_state` and `__npu_sync_job_id` stay; 1.7.1 neither reads nor writes them. Two behaviours were observed but not investigated: the Monitor's *Checked* time is in the instance time zone while *STORE SYNCED* is in UTC, and the Home *Installing* card shows 0 while the batch rows are still queued.
 
 ## What's new in 1.7.0
 
@@ -77,7 +95,7 @@ The full history is in [`plugin_updater_spec.md`](plugin_updater_spec.md) §20.
 ## Get started
 
 ### 1. Download
-Download the update set — a single portable XML file (`NowPluginUpdater170.xml`) containing the full app (UI Page, server logic, table, ACLs, module, scheduled job).
+Download the update set — a single portable XML file (`NowPluginUpdater171.xml`) containing the full app (UI Page, server logic, table, ACLs, module, scheduled job).
 
 A self-contained landing page, [`index.html`](index.html), embeds the same XML and offers it as a download, with screenshots and these instructions. Open it in a browser (desktop or mobile), or visit the published Netlify site.
 
@@ -85,7 +103,7 @@ A self-contained landing page, [`index.html`](index.html), embeds the same XML a
 Import and commit the update set on your instance:
 
 1. Open **All → System Update Sets → Retrieved Update Sets**.
-2. Click **Import Update Set from XML**, choose the downloaded `NowPluginUpdater170.xml`, and upload.
+2. Click **Import Update Set from XML**, choose the downloaded `NowPluginUpdater171.xml`, and upload.
 3. Open the retrieved record and click **Preview Update Set**; resolve any preview problems.
 4. Click **Commit Update Set**.
 
@@ -108,10 +126,10 @@ Because the application list mirrors the Application Manager, a few platform-bun
 
 | Family | Status |
 |--------|--------|
-| Australia (Patch 6, Patch 7) | Verified — dependency impact, tracker, batches, upgrade path |
+| Australia (Patch 6, Patch 7) | Verified up to 1.6.6 — dependency impact, tracker, batches, upgrade path |
 | Brazil (Patch 1) | **v1.6.6 certified** — real batches, Monitor, Polaris rendering, from-scratch install |
-| Brazil (Patch 2) | **v1.7.0 certified** — from-scratch install and a clean 1.6.6 → 1.7.0 upgrade on two instances, with 0 preview problems; install queue health tested on a development instance: detection, simulated blocked queue with a real install waiting, release from the Monitor and from the background script |
-| Zurich | Not verified |
+| Brazil (Patch 2) | **v1.7.1 certified** (from scratch, 1.7.0 → 1.7.1 upgrade on two instances, 12 browser tests); **v1.7.0 certified** — from-scratch install and a clean 1.6.6 → 1.7.0 upgrade on two instances, with 0 preview problems; install queue health tested on a development instance: detection, simulated blocked queue with a real install waiting, release from the Monitor and from the background script |
+| Australia, Zurich | **1.7.x not tested** (Australia verified up to 1.6.6) |
 
 The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, `sys_execution_tracker`; since 1.7.0 also `sys_padlock` and `sys_nowmq_message`), so each new release family should be re-checked.
 
@@ -124,8 +142,9 @@ The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, 
 | `src/fix_scripts/repair_install_log_140.js` | One-off background script — reclassifies historical rows wrongly marked Complete (dry-run by default) |
 | `src/fix_scripts/reset_npu_instance.js` | Test-instance reset — removes the app completely so a from-scratch install can be re-tested |
 | `src/fix_scripts/release_orphan_install_lock.js` | Background-script alternative to *Release blocked operation…* (1.7.0) — dry run by default |
-| `NowPluginUpdater170.xml` | Exported update set (v1.7.0) — portable install file, 59 objects |
-| `Old Releases/NowPluginUpdater1xx.xml` | Earlier releases (1.3.7–1.6.6), kept for reference and for lineage checks |
+| `NowPluginUpdater171.xml` | Exported update set (v1.7.1) — portable install file, 59 objects |
+| `v171_spec.md` | Specification of the 1.7.1 bug-fix release (review findings and test plan) |
+| `Old Releases/NowPluginUpdater1xx.xml` | Earlier releases (1.3.7–1.7.0), kept for reference and for lineage checks |
 | `index.html` | Self-contained distribution page (screens, download, install/use guide) — published to Netlify |
 | `Now-Plugin-Updater-Briefing.html` | Build briefing |
 | `Update-Sets/README.md` | Update-set export/import notes |
@@ -133,7 +152,7 @@ The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, 
 
 ## Upgrading
 
-**From 1.5.x or 1.6.x:** import, preview and commit `NowPluginUpdater170.xml` as for a new install. Upgrading from the published 1.6.6 previews with 0 problems.
+**From 1.5.x, 1.6.x or 1.7.0:** import, preview and commit `NowPluginUpdater171.xml` as for a new install. Upgrading from the published 1.7.0 (and 1.6.6) previews with 0 problems.
 
 **From 1.3.x:** after committing the update set, run `src/fix_scripts/repair_install_log_140.js` once in **Scripts - Background**. Because of a bug fixed in 1.4.0, existing rows may claim *Complete* for installs that never applied; the script reclassifies them against the version actually installed.
 
