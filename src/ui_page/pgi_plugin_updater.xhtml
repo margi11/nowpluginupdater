@@ -278,6 +278,7 @@ html,body{background:#f5f5f7;margin:0}
 #app .npu-alert-ok{background:rgba(52,199,89,.10);color:#1a6e2e}
 #app .npu-alert-warn{background:rgba(255,159,10,.12);color:#8a5a00}
 #app .npu-alert-info{background:var(--accent-soft);color:var(--text-2)}
+#app .npu-refresh-warn{color:#8a5a00}
 /* Dialog: elenco delle modifiche e checkbox obbligatoria. Stanno fuori dal
    paragrafo del corpo: dentro un paragrafo il browser lo chiuderebbe prima della
    lista. ATTENZIONE: in questo blocco style niente parentesi angolari, nemmeno nei
@@ -669,7 +670,9 @@ html,body{background:#f5f5f7;margin:0}
       +   kpi('Apps', storeTotal, 'managed (active &amp; visible)','')
       +   kpi('Up to Date', num(a.appsUpToDate), 'no update available','success')
       +   kpi('Updates Available', avail, 'update pending', avail>0?'warning':'')
-      +   '<div class="kpi'+(inProg>0?' accent clickable':'')+'" id="kpi-inprogress" title="'+(inProg>0?'Open the running batch':'')+'"><div class="kpi-label">Installing</div>'
+      // v1.7.1 (O5) — la scheda cliccabile e' anche un controllo da tastiera.
+      +   '<div class="kpi'+(inProg>0?' accent clickable':'')+'" id="kpi-inprogress"'
+      +     (inProg>0?' role="button" tabindex="0" aria-label="Installing: '+esc(inProg)+' running now. Open the running batch" title="Open the running batch"':'')+'><div class="kpi-label">Installing</div>'
       +     '<div class="kpi-value">'+esc(inProg)+'</div><div class="kpi-sub">'+(inProg>0?'running now &#8226; open monitor':'running now')+'</div></div>'
       + '</div>'
       + '<div class="row-gap">'
@@ -688,7 +691,10 @@ html,body{background:#f5f5f7;margin:0}
     $('home-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     var hq=$('home-queue'); if(hq){ hq.onclick=function(){ openMonitor(S.currentBatch||''); }; }
     var ip=$('kpi-inprogress');
-    if(ip && inProg>0){ ip.onclick=function(){ ajax('getActiveBatch',{},function(e,d){ openMonitor((d&&d.batch)||''); }); }; }
+    if(ip && inProg>0){
+      ip.onclick=function(){ ajax('getActiveBatch',{},function(e,d){ openMonitor((d&&d.batch)||''); }); };
+      ip.onkeydown=function(e){ if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){ e.preventDefault(); ip.onclick(); } };
+    }
   }
   // `sub` arriva con entità HTML già pronte, quindi non va escapato; `label` sì,
   // per coerenza con `val` — così un domani un'etichetta dinamica resta sicura.
@@ -915,6 +921,7 @@ html,body{background:#f5f5f7;margin:0}
       if(S.wizSort && S.wizSort.k===k){ S.wizSort.dir=(S.wizSort.dir===1?-1:1); }
       else { S.wizSort={k:k,dir:1}; }
       rerender();
+      restoreFocus($(containerId), 'th.sortable[data-k="'+k+'"]');   // O5
     }
     for(var j=0;j<ths.length;j++){
       ths[j].onclick=function(){ apply(this); };
@@ -1029,6 +1036,7 @@ html,body{background:#f5f5f7;margin:0}
         S.pageSize[view]=parseInt(this.value,10)||25;
         resetPage(view);   // cambiare la dimensione rimescola i confini di pagina
         rerender();
+        restoreFocus($(containerId), 'select[data-pgsize]');   // O5
       };
     }
     pager.onclick=function(e){
@@ -1039,6 +1047,7 @@ html,body{background:#f5f5f7;margin:0}
       else if(v==='next'){ S.page[view]=(S.page[view]||1)+1; }
       else { S.page[view]=parseInt(v,10)||1; }
       rerender();
+      restoreFocus($(containerId), '.npu-pg[data-pg="'+v+'"]', '.npu-pg');   // O5
     };
   }
 
@@ -1171,7 +1180,7 @@ html,body{background:#f5f5f7;margin:0}
     if(tb1){
       tb1.onclick=function(e){
         var b=e.target.closest?e.target.closest('.tree-row-btn'):null;
-        if(b){ var sc=b.getAttribute('data-id'); S.treeOpenW1[sc]=!S.treeOpenW1[sc]; renderWizard1(); }
+        if(b){ var sc=b.getAttribute('data-id'); S.treeOpenW1[sc]=!S.treeOpenW1[sc]; renderWizard1(); restoreFocus($('wizard1-body'), '.tree-row-btn[data-id="'+sc+'"]'); }
       };
     }
     wireSuitePanel('w1-suite');
@@ -1259,7 +1268,7 @@ html,body{background:#f5f5f7;margin:0}
       };
       tb.onclick=function(e){
         var b=e.target.closest?e.target.closest('.tree-row-btn'):null;
-        if(b){ var sc=b.getAttribute('data-id'); S.treeOpenSel[sc]=!S.treeOpenSel[sc]; renderSelect(); }
+        if(b){ var sc=b.getAttribute('data-id'); S.treeOpenSel[sc]=!S.treeOpenSel[sc]; renderSelect(); restoreFocus($('sel-table'), '.tree-row-btn[data-id="'+sc+'"]'); }
       };
     }
     var ac=$('sel-allcheck');
@@ -1512,7 +1521,7 @@ html,body{background:#f5f5f7;margin:0}
         finishLaunch(L, 'Error creating batch: '+((d&&d.error)||e||'unknown'));
         return;
       }
-      L.batch=d.batch; S.currentBatch=d.batch;
+      L.batch=d.batch; selectMonBatch(d.batch);
       var byApp={}; (d.rows||[]).forEach(function(r){ if(r && r.logSysId){ byApp[r.sysId]=r; } });
       for(var q=0;q<apps.length;q++){
         var r=byApp[apps[q].sysId];
@@ -1756,11 +1765,18 @@ html,body{background:#f5f5f7;margin:0}
   function monitorActive(){ var el=document.querySelector('.view[data-view="monitor"]'); return !!(el && el.classList.contains('active')); }
   function openMonitor(batch){
     showView('monitor');
-    S.queueResult=null; loadQueueHealth();   // v1.7.0: stato della coda a ogni apertura
-    if(batch){ S.currentBatch=batch; loadBatchList(batch); startMonitorPolling(); }
-    else { ajax('getMyLatestBatch',{},function(e,d){ S.currentBatch=(d&&d.batch)||''; loadBatchList(S.currentBatch); if(S.currentBatch){ startMonitorPolling(); } else { renderMonitorEmpty(); } }); }
+    if(!S.releasing){ S.queueResult=null; }
+    loadQueueHealth();   // v1.7.0: stato della coda a ogni apertura
+    if(batch){ selectMonBatch(batch); loadBatchList(batch); startMonitorPolling(); }
+    else { ajax('getMyLatestBatch',{},function(e,d){ selectMonBatch((d&&d.batch)||''); loadBatchList(S.currentBatch); if(S.currentBatch){ startMonitorPolling(); } else { renderMonitorEmpty(); } }); }
   }
-  function renderMonitorEmpty(){ $('mon-body').innerHTML='<div class="empty">No install batches yet. Launch updates from the Wizard.</div>'; var s=$('mon-batch'); if(s){ s.innerHTML='<option value="">(no batches)</option>'; } }
+  // Cambio di batch: la cache delle dipendenze, l'avviso di Cancel queued e la
+  // chiave di rendering appartengono al batch precedente (O2, O4).
+  function selectMonBatch(batch){
+    if(batch!==S.currentBatch){ S.monNotice=null; S.monKey=''; S.monDepsBatch=''; S.monDepCache={}; S.monDepFinal={}; S.monData=null; }
+    S.currentBatch=batch;
+  }
+  function renderMonitorEmpty(){ $('mon-body').innerHTML='<div class="empty">No install batches yet. Launch updates from the Wizard.</div>'; S.monKey=''; var s=$('mon-batch'); if(s){ s.innerHTML='<option value="">(no batches)</option>'; } }
   function loadBatchList(selected){
     ajax('listBatches',{},function(e,d){
       var batches=(d&&d.batches)||[]; var sel=$('mon-batch'); if(!sel) return;
@@ -1781,36 +1797,108 @@ html,body{background:#f5f5f7;margin:0}
       }
     });
   }
-  function startMonitorPolling(){ if(S.monTimer){ clearTimeout(S.monTimer); } pollMonitor(); }
+  function monIsActive(d){ var c=(d&&d.counts)||{}; return ((c.installing||0)>0) || ((c.queued||0)>0); }
+  function startMonitorPolling(){ if(S.monTimer){ clearTimeout(S.monTimer); S.monTimer=null; } pollMonitor(); }
+
+  // v1.7.1 (F06) — numero di sequenza: una risposta per un batch precedente (cambio
+  // di batch, Refresh now ripetuto) viene scartata invece di ridisegnare la vista
+  // sbagliata e cancellarne il timer. Una risposta fallita (o il timeout di
+  // ajax(), N1) non ferma il polling: si mantiene lo stato attivo precedente e si
+  // riprova con backoff 15 s -> 30 s -> 60 s, dicendolo accanto a "Last refreshed".
+  // v1.7.1 (O2) — il polling automatico chiede le dipendenze delle sole righe non
+  // finali (deps=active); quelle delle righe finali restano dalla risposta completa
+  // precedente. Una riga che diventa finale riceve una risposta completa in piu',
+  // cosi' le sue dipendenze riportano lo stato finale.
   function pollMonitor(){
     if(!monitorActive()) return;
     if(!S.currentBatch){ renderMonitorEmpty(); return; }
     // "Refresh now" chiede anche la riconciliazione lato server (reconcile:1); il
     // polling automatico no, perche' ci pensa gia' il job ogni minuto.
     var force=!!S.monForce; S.monForce=false;
-    ajax('getBatchStatus', force?{ batch:S.currentBatch, reconcile:1 }:{ batch:S.currentBatch }, function(e,d){
-      if(!e && d && !d.error){ renderMonitor(d); }
-      // Il server espone 'installing', non 'running': con la chiave sbagliata il
-      // polling si fermava appena l'ultima app usciva dalla coda, congelando il
-      // monitor su uno stato non definitivo.
-      var c=(d&&d.counts)||{};
-      var act = ((c.installing||0)>0) || ((c.queued||0)>0);
-      if(S.monTimer){ clearTimeout(S.monTimer); S.monTimer=null; }
-      if(act){ S.monTimer=setTimeout(pollMonitor, 15000); }
+    var batch=S.currentBatch, seq=(S.monSeq=(S.monSeq||0)+1);
+    var full=force || S.monDepsBatch!==batch || !!S.monNeedFull;
+    S.monNeedFull=false;
+    var params={ batch:batch };
+    if(force){ params.reconcile=1; }
+    if(!full){ params.deps='active'; }
+    if(S.monTimer){ clearTimeout(S.monTimer); S.monTimer=null; }
+    ajax('getBatchStatus', params, function(e,d){
+      if(seq!==S.monSeq || batch!==S.currentBatch) return;   // risposta superata
+      if(!e && d && d.batch && d.batch!==batch) return;
+      if(e || !d || d.error){
+        S.monFails=(S.monFails||0)+1;
+        var wait=Math.min(15000*Math.pow(2, S.monFails-1), 60000);
+        S.monRefreshNote='Last refresh failed — retrying in '+Math.round(wait/1000)+' s';
+        paintMonRefresh();
+        var wasActive = (S.monData && S.monData.batch===batch) ? monIsActive(S.monData) : true;
+        if(wasActive){ S.monTimer=setTimeout(pollMonitor, wait); }
+        return;
+      }
+      S.monFails=0; S.monRefreshNote='';
+      if(full){ S.monDepsBatch=batch; }
+      mergeMonDeps(d, full);
+      renderMonitorIfChanged(d);
+      if(S.monNeedFull){ S.monTimer=setTimeout(pollMonitor, 1000); }
+      else if(monIsActive(d)){ S.monTimer=setTimeout(pollMonitor, 15000); }
     });
   }
+  function isFinalStatus(st){ return st==='complete' || st==='failed' || st==='cancelled'; }
+  function mergeMonDeps(d, full){
+    S.monDepCache=S.monDepCache||{}; S.monDepFinal=S.monDepFinal||{};
+    var rows=d.rows||[];
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i], k=r.logSysId;
+      if(r.depsOmitted){
+        r.deps=S.monDepCache[k]||[];
+        if(!S.monDepFinal[k]){ S.monNeedFull=true; }   // finita da poco: serve l'albero finale
+      } else {
+        S.monDepCache[k]=r.deps||[];
+        if(isFinalStatus(r.status)){ S.monDepFinal[k]=true; }
+      }
+    }
+  }
+  function paintMonRefresh(){
+    var el=$('mon-refreshed'); if(!el) return;
+    var d=S.monData||{};
+    el.textContent=(d.checkedAt?('Last refreshed '+d.checkedAt):'')+(S.monRefreshNote?((d.checkedAt?' · ':'')+S.monRefreshNote):'');
+    el.className=S.monRefreshNote?'npu-refresh-warn':'';
+  }
+
+  // v1.7.1 (F09, D4) — l'esito di Cancel queued resta visibile sopra la tabella:
+  // le righe gia' accodate dalla piattaforma non vengono annullate e si
+  // installeranno comunque, e va detto.
   function cancelQueued(){
     if(!S.currentBatch) return;
     var c=(S.monData&&S.monData.counts)||{}, q=c.queued||0;
     if(!q) return;
+    var batch=S.currentBatch;
     confirmModal({
       title:'Cancel '+plural(q,'queued install','queued installs')+'?',
-      bodyHtml:'The '+q+' '+(q===1?'application':'applications')+' still waiting in the queue will be marked <strong>cancelled</strong>.'
+      bodyHtml:'The '+q+' '+(q===1?'application':'applications')+' still waiting will be marked <strong>cancelled</strong>, '
+        + 'except those the platform has already queued: those cannot be removed from the platform queue and will still install.'
         + '<br/><br/>Installs already running cannot be interrupted and will finish.',
       confirmLabel:'Cancel '+q, cancelLabel:'Keep queued', danger:true,
+      opener:$('mon-cancel'),
       onConfirm:function(){
-        ajax('cancelRemaining',{ batch:S.currentBatch }, function(e,d){
-          if(!e && d && d.ok){ announce(d.cancelled+' queued installs cancelled'+(d.kept?(' · '+d.kept+' had already started and will finish'):'')); }
+        ajax('cancelRemaining',{ batch:batch }, function(e,d){
+          if(batch!==S.currentBatch) return;
+          var parts=[], cls='info';
+          if(e || !d || !d.ok){
+            cls='danger'; parts.push('Cancel queued failed: '+((d&&d.error)||e||'no answer from the server')+'.');
+          } else {
+            parts.push(plural(d.cancelled||0,'queued install was','queued installs were')+' cancelled.');
+            function wv(n){ return n+' '+(n===1?'was':'were'); }
+            if(d.alreadyQueued){ parts.push(wv(d.alreadyQueued)+' already queued on the platform and will still install.'); }
+            if(d.alreadyStarted){ parts.push(d.alreadyStarted+' had already started and will finish.'); }
+            if(d.installed){ parts.push(wv(d.installed)+' already installed.'); }
+            if(d.failed){ parts.push(d.failed+' had already ended below the target version and '+(d.failed===1?'is':'are')+' marked failed.'); }
+            if(d.launching){ parts.push(wv(d.launching)+' being launched from the browser and left as '+(d.launching===1?'it is':'they are')+'.'); }
+            if(d.changed){ parts.push(d.changed+' changed while cancelling and '+(d.changed===1?'was':'were')+' left as '+(d.changed===1?'it is':'they are')+'.'); }
+            if(d.alreadyQueued || d.alreadyStarted){ cls='warn'; }
+          }
+          S.monNotice={ cls:cls, text:parts.join(' ') };
+          announce(S.monNotice.text);
+          S.monKey='';   // ridisegno anche se i dati non cambiano
           startMonitorPolling();
         });
       }
@@ -1830,7 +1918,11 @@ html,body{background:#f5f5f7;margin:0}
       box.innerHTML='<div class="card npu-qh"><div class="card-body"><div class="npu-qh-head"><div class="npu-qh-title">Platform install queue</div></div>'
         + '<div class="npu-qh-text"><span class="spinner" style="display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:8px"></span>Checking the install queue&#8230;</div></div></div>';
     }
+    // v1.7.1 (F23) — numero di sequenza: una risposta superata (ad esempio partita
+    // prima di uno sblocco e arrivata dopo) non riporta in vita lo stato "blocked".
+    var seq=(S.qhSeq=(S.qhSeq||0)+1);
     ajax('getQueueHealth',{},function(e,d){
+      if(seq!==S.qhSeq) return;
       if(e || !d || (d.error && !d.status)){
         S.queue={ status:'unavailable', reason:(e||(d&&d.error)||'No data returned'), owners:[], waiting:0 };
       } else {
@@ -1875,7 +1967,9 @@ html,body{background:#f5f5f7;margin:0}
         + ((o&&o.idleHours!=null)?(' &#183; no progress for '+esc(o.idleHours)+' h'):'')
         + ' &#183; '+(w?esc(waitTxt):'the next install will wait')+'.';
       if(q.releasable){
-        act='<button class="btn btn-danger btn-sm" id="qh-release">Release blocked operation&#8230;</button>';
+        // F23 — durante uno sblocco il pulsante resta disabilitato anche se la
+        // scheda viene ridisegnata (Check again, Refresh now).
+        act='<button class="btn btn-danger btn-sm" id="qh-release"'+(S.releasing?' disabled':'')+'>Release blocked operation&#8230;</button>';
       } else {
         meta.push(esc((o&&o.reason)||'This lock cannot be released from this page.'));
       }
@@ -1906,6 +2000,7 @@ html,body{background:#f5f5f7;margin:0}
   }
 
   function openReleaseDialog(){
+    if(S.releasing){ return; }   // F23
     var q=S.queue, o=qhOwner(q);
     if(!o || !o.releasable){ return; }
     var locks=o.locks||[], li='';
@@ -1925,7 +2020,7 @@ html,body{background:#f5f5f7;margin:0}
         + 'Queued operations, other locks and running transactions are not touched. The stuck install will not complete: run it again afterwards.'
         + '<label class="npu-ack" for="qh-ack"><input type="checkbox" id="qh-ack" class="check"/>'
         +   '<span>I checked <a href="/v_cluster_transaction_list.do" target="_blank" rel="noopener">Active Transactions</a> and no transaction of this install is still running.</span></label>',
-      requireCheckId:'qh-ack', wide:true,
+      requireCheckId:'qh-ack', wide:true, opener:$('qh-release'),
       confirmLabel:'Release', cancelLabel:'Keep as is', danger:true,
       onConfirm:function(){ releaseStuck(o.trackerId); }
     });
@@ -1934,10 +2029,13 @@ html,body{background:#f5f5f7;margin:0}
   // La conferma "nessuna transazione attiva" parte solo da qui, cioe' solo dopo
   // la checkbox. Il server rifiuta qualsiasi chiamata senza.
   function releaseStuck(trackerId){
+    if(S.releasing){ return; }   // F23: un solo sblocco alla volta
+    S.releasing=true;
+    S.qhSeq=(S.qhSeq||0)+1;      // ogni lettura della coda partita prima e' superata
     S.queueResult={ cls:'info', html:'Releasing the blocked operation&#8230;' };
     renderQueueCard();
-    var rb=$('qh-release'); if(rb){ rb.disabled=true; }
     ajax('releaseStuckOperation',{ tracker_id:trackerId, confirm_no_active_tx:'true' },function(e,d){
+      S.releasing=false;
       var said;
       if(e || !d){
         said='Release failed: '+(e||'no response from the server');
@@ -1995,7 +2093,30 @@ html,body{background:#f5f5f7;margin:0}
       + '<div class="summary-text">'+esc(text.join(' · '))+'.'+extra+'</div></div></div>';
   }
 
+  // v1.7.1 (O4) — il polling ridisegna la tabella solo se i dati sono cambiati:
+  // ogni 15 s la ricostruzione completa faceva perdere focus e scroll, e
+  // l'annuncio per screen reader ripeteva lo stesso testo. Con dati invariati si
+  // aggiorna solo "Last refreshed".
+  function renderMonitorIfChanged(d){
+    var key='';
+    try{ key=JSON.stringify([d.status, d.counts, d.rows, d.truncated, d.rowsShown, d.depsTruncated]); }catch(eK){ key=''; }
+    if(key && key===S.monKey){ S.monData.checkedAt=d.checkedAt; paintMonRefresh(); return; }
+    S.monKey=key;
+    renderMonitor(d);
+  }
+
+  // Elemento con il focus dentro il Monitor, descritto in modo da ritrovarlo
+  // dopo il ridisegno (O5): sort, pager, KPI, dettagli.
+  function monFocusSelector(){
+    var a=document.activeElement, root=$('mon-body');
+    if(!a || !root || !root.contains(a)) return '';
+    var attrs=['data-why','data-kpi','data-k','data-pg','data-pgsize'];
+    for(var i=0;i<attrs.length;i++){ var v=a.getAttribute(attrs[i]); if(v!=null){ return '['+attrs[i]+'="'+v+'"]'; } }
+    return a.id?('#'+a.id):'';
+  }
+
   function renderMonitor(d){
+    var focusSel=monFocusSelector();
     S.monData=d;
     var c=d.counts||{}, all=d.rows||[];
     // Filtro KPI (v1.6.5): guarda SOLO lo status della riga principale. Le righe
@@ -2025,8 +2146,8 @@ html,body{background:#f5f5f7;margin:0}
       rows+='<tr><td class="col-name">'+esc(r.name)+'</td><td class="col-scope">'+esc(r.scope)+'</td>'
           + '<td class="col-ver">'+verCell(r.current,r.latest)+'</td>'
           + '<td>'+statusPill(st)+'</td>'
-          + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+pct+'%</div>'
-          + '<div class="prog-wrap"><div class="prog-bar'+(st==='complete'?' success':(st==='failed'?' failed':''))+'" style="width:'+pct+'%"></div></div></td>'
+          + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+esc(pct)+'%</div>'
+          + '<div class="prog-wrap"><div class="prog-bar'+(st==='complete'?' success':(st==='failed'?' failed':''))+'" style="width:'+(parseInt(pct,10)||0)+'%"></div></div></td>'
           + '<td>'+detail+'</td></tr>';
       // Riga di dettaglio a piena larghezza, resa solo se aperta.
       if(hasMsg && open){
@@ -2038,10 +2159,7 @@ html,body{background:#f5f5f7;margin:0}
       }
       // Righe dipendenza (v1.6, §10.3): app che la piattaforma ha davvero
       // installato insieme a questa, letto da sys_execution_tracker — non
-      // una previsione, un fatto osservato dopo il lancio. Badge "dependency"
-      // le distingue dalle righe principali; nessuna colonna Details perché
-      // il tracker non porta un messaggio d'errore leggibile come le nostre
-      // righe (solo stato/percentuale).
+      // una previsione, un fatto osservato dopo il lancio.
       var deps=r.deps||[];
       depRowsShown+=deps.length;   // dichiarate nell'etichetta del pager (v1.6.5 fix)
       for(var di=0;di<deps.length;di++){ var dep=deps[di]; var dpct=dep.pct||0;
@@ -2052,8 +2170,8 @@ html,body{background:#f5f5f7;margin:0}
             + '<td class="col-scope">'+esc(dep.scope)+'</td>'
             + '<td class="col-ver">'+depVerHtml+'</td>'
             + '<td>'+statusPill(dep.status)+'</td>'
-            + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+dpct+'%</div>'
-            + '<div class="prog-wrap"><div class="prog-bar'+(dep.status==='complete'?' success':(dep.status==='failed'?' failed':''))+'" style="width:'+dpct+'%"></div></div></td>'
+            + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+esc(dpct)+'%</div>'
+            + '<div class="prog-wrap"><div class="prog-bar'+(dep.status==='complete'?' success':(dep.status==='failed'?' failed':''))+'" style="width:'+(parseInt(dpct,10)||0)+'%"></div></div></td>'
             + '<td><span style="color:var(--text-3);font-size:12px">&#8212;</span></td></tr>';
       }
     }
@@ -2067,7 +2185,21 @@ html,body{background:#f5f5f7;margin:0}
     function th(k,label,extra){
       return '<th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.monSort,k)+(extra||'')+'>'+label+sortInd(k)+'</th>';
     }
+    // v1.7.1 (F22) — oltre ROW_CAP righe il server ne restituisce solo una parte:
+    // i KPI contano l'intero batch, la tabella no, e va detto.
+    var notes='';
+    if(d.truncated){
+      notes+='<div class="cap-note">Showing the first '+esc(d.rowsShown||all.length)+' of '+esc(c.total||0)
+        + ' applications. The counters above cover the whole batch.</div>';
+    }
+    if(d.depsTruncated){
+      notes+='<div class="cap-note">Some dependency rows are not shown: the platform tracker tree is too large.</div>';
+    }
+    var notice=S.monNotice
+      ? ('<div class="alert '+(S.monNotice.cls==='danger'?'alert-danger':('npu-alert-'+S.monNotice.cls))+'" role="status"><div>'+esc(S.monNotice.text)+'</div></div>')
+      : '';
     var h=batchSummary(d)
+      + notice
       + '<div class="kpi-grid">'
       + kpi('Total', c.total||0, S.monFilter?'in this batch &#8226; clear filter':'in this batch','','__all__')
       + kpi('Installing', c.installing||0, 'running now', (c.installing>0)?'accent':'', 'installing')
@@ -2077,76 +2209,85 @@ html,body{background:#f5f5f7;margin:0}
       + '</div>'
       + '<div class="actions-bar"><div style="font-size:13px;color:var(--text-2)">Batch status: '+statusPill(bs)
       +   (S.monFilter?' &#183; filtered by <strong>'+esc(S.monFilter)+'</strong> <button class="link-btn" id="mon-showall-rows">show all</button>':'')+'</div>'
-      +   '<div style="font-size:12px;color:var(--text-3)">Last refreshed '+esc(new Date().toLocaleString())+'</div></div>'
+      // v1.7.1 (N3) — ora del server, nel fuso dell'utente: la stessa convenzione
+      // di "Checked" nella scheda della coda (prima: ora locale del browser).
+      +   '<div style="font-size:12px;color:var(--text-3)" id="mon-refreshed"></div></div>'
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')
       + '<th style="width:110px">Details</th>'
       + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
+      + notes
       + pagerHtml('mon', pg, depRowsShown)+'</div>';
     $('mon-body').innerHTML=h;
-
-    // Espansione/chiusura del dettaglio: lo stato vive in S.whyOpen, quindi
-    // sopravvive ai refresh del polling e all'ordinamento.
-    var wb=$('mon-body').querySelectorAll('.why-btn');
-    for(var w=0;w<wb.length;w++){
-      wb[w].onclick=function(){
-        var k=this.getAttribute('data-why');
-        if(S.whyOpen[k]){ delete S.whyOpen[k]; } else { S.whyOpen[k]=true; }
-        renderMonitor(S.monData);
-      };
-    }
-
-    // Filtro per status. Un solo punto di verita' (S.monFilter): "Show only
-    // failures" del riquadro conclusivo e il KPI Failed sono lo stesso stato,
-    // cosi' il KPI si illumina anche quando il filtro parte dal riquadro.
-    function setMonFilter(k){
-      if(k==='__all__' || S.monFilter===k){ S.monFilter=''; }   // Total = reset, ri-click = toggle-off
-      else { S.monFilter=k; }
-      resetPage('mon');            // il filtro cambia la lista: si riparte da pagina 1
-      renderMonitor(S.monData);
-    }
-    var of=$('mon-onlyfailed'); if(of){ of.onclick=function(){ S.monFilter='failed'; resetPage('mon'); renderMonitor(S.monData); }; }
-    var sr=$('mon-showall-rows'); if(sr){ sr.onclick=function(){ setMonFilter('__all__'); }; }
-
-    // Un solo handler per l'intera griglia KPI (event delegation), come il
-    // resto dell'app. I KPI a zero non portano data-kpi e restano inerti.
-    var kg=$('mon-body').querySelector('.kpi-grid');
-    if(kg){
-      kg.onclick=function(e){
-        var card=e.target.closest?e.target.closest('[data-kpi]'):null;
-        if(card){ setMonFilter(card.getAttribute('data-kpi')); }
-      };
-      // Stessa azione da tastiera: le schede sono role="button".
-      kg.onkeydown=function(e){
-        if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){
-          var card=e.target.closest?e.target.closest('[data-kpi]'):null;
-          if(card){ e.preventDefault(); setMonFilter(card.getAttribute('data-kpi')); }
-        }
-      };
-    }
-    wirePager('mon-body', 'mon', function(){ renderMonitor(S.monData); });
+    paintMonRefresh();
 
     // "Cancel queued" solo quando c'è effettivamente qualcosa da annullare.
     var cb=$('mon-cancel');
     if(cb){ cb.style.display=((c.queued||0)>0)?'inline-flex':'none'; }
 
     // Annuncio per screen reader: il polling cambia il DOM senza che l'utente
-    // non vedente se ne accorga.
-    if(bs!=='running'){ announce('Batch '+bs+': '+(c.complete||0)+' complete, '+(c.failed||0)+' failed'); }
-    else { announce((c.installing||0)+' installing, '+(c.queued||0)+' queued, '+(c.complete||0)+' complete'); }
+    // non vedente se ne accorga. O4: solo quando il testo cambia.
+    var said = (bs!=='running')
+      ? ('Batch '+bs+': '+(c.complete||0)+' complete, '+(c.failed||0)+' failed')
+      : ((c.installing||0)+' installing, '+(c.queued||0)+' queued, '+(c.complete||0)+' complete');
+    if(said!==S.monAnnounced){ S.monAnnounced=said; announce(said); }
 
-    var ths=$('mon-body').querySelectorAll('th.sortable');
-    function applyMon(th2){
-      var k=th2.getAttribute('data-k');
-      if(S.monSort && S.monSort.k===k){ S.monSort.dir=(S.monSort.dir===1?-1:1); }
-      else { S.monSort={k:k,dir:1}; }
+    if(focusSel){ restoreFocus($('mon-body'), focusSel); }
+  }
+
+  // v1.7.1 (O4) — handler del Monitor agganciati UNA volta su #mon-body (event
+  // delegation) invece di riagganciarli a ogni ridisegno.
+  function setMonFilter(k){
+    if(k==='__all__' || S.monFilter===k){ S.monFilter=''; }   // Total = reset, ri-click = toggle-off
+    else { S.monFilter=k; }
+    resetPage('mon');            // il filtro cambia la lista: si riparte da pagina 1
+    if(S.monData){ renderMonitor(S.monData); }
+  }
+  function applyMonSort(k){
+    if(S.monSort && S.monSort.k===k){ S.monSort.dir=(S.monSort.dir===1?-1:1); }
+    else { S.monSort={k:k,dir:1}; }
+    resetPage('mon');
+    if(S.monData){ renderMonitor(S.monData); }
+  }
+  function wireMonitor(){
+    var root=$('mon-body'); if(!root) return;
+    function closest(e, sel){ return e.target.closest?e.target.closest(sel):null; }
+    root.onclick=function(e){
+      if(!S.monData) return;
+      var b;
+      if((b=closest(e,'.why-btn'))){
+        var k=b.getAttribute('data-why');
+        if(S.whyOpen[k]){ delete S.whyOpen[k]; } else { S.whyOpen[k]=true; }
+        renderMonitor(S.monData); restoreFocus(root, '.why-btn[data-why="'+k+'"]');
+        return;
+      }
+      if((b=closest(e,'#mon-onlyfailed'))){ S.monFilter='failed'; resetPage('mon'); renderMonitor(S.monData); return; }
+      if((b=closest(e,'#mon-showall-rows'))){ setMonFilter('__all__'); return; }
+      if((b=closest(e,'[data-kpi]'))){ var kk=b.getAttribute('data-kpi'); setMonFilter(kk); restoreFocus(root, '[data-kpi="'+kk+'"]'); return; }
+      if((b=closest(e,'th.sortable'))){ var sk=b.getAttribute('data-k'); applyMonSort(sk); restoreFocus(root, 'th.sortable[data-k="'+sk+'"]'); return; }
+      if((b=closest(e,'.npu-pg'))){
+        if(b.disabled) return;
+        var v=b.getAttribute('data-pg');
+        if(v==='prev'){ S.page.mon=(S.page.mon||1)-1; }
+        else if(v==='next'){ S.page.mon=(S.page.mon||1)+1; }
+        else { S.page.mon=parseInt(v,10)||1; }
+        renderMonitor(S.monData); restoreFocus(root, '.npu-pg[data-pg="'+v+'"]', '.npu-pg');
+      }
+    };
+    root.onkeydown=function(e){
+      if(!(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32)) return;
+      var b=closest(e,'[data-kpi]');
+      if(b){ e.preventDefault(); var kk=b.getAttribute('data-kpi'); setMonFilter(kk); restoreFocus(root, '[data-kpi="'+kk+'"]'); return; }
+      b=closest(e,'th.sortable');
+      if(b){ e.preventDefault(); var sk=b.getAttribute('data-k'); applyMonSort(sk); restoreFocus(root, 'th.sortable[data-k="'+sk+'"]'); }
+    };
+    root.onchange=function(e){
+      var sel=closest(e,'select[data-pgsize]');
+      if(!sel || !S.monData) return;
+      S.pageSize.mon=parseInt(sel.value,10)||25;
       resetPage('mon');
-      renderMonitor(S.monData);
-    }
-    for(var j=0;j<ths.length;j++){
-      ths[j].onclick=function(){ applyMon(this); };
-      ths[j].onkeydown=function(e){ if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){ e.preventDefault(); applyMon(this); } };
-    }
+      renderMonitor(S.monData); restoreFocus(root, 'select[data-pgsize]');
+    };
   }
 
   // ---- Wiring ----
@@ -2177,15 +2318,16 @@ html,body{background:#f5f5f7;margin:0}
     // w1-next / w1-cancel sono resi dentro renderWizard1(): agganciati là.
     $('launch-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     $('launch-home').onclick=function(){ showView('home'); refresh(); };
-    $('mon-batch').onchange=function(){ S.currentBatch=this.value; S.monFilter=''; resetPage('mon'); startMonitorPolling(); };
-    $('mon-refresh').onclick=function(){ S.monForce=true; startMonitorPolling(); S.queueResult=null; loadQueueHealth(); };
+    $('mon-batch').onchange=function(){ selectMonBatch(this.value); S.monFilter=''; resetPage('mon'); startMonitorPolling(); };
+    wireMonitor();   // v1.7.1 (O4): handler del Monitor agganciati una volta sola
+    $('mon-refresh').onclick=function(){ S.monForce=true; startMonitorPolling(); if(!S.releasing){ S.queueResult=null; } loadQueueHealth(); };
     $('mon-cancel').onclick=cancelQueued;
     // v1.7.0 — un solo handler per la scheda della coda (event delegation): i
     // pulsanti vengono ricreati a ogni render.
     $('mon-queue').onclick=function(e){
       var b=e.target.closest?e.target.closest('button'):null;
       if(!b || b.disabled) return;
-      if(b.id==='qh-check'){ S.queueResult=null; loadQueueHealth(); }
+      if(b.id==='qh-check'){ if(!S.releasing){ S.queueResult=null; } loadQueueHealth(); }
       else if(b.id==='qh-release'){ openReleaseDialog(); }
     };
     refresh();
