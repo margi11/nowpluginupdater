@@ -393,33 +393,44 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             var rootScope = roots[r];
             var rootEntry = index[rootScope];
             if (!rootEntry) { continue; }
-            var visited = {};
-            visited[rootScope] = true;
+            // v1.7.1 (F14) — fino alla v1.7.0 lo scope veniva marcato "visitato"
+            // PRIMA del controllo di versione: una dipendenza raggiunta prima da un
+            // arco gia' soddisfatto (X:1.0) non veniva piu' rivalutata quando un arco
+            // successivo chiedeva una versione piu' alta (Y:2.0 -> X:2.0). Ora si
+            // tiene la versione richiesta PIU' ALTA per scope: uno scope viene
+            // rimesso in coda quando compare un minVersion maggiore, e il guard
+            // anti-ciclo e' sulla coppia (scope, versione), non sul solo scope.
+            var required = {};   // scope -> versione richiesta piu' alta finora
+            var seenPair = {};   // "scope@versione" gia' accodato (guard anti-ciclo)
+            seenPair[rootScope + '@' + rootEntry.latest] = true;
             // BFS from the root's OWN target version (its latest_version, i.e.
             // what this batch installs) down through each dependency's target.
             // No query here — `latest` already sits in the §6.7 in-memory index.
             var queue = [{ scope: rootScope, version: rootEntry.latest }];
-            var rootDeps = [];
+            var rootNodes = {}, rootOrder = [];
 
             while (queue.length) {
                 var node = queue.shift();
                 if (!node.version) { continue; }
-                var deps = versionIndex[node.scope + '@' + node.version];
-                if (!deps) { continue; } // no sys_app_version row for that exact target — nothing to resolve further
+                var vKey = node.scope + '@' + node.version;
+                if (!versionIndex.hasOwnProperty(vKey)) { continue; } // no sys_app_version row for that exact target — nothing to resolve further
+                var deps = versionIndex[vKey];
 
                 for (var di = 0; di < deps.length; di++) {
                     var dep = deps[di];
                     var depScope = dep.scope;
-                    if (!depScope) { continue; }
+                    if (!depScope || depScope === rootScope) { continue; }
                     if (/^com\./.test(depScope)) { continue; } // platform plugin, not a Store app — not tracked here
-                    if (visited[depScope]) { continue; } // cycle guard
-                    visited[depScope] = true;
 
+                    if (!index.hasOwnProperty(depScope)) { continue; } // dependency scope not installed — not impact
                     var depEntry = index[depScope];
-                    if (!depEntry) { continue; } // dependency scope not installed — not impact
 
                     var cmpDep = this._cmpVer(dep.minVersion, depEntry.current);
                     if (cmpDep <= 0) { continue; } // already satisfies the target's requirement — stop, no recursion (mirrors the native processor)
+
+                    // Gia' richiesto a una versione uguale o superiore: niente di nuovo.
+                    if (required.hasOwnProperty(depScope) && this._cmpVer(dep.minVersion, required[depScope]) <= 0) { continue; }
+                    required[depScope] = dep.minVersion;
 
                     if (!suiteMemberScopes[depScope]) {
                         var impactNode = {
@@ -429,13 +440,23 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                             target:  dep.minVersion,
                             hidden:  depEntry.hideOnUi
                         };
-                        rootDeps.push(impactNode);
-                        if (!unionNodes[depScope]) { unionNodes[depScope] = impactNode; }
+                        if (!rootNodes.hasOwnProperty(depScope)) { rootOrder.push(depScope); }
+                        rootNodes[depScope] = impactNode;   // il target piu' alto vince
+                        if (!unionNodes.hasOwnProperty(depScope) ||
+                            this._cmpVer(impactNode.target, unionNodes[depScope].target) > 0) {
+                            unionNodes[depScope] = impactNode;
+                        }
                     }
-                    queue.push({ scope: depScope, version: dep.minVersion }); // recurse into ITS target's own deps
+                    var pKey = depScope + '@' + dep.minVersion;
+                    if (!seenPair.hasOwnProperty(pKey)) {
+                        seenPair[pKey] = true;
+                        queue.push({ scope: depScope, version: dep.minVersion }); // recurse into ITS target's own deps
+                    }
                 }
             }
 
+            var rootDeps = [];
+            for (var ro = 0; ro < rootOrder.length; ro++) { rootDeps.push(rootNodes[rootOrder[ro]]); }
             if (rootDeps.length) { depByRoot[rootScope] = rootDeps; }
         }
 
