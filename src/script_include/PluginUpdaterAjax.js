@@ -305,7 +305,14 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     getUpdateImpact: function() {
         if (!this._guard()) { return this._forbidden(); }
         var scopesParam = ('' + (this.getParameter('sysparm_scopes') || this.getParameter('scopes') || '')).trim();
-        return JSON.stringify(this._updateImpact(scopesParam));
+        // v1.7.1 (F17) — un'eccezione qui produceva una risposta vuota, che il
+        // dialog di conferma mostrava come "nessun'altra app": un falso negativo.
+        // Ora l'errore torna esplicito e il client lo mostra come avviso.
+        try { return JSON.stringify(this._updateImpact(scopesParam)); }
+        catch (e) {
+            gs.warn('[PluginUpdater] getUpdateImpact failed: ' + e);
+            return JSON.stringify({ error: 'The dependency impact could not be computed: ' + e });
+        }
     },
 
     // Corpo interno: restituisce un oggetto (vedi O5). scopesCsv = null|'' -> tutti

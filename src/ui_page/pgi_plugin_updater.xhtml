@@ -1199,7 +1199,11 @@ html,body{background:#f5f5f7;margin:0}
     var selIds={}; selectedIds().forEach(function(id){ selIds[id]=true; });
     var scopes=selectedIds().map(function(id){ var a=(S.appData.apps||[]).filter(function(x){return x.sysId===id;})[0]; return a?a.scope:''; }).filter(Boolean);
     ajax('getUpdateImpact', { scopes: scopes.join(',') }, function(err, res){
-      if(err || !res){ cb(''); return; }
+      // v1.7.1 (F17) — un errore non e' "nessun'altra app": va detto.
+      if(err || !res || res.error){
+        cb('<div class="alert alert-danger mt16" role="alert"><div>The dependency impact could not be computed &#8212; other applications may be updated too.</div></div>');
+        return;
+      }
       var selectedScopeSet={}; (S.appData.apps||[]).forEach(function(a){ if(selIds[a.sysId]){ selectedScopeSet[a.scope]=true; } });
       // Unione suite + dependency branch, deduplicata per scope; "N more"
       // esclude le app già selezionate direttamente dal wizard.
