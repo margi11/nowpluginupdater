@@ -31,7 +31,7 @@ A bug-fix release from a full review of 1.7.0 plus live tests: no new features.
 - **Correct dependency impact** (the highest required version is kept) and a visible error when the impact lookup fails.
 - **Smaller fixes:** numeric version sorting, the launch summary count, the Monitor keeps focus and scroll on refresh, keyboard access for the *Installing* card and the dialog, and the real tracker percentage when the worker has none.
 
-**Certified on Brazil Patch 2** (`glide-brazil-08-25-2026__patch2-10-22-2026`): from-scratch install (59 / inserted 59 / collisions 0) and a 1.7.0 → 1.7.1 upgrade (59 / updated 53 / inserted 6 / collisions 0), both with 0 preview problems, and 12 functional tests driven in the browser (see `plugin_updater_spec.md` §18.7). **Australia and Zurich are not tested yet.**
+**Certified on Brazil Patch 2** (`glide-brazil-08-25-2026__patch2-10-22-2026`): from-scratch install (59 / inserted 59 / collisions 0) and a 1.7.0 → 1.7.1 upgrade (59 / updated 53 / inserted 6 / collisions 0), both with 0 preview problems, and 12 functional tests driven in the browser (see `plugin_updater_spec.md` §18.7). **Also tested on Australia Patch 8** (upgrade 1.6.6 → 1.7.1, 0 preview problems, non-destructive functional tests and a batch of 5 apps). **Zurich is not tested yet.**
 
 **Known notes:** on instances upgraded from earlier releases the old properties `x_npu.sync_state` and `__npu_sync_job_id` stay; 1.7.1 neither reads nor writes them. Two behaviours were observed but not investigated: the Monitor's *Checked* time is in the instance time zone while *STORE SYNCED* is in UTC, and the Home *Installing* card shows 0 while the batch rows are still queued.
 
@@ -129,7 +129,8 @@ Because the application list mirrors the Application Manager, a few platform-bun
 | Australia (Patch 6, Patch 7) | Verified up to 1.6.6 — dependency impact, tracker, batches, upgrade path |
 | Brazil (Patch 1) | **v1.6.6 certified** — real batches, Monitor, Polaris rendering, from-scratch install |
 | Brazil (Patch 2) | **v1.7.1 certified** (from scratch, 1.7.0 → 1.7.1 upgrade on two instances, 12 browser tests); **v1.7.0 certified** — from-scratch install and a clean 1.6.6 → 1.7.0 upgrade on two instances, with 0 preview problems; install queue health tested on a development instance: detection, simulated blocked queue with a real install waiting, release from the Monitor and from the background script |
-| Australia, Zurich | **1.7.x not tested** (Australia verified up to 1.6.6) |
+| Australia (Patch 8) | **v1.7.1 verified** — upgrade 1.6.6 → 1.7.1 with 0 preview problems, select/dialog/Monitor/sync tests and a batch of 5 apps (all *Complete*); install/release simulation tests not repeated |
+| Zurich | Not verified |
 
 The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, `sys_execution_tracker`; since 1.7.0 also `sys_padlock` and `sys_nowmq_message`), so each new release family should be re-checked.
 
