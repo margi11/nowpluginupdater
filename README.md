@@ -29,7 +29,7 @@ A bug-fix release from a full review of 1.7.0 plus live tests: no new features.
 - **The sync leaves your update set alone.** Its runtime state (`x_npu.sync_runtime_state`) is written with workflow off, so nothing is captured in your current update set, and the one-shot sync job is inserted active with its own sys_id, so it starts reliably.
 - **Fail-closed maintenance.** Release of a stuck install re-checks that the install is still dead right before the first write and refuses if anything changed; the reset script guards empty lists.
 - **Correct dependency impact** (the highest required version is kept) and a visible error when the impact lookup fails.
-- **Smaller fixes:** numeric version sorting, the launch summary count, the Monitor keeps focus and scroll on refresh, keyboard access for the *Installing* card and the dialog, the real tracker percentage when the worker has none, one consistent time source.
+- **Smaller fixes:** numeric version sorting, the launch summary count, the Monitor keeps focus and scroll on refresh, keyboard access for the *Installing* card and the dialog, and the real tracker percentage when the worker has none.
 
 **Certified on Brazil Patch 2** (`glide-brazil-08-25-2026__patch2-10-22-2026`): from-scratch install (59 / inserted 59 / collisions 0) and a 1.7.0 → 1.7.1 upgrade (59 / updated 53 / inserted 6 / collisions 0), both with 0 preview problems, and 12 functional tests driven in the browser (see `plugin_updater_spec.md` §18.7). **Australia and Zurich are not tested yet.**
 
