@@ -5,17 +5,14 @@
 **Delivery model:** one **no-build UI Page** + one client-callable **Script Include** + one custom table + one Scheduled Job. No bundler, no Fluent SDK, no React, no UI Script, no external libraries.
 **Audience:** developers (and Claude Code) maintaining the app on a ServiceNow instance via MCP.
 
-> **Current state (2026-10-15).** Shipped release **v1.6.6** (`NowPluginUpdater166.xml`, 59 objects), **certified on the Brazil family** (`empgmarongiu1`, build `glide-brazil-08-25-2026__patch1-09-21-2026_10-05-2026_1244`, §18.5). It is composed of:
+> **Current state (2026-11-12).** Shipped release **v1.7.0** (`NowPluginUpdater170.xml`, 413,717 bytes, 59 objects, remote set `52c49449…`), **certified on Brazil Patch 2** (`empgmarongiu1`, build `glide-brazil-08-25-2026__patch2-10-22-2026`, §18.6). It is composed of:
 >
-> - **UI Page** `pgi_plugin_updater` — client **v1.6.6** (`S.version='1.6.6'`). Identical to `src/ui_page/pgi_plugin_updater.xhtml` (99,994 chars, Guide corrected in the re-cut, §19.7).
-> - **Script Include** `PluginUpdaterAjax` — server **v1.6.6**. Identical to `src/script_include/PluginUpdaterAjax.js` (73,544 chars). §19.1 is closed.
+> - **UI Page** `pgi_plugin_updater` — client **v1.7.0** (`S.version='1.7.0'`). Identical to `src/ui_page/pgi_plugin_updater.xhtml` (115,479 chars).
+> - **Script Include** `PluginUpdaterAjax` — server **v1.7.0**. Identical to `src/script_include/PluginUpdaterAjax.js` (103,598 chars).
 >
-> Both were verified byte for byte against the records installed from the final `NowPluginUpdater166.xml` (367,720 bytes, remote set `0360940c…`, built on the published 1.6.5 lineage, §12.2; includes the tracker failure reason, §19.13) on 2026-10-15. On the **from-scratch** import of `empgmarongiu1` the preview gave 59 / inserted 59 / updated 0 / collisions 0 (§12.4). On the **upgrade from the published 1.6.5** on `democrmfalectriae163723` it gave 59 / updated 53 / inserted 6 / collisions 0. Both were committed. §19 lists the gaps that are still open. **Read §19 before changing anything.**
+> Both were verified byte for byte (length and SHA-256) against the records installed from `NowPluginUpdater170.xml`, built on the **published 1.6.6 lineage** (§12.2: 59/59 guids of `NowPluginUpdater166.xml` are in the new history). On the **from-scratch** import of `empgmarongiu1` the preview gave 59 / inserted 59 / updated 0 / collisions 0; on the **upgrade from the published 1.6.6** it gave 59 / updated 53 / inserted 6 / collisions 0, with 0 preview problems. Both were committed. §19 lists the gaps that are still open. **Read §19 before changing anything.**
 >
-> Where this document says "server", it describes the **v1.6.6 Script Include**. The update set and `src/` now agree.
->
-> **Proposed v1.7.0 (2026-11-09, not released).** It adds the **platform install queue health**: detection of an install queue blocked by orphan resource locks, and their release on explicit admin request (§4.6, §14.7, §18.6). `src/` now carries the v1.7.0 Script Include (103,598 chars) and UI Page (115,479 chars) plus `src/fix_scripts/release_orphan_install_lock.js`. They were deployed with `GlideRecord.setValue` and tested end to end on a **Brazil Patch 2** development instance. **No update set has been exported for it yet** (lineage rule, §12.2), so the downloadable release is still v1.6.6 and the two `src/` files are ahead of `NowPluginUpdater166.xml`. The v1.6.6 statements in this block are unchanged.
-
+> Where this document says "server", it describes the **v1.7.0 Script Include**. The update set and `src/` agree. v1.7.0 adds the **platform install queue health** (§4.6, §14.7, §18.6), contributed through PR #2.
 ---
 
 ## 1. Goal
@@ -117,8 +114,8 @@ Created **by the platform** when the table is created, and deleted with it by ca
 
 | Path | Content | Status |
 |---|---|---|
-| `src/ui_page/pgi_plugin_updater.xhtml` | UI Page `html` field (Jelly) | v1.7.0, proposed (§18.6); v1.6.6 is in the XML |
-| `src/script_include/PluginUpdaterAjax.js` | Script Include | v1.7.0, proposed (§18.6); v1.6.6 is in the XML |
+| `src/ui_page/pgi_plugin_updater.xhtml` | UI Page `html` field (Jelly) | v1.7.0 (§18.6), identical to `NowPluginUpdater170.xml` |
+| `src/script_include/PluginUpdaterAjax.js` | Script Include | v1.7.0 (§18.6), identical to `NowPluginUpdater170.xml` |
 | `src/fix_scripts/repair_install_log_140.js` | one-off history repair (§9.2) | current |
 | `src/fix_scripts/release_orphan_install_lock.js` | background-script alternative to *Release blocked operation…* (§4.6) | v1.7.0 |
 | `src/fix_scripts/reset_npu_instance.js` | full uninstall of the app and its history on the test instance (§12.4) | current |
@@ -181,7 +178,7 @@ Constants: `ROW_CAP=500`, `SYNC_JOB_NAME='Plugin Updater - Store Sync (once)'`, 
 
 **There is no `RESTMessageV2` anywhere**, and no `getProgress`, `verifyVersion` or `logInstall` method.
 
-### 4.6 Install queue health (v1.7.0, proposed)
+### 4.6 Install queue health (v1.7.0)
 
 **Problem.** The platform runs install operations (Application Manager, CICD App Repository, this app) from the NowMQ subject `sys.applifecycle.operation`, one at a time. Each operation takes resource locks in `sys_padlock` with `lock_key = 'r*' + <root sys_execution_tracker sys_id>`. If the install's thread dies half-way, its padlocks stay. Every queued operation asks for `resources_to_lock`, does not get them, and is retried about once a second, forever. Observed on a two-node Brazil Patch 1 HF1 customer instance: an install froze at 95 % right after loading a dependency's updates and left two padlocks (`schema`/`**all**`, `**resource**`/`**all**`); every install stayed *Queued* for about three days. The manual fix that worked: check that no transaction of that install was still running, set the 6 *Running* trackers of its tree to *Failed*, delete only the 2 padlocks with that `lock_key`. The queue restarted within a minute.
 
@@ -878,21 +875,21 @@ The selection is listed by name (`selectedListHtml`), separate from the impact u
   - a failed download ("Unable to download app package", point 1). It was deliberately not reproduced: both `upload_base_url` properties are empty on `empgmarongiu1`.
 - **Known limit:** **Cancel queued** does not remove the operation from the platform queue (§19.12). No unverified API was used to cancel the tracker.
 
-### 18.6 v1.7.0 — Install queue health (proposed, 2026-11-09)
+### 18.6 v1.7.0 — Install queue health (2026-11-09, released 2026-11-12)
 
-**Trigger.** A two-node Brazil Patch 1 HF1 customer instance with v1.6.6: every install stayed *Queued* for about three days behind two orphan padlocks of an install that died at 95 % (§4.6). The manual fix (trackers of the tree → Failed, only the padlocks with that `lock_key` deleted) restarted the queue within a minute. v1.7.0 turns that procedure into a guarded feature. The design was proposed to the author in an issue; the provisional choices are marked *(provisional)*.
+**Trigger.** A two-node Brazil Patch 1 HF1 customer instance with v1.6.6: every install stayed *Queued* for about three days behind two orphan padlocks of an install that died at 95 % (§4.6). The manual fix (trackers of the tree → Failed, only the padlocks with that `lock_key` deleted) restarted the queue within a minute. v1.7.0 turns that procedure into a guarded feature. The design was proposed to the author in an issue (#1) and merged through PR #2.
 
 1. **The server decides everything.** The client shows the state and the reason; `releaseStuckOperation` repeats every check at release time, whatever the client says.
 2. **The "no active transaction" confirmation is an API parameter.** A server script cannot see whether the install's thread is alive (§4.6). The admin attests it after checking *Active Transactions*; `confirm_no_active_tx='true'` is mandatory, so even a direct GlideAjax call cannot skip it. The UI sends it only after the checkbox.
 3. **`blocked` does not require waiting messages.** A stale lock blocks the next install anyway; calling it `busy` (which means "updated recently") would be false. The waiting count is shown, not required.
 4. **Threshold 6 h, minimum 1 h, optional property not shipped.** The incident's script used 24 h; 6 h is the value proposed in the issue. How long a live install can go without updating any tracker of its tree was **not measured**; the threshold is configurable and the admin confirmation is a second gate. The property is not in the update set because every release is a complete set and would reset an admin's value (§3.1).
-5. **Backup as an attachment on the root tracker + an audit line; no new table** *(provisional)*. Fail closed: no backup, no change.
+5. **Backup as an attachment on the root tracker + an audit line; no new table.** Fail closed: no backup, no change.
 6. **Only the exact `lock_key` is touched.** Latches, `sys_repo_config` padlocks and other operations' locks are never even read.
 7. **Owners that are not `Running` (or no longer exist) are shown but not released** from the page or the script: the checks that make the release safe (a live-looking tree that stopped) do not apply. The diagnosis gives the exact `lock_key` for a targeted manual delete.
 8. **The existing confirm dialog was extended** (`extraHtml`, `requireCheckId`, `wide`) instead of adding a second dialog; existing callers are unchanged.
 9. **No timer** for the card: Monitor open, Refresh now, Check again, after a release.
 10. **The background script is independent of the Script Include**, so it still works when the app is not installed or the page does not open.
-11. **Version 1.7.0, content of the PR = `src/` + documentation** *(provisional)*. No XML and no `index.html` until the author agrees, because of the lineage rule (§12.2).
+11. **Version 1.7.0, content of the PR = `src/` + documentation.** The PR shipped no XML and no `index.html` because of the lineage rule (§12.2); the author merged it (squashed) and built the update set on the published 1.6.6. Choices 4 and 5 were confirmed as proposed.
 
 **Verification** — a two-node **Brazil Patch 2** development instance with v1.6.6 installed from scratch from the published XML, 2026-11-09:
 
@@ -907,6 +904,14 @@ The selection is listed by name (`selectedListHtml`), separate from the impact u
 - **Background script:** dry run and apply on the same simulation.
 - **Not tested:** a lock left by a really dead thread (only simulated); Australia and Zurich; several blocked operations at once (offline only).
 - **Bugs found and fixed on the way:** the Java string `replace` (§15.18, stopped before any change), the blank page (§15.16). The empty-array behaviour (§15.17) only affected the test harness.
+
+**Packaging** — `empgmarongiu1`, Brazil Patch 2 (`glide-brazil-08-25-2026__patch2-10-22-2026`), 2026-11-12, flow of §12.2:
+
+- **Build on the published lineage:** reset (§12.4, `verify` all zeros) → `NowPluginUpdater166.xml` imported from scratch (59 / inserted 59 / collisions 0, committed; installed records = git `0b17544` by SHA-256) → the two v1.7.0 records written from `src/` with `GlideRecord.setValue` (descriptions v1.7.0), verified by length and SHA-256 → the 2 entries moved from *Default* to "Now Plugin Updater v1.7.0 delta" → *Merge Completed Sets* with the commit set → "Now Plugin Updater v1.7.0" (59 entries) → **Export to XML**.
+- **Offline check of `NowPluginUpdater170.xml`** (413,717 bytes): 59 entries, all with `remote_update_set` and an empty `update_set`; same 59 names as 1.6.6; only the Script Include and UI Page payloads changed, both identical to `src/`; **lineage 59/59** (every `update_guid` of 1.6.6 is in the history of the same entry).
+- **Upgrade 1.6.6 → 1.7.0** (after a new reset and a clean install of the published 1.6.6): 59 / updated 53 / inserted 6 / collisions 0 / 0 preview problems, committed. The same counts as the 1.6.5 → 1.6.6 upgrade.
+- **From scratch** (after a further reset): 59 / inserted 59 / updated 0 / collisions 0 / 0 preview problems, committed.
+- **After each commit:** Script Include and UI Page byte-identical to `src/`; 9 ACL-role rows, all `admin`; table valid with 22 dictionary entries; job trigger scheduled; Home renders real data, the Monitor card shows *Healthy*, Guide section 6 present, 0 console errors.
 
 ---
 
@@ -1007,7 +1012,7 @@ When the CICD worker exists, it ends `state=complete` with the generic message "
 - Platform: `deleteMultiple` on `sys_properties` is refused ("Not allowing multiple record update to sys_property"). Delete properties one by one.
 - Platform: a REST write of `sys_ui_page.html` escapes `<script>` into `&lt;script&gt;` and still returns 200. Write it with `GlideRecord` (§12.1).
 
-### 19.14 Install queue health — limits (v1.7.0, proposed)
+### 19.14 Install queue health — limits (v1.7.0)
 
 - **Thread liveness is not verifiable server-side** (`v_cluster_transaction` returns 0 rows). The threshold and the admin's *Active Transactions* check are the only protection against releasing a live install.
 - **Owners that are not `Running`, or whose tracker no longer exists**, are reported (`blocked`, `releasable:false`, `reason`) but released neither by the page nor by the background script. Its dry run prints the tracker sys_id and the `lock_key`; the delete of those `sys_padlock` rows stays manual.
@@ -1041,4 +1046,4 @@ When the CICD worker exists, it ends `state=complete` with the generic message "
 | 1.6.4 | ACL-role records for the install-log ACLs; ACL payload re-alignment |
 | 1.6.5 | Uniform background, pagination, Monitor KPI filter, pager label fix. **Client regression of the 1.6.3/1.6.4 client changes (§19.2)** |
 | 1.6.6 | Failures before a worker exists (tracker fallback), version rule on failed/cancelled, suite banner hidden, `cancelRemaining` checks first, `_reconcile` + Refresh now reconciles, `listBatches` newest first. **Certified on Brazil**; first native merge/export and from-scratch install after an instance reset (§12.4) |
-| 1.7.0 (proposed) | **Platform install queue health:** `getQueueHealth` / `releaseStuckOperation`, Monitor card and release dialog with a mandatory *Active Transactions* confirmation, Home warning, `release_orphan_install_lock.js`. Tested on Brazil Patch 2; **not packaged yet** (§18.6) |
+| 1.7.0 | **Platform install queue health:** `getQueueHealth` / `releaseStuckOperation`, Monitor card and release dialog with a mandatory *Active Transactions* confirmation, Home warning, `release_orphan_install_lock.js`. Contributed through PR #2. **Certified on Brazil Patch 2**: from-scratch install and 1.6.6 → 1.7.0 upgrade with 0 preview problems (§18.6) |

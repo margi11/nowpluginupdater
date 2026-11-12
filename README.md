@@ -2,7 +2,7 @@
 
 A ServiceNow administration application that lets an administrator discover, select, and batch-install the available updates for Store applications on an instance — replacing the per-app flow in the native Application Manager.
 
-**Version 1.6.6 · by Gianmario Marongiu · Global scope · no build, no external dependencies.**
+**Version 1.7.0 · by Gianmario Marongiu · Global scope · no build, no external dependencies.**
 
 ## What it does
 
@@ -15,11 +15,9 @@ The native Application Manager updates one application at a time. Now Plugin Upd
 - **Early failure detection** — an install that fails before it even starts (for example, the package cannot be downloaded) is shown as Failed with the platform's reason, not left Queued.
 - **No stored credentials** — installs are triggered with the admin's own session; no passwords or tokens are stored.
 - **Built on the platform** — a single UI Page using vanilla JavaScript (no React, no bundler, no external libraries).
-- **Install queue health** — the Monitor shows whether the platform's own install queue is moving, and lets an admin release an operation that died and left its locks behind (1.7.0, proposed).
+- **Install queue health** — the Monitor shows whether the platform's own install queue is moving, and lets an admin release an operation that died and left its locks behind (1.7.0).
 
-## What's new in 1.7.0 (proposed)
-
-*Not yet in a downloadable update set: the current download is still 1.6.6.*
+## What's new in 1.7.0
 
 A blocked platform install queue is detected and can be released from the Monitor, safely and only on request.
 
@@ -79,7 +77,7 @@ The full history is in [`plugin_updater_spec.md`](plugin_updater_spec.md) §20.
 ## Get started
 
 ### 1. Download
-Download the update set — a single portable XML file (`NowPluginUpdater166.xml`) containing the full app (UI Page, server logic, table, ACLs, module, scheduled job).
+Download the update set — a single portable XML file (`NowPluginUpdater170.xml`) containing the full app (UI Page, server logic, table, ACLs, module, scheduled job).
 
 A self-contained landing page, [`index.html`](index.html), embeds the same XML and offers it as a download, with screenshots and these instructions. Open it in a browser (desktop or mobile), or visit the published Netlify site.
 
@@ -87,7 +85,7 @@ A self-contained landing page, [`index.html`](index.html), embeds the same XML a
 Import and commit the update set on your instance:
 
 1. Open **All → System Update Sets → Retrieved Update Sets**.
-2. Click **Import Update Set from XML**, choose the downloaded `NowPluginUpdater166.xml`, and upload.
+2. Click **Import Update Set from XML**, choose the downloaded `NowPluginUpdater170.xml`, and upload.
 3. Open the retrieved record and click **Preview Update Set**; resolve any preview problems.
 4. Click **Commit Update Set**.
 
@@ -112,7 +110,7 @@ Because the application list mirrors the Application Manager, a few platform-bun
 |--------|--------|
 | Australia (Patch 6, Patch 7) | Verified — dependency impact, tracker, batches, upgrade path |
 | Brazil (Patch 1) | **v1.6.6 certified** — real batches, Monitor, Polaris rendering, from-scratch install |
-| Brazil (Patch 2) | 1.7.0 install queue health tested on a development instance: detection, simulated blocked queue with a real install waiting, release from the Monitor and from the background script |
+| Brazil (Patch 2) | **v1.7.0 certified** — from-scratch install and a clean 1.6.6 → 1.7.0 upgrade with 0 preview problems; install queue health tested on a development instance: detection, simulated blocked queue with a real install waiting, release from the Monitor and from the background script |
 | Zurich | Not verified |
 
 The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, `sys_execution_tracker`; since 1.7.0 also `sys_padlock` and `sys_nowmq_message`), so each new release family should be re-checked.
@@ -126,7 +124,7 @@ The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, 
 | `src/fix_scripts/repair_install_log_140.js` | One-off background script — reclassifies historical rows wrongly marked Complete (dry-run by default) |
 | `src/fix_scripts/reset_npu_instance.js` | Test-instance reset — removes the app completely so a from-scratch install can be re-tested |
 | `src/fix_scripts/release_orphan_install_lock.js` | Background-script alternative to *Release blocked operation…* (1.7.0) — dry run by default |
-| `NowPluginUpdater166.xml` | Exported update set (v1.6.6) — portable install file, 59 objects |
+| `NowPluginUpdater170.xml` | Exported update set (v1.7.0) — portable install file, 59 objects |
 | `NowPluginUpdater1xx.xml` | Earlier releases, kept for reference |
 | `index.html` | Self-contained distribution page (screens, download, install/use guide) — published to Netlify |
 | `Now-Plugin-Updater-Briefing.html` | Build briefing |
@@ -135,7 +133,7 @@ The app reads internal platform tables (`sys_app_version`, `sys_suite_config*`, 
 
 ## Upgrading
 
-**From 1.5.x or 1.6.x:** import, preview and commit `NowPluginUpdater166.xml` as for a new install. Upgrading from the published 1.6.5 previews with 0 problems.
+**From 1.5.x or 1.6.x:** import, preview and commit `NowPluginUpdater170.xml` as for a new install. Upgrading from the published 1.6.6 previews with 0 problems.
 
 **From 1.3.x:** after committing the update set, run `src/fix_scripts/repair_install_log_140.js` once in **Scripts - Background**. Because of a bug fixed in 1.4.0, existing rows may claim *Complete* for installs that never applied; the script reclassifies them against the version actually installed.
 
