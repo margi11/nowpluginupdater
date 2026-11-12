@@ -304,9 +304,15 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         sa.setLimit(20000);
         sa.query();
         while (sa.next()) {
-            var scope = sa.getValue('scope') || '';
+            var scope = ('' + (sa.getValue('scope') || '')).trim();
             if (!scope) { continue; }
+            // v1.7.1 (F30) — con piu' righe per lo stesso scope vince quella attiva:
+            // fino alla v1.7.0 vinceva l'ultima letta, anche se inattiva. Le righe
+            // inattive restano nell'indice solo se lo scope non ne ha una attiva.
+            var saActive = ('' + sa.getValue('active')) === 'true' || ('' + sa.getValue('active')) === '1';
+            if (index.hasOwnProperty(scope) && index[scope].active && !saActive) { continue; }
             index[scope] = {
+                active:          saActive,
                 name:            sa.getValue('name') || scope,
                 current:         sa.getValue('version') || '',
                 latest:          sa.getValue('latest_version') || '',
@@ -327,7 +333,8 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             for (var rs0 in selectedScopes) { if (selectedScopes.hasOwnProperty(rs0) && index.hasOwnProperty(rs0)) { roots.push(rs0); } }
         } else {
             for (var allScope in index) {
-                if (index.hasOwnProperty(allScope) && index[allScope].updateAvailable && !index[allScope].hideOnUi) { roots.push(allScope); }
+                // Stesso insieme di _updatableApps: attive, con update, visibili (F30).
+                if (index.hasOwnProperty(allScope) && index[allScope].active && index[allScope].updateAvailable && !index[allScope].hideOnUi) { roots.push(allScope); }
             }
         }
 
