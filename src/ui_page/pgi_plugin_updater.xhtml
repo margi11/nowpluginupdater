@@ -608,6 +608,7 @@ html,body{background:#f5f5f7;margin:0}
       S.queueHome=d.queueHealth||null;   // v1.7.0: { status, waiting }
       S.appsFetchedAt=new Date().getTime();
       renderHome(d.infoError||d.appsError||'');
+      afterAppsReload();
     });
   }
 
@@ -844,7 +845,8 @@ html,body{background:#f5f5f7;margin:0}
       if(e){ $('wizard1-body').innerHTML='<div class="alert alert-danger">'+esc(e)+'</div>'; return; }
       S.appData=normalizeApps(d);
       S.appsFetchedAt=new Date().getTime();
-      renderWizard1();
+      afterAppsReload();
+      if(activeView()!=='wizard1'){ renderWizard1(); }
     });
   }
 
@@ -1226,10 +1228,14 @@ html,body{background:#f5f5f7;margin:0}
       // "Select all" agisce su tutte le righe che passano il filtro, non solo su
       // quelle della pagina corrente: la paginazione e' un limite di rendering,
       // non di selezione (v1.6.5 — invariato rispetto al vecchio cap).
+      // v1.7.1 (F01) — lo stato non si legge da this.checked (la casella veniva
+      // ridisegnata sempre vuota, quindi ogni click riselezionava tutto): tutte
+      // selezionate -> deseleziona, altrimenti seleziona tutte.
       ac.onchange=function(){
-        var ck=this.checked, l=filteredApps(), f=inFlightSet();
-        for(var x=0;x<l.length;x++){ if(f[l[x].sysId]) continue; if(ck) S.selected[l[x].sysId]=true; else delete S.selected[l[x].sysId]; }
+        var hs=headerState(), l=hs.list;
+        for(var x=0;x<l.length;x++){ if(hs.all) delete S.selected[l[x].sysId]; else S.selected[l[x].sysId]=true; }
         renderSelect();
+        var again=$('sel-allcheck'); if(again){ again.focus(); }   // O5: il focus resta sulla casella
       };
     }
     wireSuitePanel('sel-suite');
@@ -1237,15 +1243,44 @@ html,body{background:#f5f5f7;margin:0}
     wirePager('sel-table', 'sel', renderSelect);
     updateSelCount();
   }
+  // v1.7.1 (F01) — app selezionabili del filtro corrente (le app in installazione
+  // escluse) e quante sono selezionate: guida la casella a tre stati dell'intestazione.
+  function headerState(){
+    var l=filteredApps(), f=inFlightSet(), list=[], n=0;
+    for(var i=0;i<l.length;i++){ if(f[l[i].sysId]) continue; list.push(l[i]); if(S.selected[l[i].sysId]) n++; }
+    return { list:list, selected:n, all:(list.length>0 && n===list.length), some:(n>0 && n!==list.length) };
+  }
+  function paintHeaderCheck(){
+    var ac=$('sel-allcheck'); if(!ac) return;
+    var hs=headerState();
+    ac.checked=hs.all;
+    ac.indeterminate=hs.some;
+    ac.disabled=(hs.list.length===0);
+    ac.setAttribute('aria-checked', hs.all?'true':(hs.some?'mixed':'false'));
+  }
   // Non ridisegna la tabella: aggiorna solo lo stato e la barra. È ciò che rende
   // fluida la selezione su liste lunghe.
   function toggleApp(id){ if(S.selected[id]){ delete S.selected[id]; } else { S.selected[id]=true; } updateSelCount(); }
-  function selectedIds(){ var o=[]; for(var k in S.selected){ if(S.selected[k]) o.push(k); } return o; }
+  function selectedIds(){ var o=[]; for(var k in S.selected){ if(S.selected.hasOwnProperty(k) && S.selected[k]) o.push(k); } return o; }
+  // v1.7.1 (F18, F03) — dopo ogni nuovo caricamento della lista: via le selezioni
+  // di app che non sono piu' aggiornabili o che sono ora in installazione, e si
+  // ridisegna lo step del wizard aperto. Prima il conteggio diceva 5 e se ne
+  // lanciavano 4.
+  function afterAppsReload(){
+    var ok={}, apps=S.appData.apps||[], iff=inFlightSet();
+    for(var i=0;i<apps.length;i++){ if(!iff[apps[i].sysId]) ok[apps[i].sysId]=true; }
+    for(var k in S.selected){ if(S.selected.hasOwnProperty(k) && !ok[k]) delete S.selected[k]; }
+    var v=activeView();
+    if(v==='wizard1'){ renderWizard1(); }
+    else if(v==='wizard2'){ buildScopeFilter(); renderSelect(); }
+  }
+  function activeView(){ var el=document.querySelector('.view.active'); return el?el.getAttribute('data-view'):''; }
   function updateSelCount(){
     var n=selectedIds().length, inf=inFlightCount();
     $('sel-count').textContent=n+' selected';
     var hint=$('sel-hint');
-    if(hint){ hint.innerHTML = inf ? (inf+' already installing (not selectable)') : ''; }
+    if(hint){ hint.textContent = inf ? (inf+' already installing (not selectable)') : ''; }
+    paintHeaderCheck();
     var btn=$('sel-install');
     btn.disabled=(n===0);
     btn.textContent = n ? ('Install '+plural(n,'update','updates')) : 'Install Updates';
