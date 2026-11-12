@@ -131,7 +131,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         }
 
         // Last successful sync with the ServiceNow Store (App Manager parity).
-        info.lastStoreSync = gs.getProperty('sn_appclient.apps_last_sync_time', '');
+        info.lastStoreSync = this._platformProp('sn_appclient.apps_last_sync_time', '');
 
         return info;
     },
@@ -669,6 +669,22 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         }
     },
 
+    // v1.7.1 — property di piattaforma della sync lette dal record, non da
+    // gs.getProperty: la piattaforma le riscrive senza invalidare la cache delle
+    // property, e gs.getProperty restituiva il valore vecchio (misurato su Brazil
+    // Patch 2, 2026-11-12: cache 15:06:33, record 15:17:26 dopo la sync). Effetti:
+    // Home mostrava l'ora della sync precedente, e apps_sync_progress restava 0
+    // durante una sync avviata da Application Manager (F13 non la vedeva).
+    _platformProp: function(name, dflt) {
+        var p = new GlideRecord('sys_properties');
+        p.addQuery('name', name);
+        p.setLimit(1);
+        p.query();
+        if (!p.next()) { return dflt; }
+        var v = p.getValue('value');
+        return (v === null || v === undefined) ? dflt : ('' + v);
+    },
+
     // Lock attivo? Solo uno stato 'running' NON scaduto conta (S4).
     _syncLocked: function() {
         var st = this._readSyncState();
@@ -697,7 +713,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         if (!this._guard()) { return this._forbidden(); }
 
         var startedAt = new GlideDateTime();
-        var prevSync  = gs.getProperty('sn_appclient.apps_last_sync_time', '');
+        var prevSync  = this._platformProp('sn_appclient.apps_last_sync_time', '');
 
         // S4 — lock esplicito: copre anche la finestra in cui il job e' creato
         // ma apps_sync_progress e' ancora 0.
@@ -823,7 +839,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // Una sync è in corso? apps_sync_progress è > 0 solo durante l'elaborazione
     // (a fine corsa la piattaforma la riporta a 0).
     _syncRunning: function() {
-        var raw = parseFloat(gs.getProperty('sn_appclient.apps_sync_progress', '0'));
+        var raw = parseFloat(this._platformProp('sn_appclient.apps_sync_progress', '0'));
         return !isNaN(raw) && raw > 0;
     },
 
@@ -872,7 +888,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     getSyncProgress: function() {
         if (!this._guard()) { return this._forbidden(); }
 
-        var pct = parseFloat(gs.getProperty('sn_appclient.apps_sync_progress', '0'));
+        var pct = parseFloat(this._platformProp('sn_appclient.apps_sync_progress', '0'));
         if (isNaN(pct)) { pct = 0; }
         pct = Math.round(pct);
         if (pct < 0)   { pct = 0; }
@@ -914,7 +930,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             message:    message,
             startedAt:  startedAt,
             finishedAt: finishedAt,
-            lastSync:   gs.getProperty('sn_appclient.apps_last_sync_time', '')
+            lastSync:   this._platformProp('sn_appclient.apps_last_sync_time', '')
         });
     },
 
