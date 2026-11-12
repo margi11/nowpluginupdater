@@ -1748,8 +1748,10 @@ html,body{background:#f5f5f7;margin:0}
               + '</div></td></tr>';
         }
       }
+      // Conta le app, non le voci: la voce della sessione scaduta ne copre piu' d'una.
+      var notStarted=L.failed+L.skipped+L.notQueued;
       h+='<div class="mt16"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">'
-        + esc(plural(errs.length,'application','applications'))+' could not be started</div>'
+        + esc(plural(notStarted||errs.length,'application','applications'))+' could not be started</div>'
         + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
         + '<th>Application</th><th>Scope</th><th>Status</th><th style="width:110px">Details</th>'
         + '</tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
