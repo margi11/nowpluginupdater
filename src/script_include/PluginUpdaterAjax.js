@@ -595,9 +595,10 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     //       finestra avviava una SECONDA sync concorrente.
     //
     // La soluzione e' un unico stato serializzato in una property applicativa,
-    // scritto da noi e quindi non ambiguo:
+    // scritto da noi e quindi non ambiguo (v1.7.1: x_npu.sync_runtime_state,
+    // privata — vedi SYNC_STATE_PROP):
     //
-    //   x_npu.sync_state = {"state":"running|done|error","startedAt":"...",
+    //   x_npu.sync_runtime_state = {"state":"running|done|error","startedAt":"...",
     //                       "finishedAt":"...","message":"...","by":"..."}
     //
     // state='running' e' il LOCK (S4): vale come tale finche' non scade
@@ -609,20 +610,45 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
     ROW_CAP:           500,   // O3: tetto alle righe restituite da getBatchStatus
     SYNC_JOB_NAME:     'Plugin Updater - Store Sync (once)',
-    SYNC_STATE_PROP:   'x_npu.sync_state',
+    // v1.7.1 (F33, decisione D7 — spec §18.7). Fino alla v1.7.0 lo stato stava in
+    // x_npu.sync_state, scritta con gs.setProperty, e il job leggeva il proprio
+    // sys_id da __npu_sync_job_id: entrambe le property finivano nell'update set
+    // corrente dell'admin (misurato su Brazil Patch 2, 2026-11-12), quindi un admin
+    // al lavoro nel proprio update set le avrebbe spedite con le sue modifiche.
+    // Ora lo stato sta in una property NUOVA, creata con is_private=true ("exclude
+    // this property from being imported via update sets", documentazione
+    // ufficiale) e scritta/letta con GlideRecord. Evidenza sull'istanza: le
+    // property private sn_appclient.apps_last_sync_time e apps_sync_progress,
+    // riscritte dalla piattaforma a ogni sync, non hanno alcuna voce
+    // sys_update_xml per quelle scritture. ignore_cache=true: la scrittura non
+    // svuota la cache delle property del cluster (lo stato si legge sempre con
+    // GlideRecord). La vecchia x_npu.sync_state non viene piu' scritta ne' letta,
+    // e __npu_sync_job_id non serve piu' (F34: l'id del job e' nel suo script).
+    SYNC_STATE_PROP:   'x_npu.sync_runtime_state',
     SYNC_LOCK_TTL_MS:  1800000, // 30 min: oltre, un 'running' e' considerato morto
 
     _readSyncState: function() {
-        var raw = gs.getProperty(this.SYNC_STATE_PROP, '');
+        var p = new GlideRecord('sys_properties');
+        if (!p.get('name', this.SYNC_STATE_PROP)) { return null; }
+        var raw = '' + (p.getValue('value') || '');
         if (!raw) { return null; }
         try { return JSON.parse(raw); } catch (e) { return null; }
     },
 
     _writeSyncState: function(st) {
         try {
-            gs.setProperty(this.SYNC_STATE_PROP, JSON.stringify(st),
-                           'Now Plugin Updater — stato della sincronizzazione con lo Store');
-            return true;
+            var p = new GlideRecord('sys_properties');
+            var exists = p.get('name', this.SYNC_STATE_PROP);
+            if (!exists) {
+                p.initialize();
+                p.setValue('name', this.SYNC_STATE_PROP);
+                p.setValue('type', 'string');
+                p.setValue('description', 'Now Plugin Updater - Store sync state (runtime, private: not captured in update sets)');
+            }
+            p.setValue('is_private', true);
+            p.setValue('ignore_cache', true);
+            p.setValue('value', JSON.stringify(st));
+            return !!(exists ? p.update() : p.insert());
         } catch (e) {
             gs.error('[PluginUpdater] impossibile scrivere ' + this.SYNC_STATE_PROP + ': ' + e);
             return false;
@@ -661,11 +687,16 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
         // S4 — lock esplicito: copre anche la finestra in cui il job e' creato
         // ma apps_sync_progress e' ancora 0.
-        if (this._syncLocked() || this._syncRunning()) {
+        var locked = this._syncLocked();
+        if (locked || this._syncRunning()) {
             var cur = this._readSyncState() || {};
+            // v1.7.1 (F13) — sync avviata fuori da questa app (Application Manager):
+            // il nostro lock non e' preso, quindi il suo startedAt e' quello di una
+            // sync precedente. external:true dice al client di seguire la
+            // percentuale della piattaforma invece del nostro esito.
             return JSON.stringify({
-                queued: false, alreadyRunning: true,
-                startedAt: cur.startedAt || ('' + startedAt),
+                queued: false, alreadyRunning: true, external: !locked,
+                startedAt: locked ? (cur.startedAt || ('' + startedAt)) : ('' + startedAt),
                 lastSync: prevSync
             });
         }
@@ -679,49 +710,32 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
         this._cleanupSyncJobs();
 
-        // Lo script del job: scrive l'esito (S2) e si autocancella (B3).
-        var prop = this.SYNC_STATE_PROP;
-        var jobName = this.SYNC_JOB_NAME;
-        var script = ''
-            + "// Now Plugin Updater — one-shot Store sync (creato da syncStore, v1.6.3)\n"
-            + "(function () {\n"
-            + "    var started = '" + startedAt + "';\n"
-            + "    function state(st, msg) {\n"
-            + "        try {\n"
-            + "            gs.setProperty('" + prop + "', JSON.stringify({\n"
-            + "                state: st, startedAt: started,\n"
-            + "                finishedAt: '' + new GlideDateTime(),\n"
-            + "                message: msg || '', by: gs.getUserName()\n"
-            + "            }));\n"
-            + "        } catch (e) { gs.error('[PluginUpdater] sync state write failed: ' + e); }\n"
-            + "    }\n"
-            + "    try {\n"
-            + "        gs.info('[PluginUpdater] Store sync starting');\n"
-            + "        new sn_appclient.UpdateChecker().checkAvailableUpdates(false, false, { forceUpdate: true });\n"
-            + "        gs.info('[PluginUpdater] Store sync finished');\n"
-            + "        state('done', '');\n"
-            + "    } catch (e) {\n"
-            + "        gs.error('[PluginUpdater] Store sync failed: ' + e);\n"
-            + "        state('error', '' + e);\n"
-            + "    }\n"
-            + "    // B3 — il job one-shot si rimuove da se': non resta schedulato\n"
-            + "    // in attesa di un click successivo che lo ripulisca.\n"
-            + "    try {\n"
-            + "        var me = new GlideRecord('sysauto_script');\n"
-            + "        if (me.get(gs.getProperty('__npu_sync_job_id', ''))) { me.deleteRecord(); }\n"
-            + "    } catch (e2) { gs.warn('[PluginUpdater] self-cleanup del job di sync fallito: ' + e2); }\n"
-            + "})();\n";
-
+        // v1.7.1 (F34) — il job viene creato INATTIVO con un segnaposto, poi lo
+        // script riceve il PROPRIO sys_id e il job viene attivato. Fino alla v1.7.0
+        // tutti i job condividevano __npu_sync_job_id: un job tardivo poteva
+        // cancellare il record del job nuovo. Il job scrive l'esito solo se lo stato
+        // e' ancora quello della SUA sync (stesso startedAt): un job scaduto non
+        // sovrascrive la sync successiva.
         var job = new GlideRecord('sysauto_script');
         job.initialize();
-        job.setValue('name', jobName);
-        job.setValue('script', script);
-        job.setValue('active', true);
+        job.setValue('name', this.SYNC_JOB_NAME);
+        job.setValue('script', '// Now Plugin Updater - one-shot Store sync (being created)');
+        job.setValue('active', false);
         job.setValue('run_type', 'once');
         job.setValue('run_start', startedAt);
         job.setValue('run_as', gs.getUserID());
         job.setValue('conditional', false);
-        var jobId = job.insert();
+        var jobId = this._sysId(job.insert());
+
+        if (jobId) {
+            job.setValue('script', this._syncJobScript('' + startedAt, jobId));
+            job.setValue('active', true);
+            if (!job.update()) {
+                gs.error('[PluginUpdater] syncStore: impossibile attivare il job ' + jobId);
+                job.deleteRecord();
+                jobId = '';
+            }
+        }
 
         if (!jobId) {
             gs.error('[PluginUpdater] syncStore: impossibile creare il job one-shot di sync');
@@ -738,9 +752,6 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             });
         }
 
-        // Il job ha bisogno del proprio sys_id per autocancellarsi.
-        gs.setProperty('__npu_sync_job_id', jobId);
-
         gs.info('[PluginUpdater] syncStore: job one-shot ' + jobId + ' schedulato da ' + gs.getUserName());
         return JSON.stringify({
             queued:    true,
@@ -748,6 +759,49 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             startedAt: '' + startedAt,
             lastSync:  prevSync
         });
+    },
+
+    // Script del job one-shot (v1.7.1). Scrive l'esito nella property privata con
+    // GlideRecord (D7) solo se lo stato e' ancora quello della propria sync, e si
+    // autocancella con il proprio sys_id incorporato (F34).
+    _syncJobScript: function(startedAt, jobId) {
+        var prop = this.SYNC_STATE_PROP;
+        return ''
+            + "// Now Plugin Updater - one-shot Store sync (creato da syncStore, v1.7.1)\n"
+            + "(function () {\n"
+            + "    var started = '" + startedAt + "', jobId = '" + jobId + "';\n"
+            + "    function state(st, msg) {\n"
+            + "        try {\n"
+            + "            var p = new GlideRecord('sys_properties');\n"
+            + "            if (!p.get('name', '" + prop + "')) { gs.warn('[PluginUpdater] sync state property missing'); return; }\n"
+            + "            var cur = {};\n"
+            + "            try { cur = JSON.parse('' + (p.getValue('value') || '{}')) || {}; } catch (eP) { cur = {}; }\n"
+            + "            if (cur.startedAt !== started) { gs.warn('[PluginUpdater] sync job ' + jobId + ': state belongs to another sync, not overwritten'); return; }\n"
+            + "            p.setValue('is_private', true);\n"
+            + "            p.setValue('ignore_cache', true);\n"
+            + "            p.setValue('value', JSON.stringify({\n"
+            + "                state: st, startedAt: started,\n"
+            + "                finishedAt: '' + new GlideDateTime(),\n"
+            + "                message: msg || '', by: '' + gs.getUserName()\n"
+            + "            }));\n"
+            + "            p.update();\n"
+            + "        } catch (e) { gs.error('[PluginUpdater] sync state write failed: ' + e); }\n"
+            + "    }\n"
+            + "    try {\n"
+            + "        gs.info('[PluginUpdater] Store sync starting');\n"
+            + "        new sn_appclient.UpdateChecker().checkAvailableUpdates(false, false, { forceUpdate: true });\n"
+            + "        gs.info('[PluginUpdater] Store sync finished');\n"
+            + "        state('done', '');\n"
+            + "    } catch (e) {\n"
+            + "        gs.error('[PluginUpdater] Store sync failed: ' + e);\n"
+            + "        state('error', '' + e);\n"
+            + "    }\n"
+            + "    // B3 — il job one-shot si rimuove da se'.\n"
+            + "    try {\n"
+            + "        var me = new GlideRecord('sysauto_script');\n"
+            + "        if (me.get(jobId)) { me.deleteRecord(); }\n"
+            + "    } catch (e2) { gs.warn('[PluginUpdater] self-cleanup del job di sync fallito: ' + e2); }\n"
+            + "})();\n";
     },
 
     // Una sync è in corso? apps_sync_progress è > 0 solo durante l'elaborazione
@@ -827,13 +881,19 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             }
         }
 
-        // La piattaforma sta ancora lavorando? pct>0 e' un indizio positivo, ma
-        // l'arbitro e' il nostro stato.
+        // La piattaforma sta ancora lavorando? L'arbitro e' il nostro stato, ma
+        // v1.7.1 (F13): una sync avviata dall'Application Manager non scrive il
+        // nostro stato. Se la piattaforma e' in corsa (apps_sync_progress > 0) e il
+        // nostro stato non e' 'running', la sync e' esterna: outcome 'running',
+        // external true, e il client chiude quando la percentuale torna a 0.
+        var external = false;
+        if (outcome !== 'running' && this._syncRunning()) { outcome = 'running'; external = true; message = ''; }
         var running = (outcome === 'running');
 
         return JSON.stringify({
             pct:        running ? pct : (outcome === 'done' ? 100 : pct),
             running:    running,
+            external:   external,
             outcome:    outcome,
             message:    message,
             startedAt:  startedAt,
