@@ -101,7 +101,9 @@
         var cur    = currentVersion(appId, verCache);
 
         // App non piu' presente (disinstallata o record rimosso): non giudicabile.
-        if (cur === null) {
+        // v1.7.1 (O9) — anche una versione installata VUOTA non e' giudicabile:
+        // prima cmpVer('', target) la leggeva come 0.0.0 e la riga diventava 'failed'.
+        if (cur === null || !('' + cur).trim()) {
             stats.unverifiable++;
             continue;
         }

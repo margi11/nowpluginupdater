@@ -33,6 +33,10 @@
  *   3) MODE = 'verify'  : in un'esecuzione separata (cache e dizionario gia'
  *      aggiornati) ricontrolla che tutto sia a zero e che la tabella non esista.
  *
+ * v1.7.1 (F12): in 'execute' si ferma senza cancellare nulla se non trova
+ * nessun update set NPU (istanza gia' ripulita), e non costruisce mai una
+ * condizione IN su una lista vuota.
+ *
  * Scope: global. Distruttivo e irreversibile in MODE = 'execute'.
  */
 (function () {
@@ -42,7 +46,9 @@
     var SET_PREFIX = 'Now Plugin Updater';
     var LOG_TABLE = 'u_plugin_updater_install_log';
     var JOB_PREFIX = 'Plugin Updater - ';
-    var RUNTIME_PROPS = ['x_npu.sync_state', '__npu_sync_job_id'];
+    // x_npu.sync_runtime_state: stato privato della sync dalla v1.7.1 (D7); le
+    // altre due sono quelle fino alla v1.7.0.
+    var RUNTIME_PROPS = ['x_npu.sync_state', '__npu_sync_job_id', 'x_npu.sync_runtime_state'];
 
     // Ordine di cancellazione per tabella: figli prima dei padri, tabella per ultima.
     // sys_dictionary non compare: le colonne cadono con la tabella; eventuali
@@ -102,9 +108,20 @@
     var remoteSets = ids('sys_remote_update_set', 'nameSTARTSWITH' + SET_PREFIX);
     log('local update sets: ' + localSets.length + '  remote update sets: ' + remoteSets.length);
 
+    // v1.7.1 (F12) — mai un IN vuoto in una query che alimenta delle cancellazioni:
+    // ogni ramo OR si costruisce solo da una lista non vuota. (Su Brazil Patch 2 un
+    // IN vuoto non corrisponde a nessuna riga, ma non e' un comportamento garantito.)
+    var setBranches = [];
+    if (localSets.length) { setBranches.push('update_setIN' + localSets.join(',')); }
+    if (remoteSets.length) { setBranches.push('remote_update_setIN' + remoteSets.join(',')); }
+    if (MODE === 'execute' && !setBranches.length) {
+        log('NOTHING TO DO: no "' + SET_PREFIX + '" update set (local or remote) on this instance - it looks already reset. Nothing was deleted.');
+        gs.info(out.join('\n'));
+        return;
+    }
     var names = {}, nameList = [];
     var x = new GlideRecord('sys_update_xml');
-    x.addEncodedQuery('update_setIN' + localSets.join(',') + '^NQremote_update_setIN' + remoteSets.join(','));
+    x.addEncodedQuery(setBranches.length ? setBranches.join('^NQ') : 'sys_idISEMPTY');
     x.query();
     while (x.next()) {
         var n = '' + x.getValue('name');
@@ -233,10 +250,14 @@
         if (!names[cn.toLowerCase()]) { names[cn.toLowerCase()] = cn; historyNames.push(cn); cascade++; }
     }
     log('cascade-deleted names added to history cleanup: ' + cascade);
-    var inNames = historyNames.join(',');
-    purge('sys_update_xml', 'nameIN' + inNames, 'sys_update_xml with app names (all sets)');
-    purge('sys_update_version', 'nameIN' + inNames, 'sys_update_version');
-    purge('sys_metadata_delete', 'sys_update_nameIN' + inNames, 'sys_metadata_delete');
+    if (historyNames.length) {
+        var inNames = historyNames.join(',');
+        purge('sys_update_xml', 'nameIN' + inNames, 'sys_update_xml with app names (all sets)');
+        purge('sys_update_version', 'nameIN' + inNames, 'sys_update_version');
+        purge('sys_metadata_delete', 'sys_update_nameIN' + inNames, 'sys_metadata_delete');
+    } else {
+        log('no app names in the inventory: name-based history purges skipped (F12)');
+    }
     // Varianti di nome storiche (es. sys_choice_<tabella>_null della v1.4.0) e voci
     // DELETE con target non riconoscibile (es. quella del sys_choice_set).
     purge('sys_update_xml', 'nameLIKE' + LOG_TABLE, 'sys_update_xml name variants');

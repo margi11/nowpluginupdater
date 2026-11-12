@@ -36,6 +36,7 @@ html,body{background:#f5f5f7;margin:0}
 #app .nav-tabs{display:flex;gap:2px;background:rgba(0,0,0,.045);padding:3px;border-radius:var(--r-pill)}
 #app .nav-tab{padding:6px 16px;border-radius:var(--r-pill);border:none;background:transparent;font:inherit;font-size:13px;font-weight:500;color:var(--text-2);cursor:pointer;transition:color .2s,background .2s,box-shadow .2s}
 #app .nav-tab:hover{color:var(--text)}
+#app .nav-tab:disabled{opacity:.45;cursor:not-allowed}
 #app .nav-tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 #app .nav-actions{display:flex;gap:8px}
 #app .content{flex:1;padding:36px 28px;max-width:1120px;margin:0 auto;width:100%}
@@ -168,7 +169,10 @@ html,body{background:#f5f5f7;margin:0}
 #app .pill.has-ico::before{display:none}
 
 /* --- Modal di conferma --- */
-#app .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:200;display:flex;align-items:center;justify-content:center;padding:24px;animation:npu-fade .18s ease}
+#app .modal-back{position:fixed;inset:0;background:rgba(0,0,0,.32);z-index:200;display:flex;overflow-y:auto;padding:24px;animation:npu-fade .18s ease}
+/* v1.7.1 - centrato con margin:auto, non con align-items: un dialog piu' alto della finestra
+   (le due liste aperte) parte dall'alto e lo sfondo scorre, invece di tagliare titolo e pulsanti. */
+#app .modal-back .npu-modal{margin:auto}
 #app .npu-modal{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--sh-md);max-width:460px;width:100%;padding:26px 28px}
 #app .npu-modal h3{font-size:18px;font-weight:600;letter-spacing:-.01em;margin-bottom:10px}
 #app .npu-modal p{font-size:14px;color:var(--text-2);line-height:1.55;margin-bottom:8px}
@@ -245,7 +249,12 @@ html,body{background:#f5f5f7;margin:0}
 #app .tree-box{padding:12px 18px 14px;animation:npu-fade .18s ease}
 #app .tree-box .impact-row:first-child{border-top:none}
 #app .confirm-union{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
-#app .confirm-union-list{max-height:220px;overflow-y:auto;margin-top:10px}
+#app .confirm-union-list{margin-top:10px}
+/* v1.7.1 - scorrono solo le righe; il pager resta sotto, sempre visibile. Il margine a destra
+   tiene la scrollbar (overlay su macOS) fuori dalle versioni e dai pulsanti. */
+#app .npu-cf-rows{max-height:220px;overflow-y:auto;padding-right:12px;scrollbar-gutter:stable}
+#app .npu-pager-compact{padding:10px 0 2px;background:transparent;border-top:1px solid rgba(0,113,227,.12);margin-top:4px}
+#app .npu-btn-spin{width:12px;height:12px;border-width:2px;border-color:rgba(255,255,255,.45);border-top-color:#fff}
 #app .cap-note-inline{padding:10px 0 2px;font-size:12px;color:var(--text-3);text-align:center;border-top:1px solid rgba(0,113,227,.12);margin-top:4px}
 
 /* --- Monitor: dependency rows (v1.6, §10.3) ---------------------------------
@@ -275,6 +284,7 @@ html,body{background:#f5f5f7;margin:0}
 #app .npu-alert-ok{background:rgba(52,199,89,.10);color:#1a6e2e}
 #app .npu-alert-warn{background:rgba(255,159,10,.12);color:#8a5a00}
 #app .npu-alert-info{background:var(--accent-soft);color:var(--text-2)}
+#app .npu-refresh-warn{color:#8a5a00}
 /* Dialog: elenco delle modifiche e checkbox obbligatoria. Stanno fuori dal
    paragrafo del corpo: dentro un paragrafo il browser lo chiuderebbe prima della
    lista. ATTENZIONE: in questo blocco style niente parentesi angolari, nemmeno nei
@@ -406,13 +416,13 @@ html,body{background:#f5f5f7;margin:0}
         </div>
         <div class="guide-section mt16">
           <h3>3 &#183; Wizard &#8212; Select</h3>
-          <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The buttons sit&#160;<strong>above the list</strong>, so you never have to scroll hundreds of rows to continue. Apps already being installed are shown as&#160;<em>installing</em>&#160;and cannot be re-selected.</p>
+          <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The buttons sit&#160;<strong>above the list</strong>, so you never have to scroll hundreds of rows to continue. Apps already being installed &#8212; by this app in any batch, or by the Application Manager &#8212; are shown as&#160;<em>installing</em>&#160;and cannot be selected. The checkbox in the table header selects every selectable application matching the filter; when they are all selected it clears them, and a partial selection shows it as half-filled. While a launch is running, the Wizard and&#160;<strong>Install</strong>&#160;stay disabled until it ends.</p>
           <p>Long lists are split into pages &#8212; choose 25, 50, 100, 150 or 200&#160;<strong>applications per page</strong>. Your selection is kept when you change page, sort or filter, and&#160;<strong>Select All</strong>&#160;always applies to everything matching the current filter, not just the visible page.</p>
           <p>The per-row&#160;<strong>N&#160;more</strong>&#160;links from Discover are shown here too, so the impact of a row stays visible while you're choosing what to install.</p>
         </div>
         <div class="guide-section mt16">
           <h3>4 &#183; Confirm &amp; Launch</h3>
-          <p>Before anything installs, the confirmation dialog names the instance, lists the&#160;<strong>selected applications</strong>&#160;you are about to install (expand&#160;<strong>Show all</strong>&#160;on long lists), and separately shows how many&#160;<strong>additional</strong>&#160;applications will update as a result of those selections &#8212; a single deduplicated count, never a per-row sum, with its own&#160;<strong>Show all</strong>&#160;link. The two lists are kept apart on purpose: one is what you chose, the other is what the platform adds on its own. Review both, then confirm to launch.</p>
+          <p>Before anything installs, the confirmation dialog names the instance, lists the&#160;<strong>selected applications</strong>&#160;you are about to install (expand&#160;<strong>Show all</strong>; long lists are shown 25 at a time, in alphabetical order, with page controls), and separately shows how many&#160;<strong>additional</strong>&#160;applications will update as a result of those selections &#8212; a single deduplicated count, never a per-row sum, with its own&#160;<strong>Show all</strong>&#160;link. The two lists are kept apart on purpose: one is what you chose, the other is what the platform adds on its own. Review both, then confirm to launch.</p>
         </div>
         <div class="guide-section mt16">
           <h3>5 &#183; Launch &amp; Monitor</h3>
@@ -424,7 +434,7 @@ html,body{background:#f5f5f7;margin:0}
             <li>Whenever a row carries a message, a&#160;<strong>Details</strong>&#160;(or&#160;<strong>Why failed</strong>) button appears in the last column. It opens the exact text reported by the platform underneath that row &#8212; useful for telling apart an app that was rejected at launch from one whose install did not apply. If any application fails to launch, the wizard stays on the Launch step so you can read the reasons before moving on.</li>
             <li>The&#160;<strong>Monitor</strong>&#160;tab shows the batch with five counters &#8212; Total,&#160;<strong>Installing</strong>&#160;(running right now),&#160;<strong>Queued</strong>&#160;(waiting in the server queue), Complete, Failed &#8212; and a sortable per-app table. When the batch ends a summary appears, with a shortcut to list only the failures.</li>
             <li>Underneath any application that pulled in dependencies, a&#160;<strong>dependency</strong>&#160;badge marks the applications the platform actually installed alongside it &#8212; this reflects what really happened, read directly from the platform's own installation tracker, not a prediction made before launch.</li>
-            <li><strong>Cancel queued</strong>&#160;marks the applications still waiting as&#160;<em>cancelled</em>. It checks each one first: an application that has already started, or is already installed, is kept and reported as already started. The platform's own install queue is not changed, so an application it had already accepted can still install &#8212; its row then turns&#160;<em>Complete</em>. Installs already running cannot be interrupted and will finish.</li>
+            <li><strong>Cancel queued</strong>&#160;marks as&#160;<em>cancelled</em>&#160;the applications still waiting that the platform has not taken yet; if the launch is still running, the page skips them. An application the platform has already queued cannot be removed from the platform's queue: it stays&#160;<em>queued</em>, will still install, and the result says how many these are. An application that has already started or is already installed is kept. Installs already running cannot be interrupted and will finish.</li>
             <li>Reopening the page reloads your most recent batch automatically; the batch selector lets you review earlier ones.</li>
           </ul>
         </div>
@@ -439,7 +449,8 @@ html,body{background:#f5f5f7;margin:0}
           <ul>
             <li>Because the list mirrors the Application Manager, a few platform-bundled apps that cannot be updated via the Store API will end as&#160;<strong>Failed</strong>&#160;&#8212; this is expected.</li>
             <li>Keep the page open only for the few seconds of launching; installs and monitoring then continue on the server.</li>
-            <li><strong>Sync with Store</strong>&#160;runs the same catalog check as the Application Manager and shows its real progress, then reloads the page when it finishes &#8212; typically a couple of minutes. If it is still running after five minutes the page stops following it and says so: the sync keeps going on the server and does not need this page open.</li>
+            <li><strong>Sync with Store</strong>&#160;runs the same catalog check as the Application Manager and shows its real progress, then reloads the page when it finishes &#8212; typically a couple of minutes. If the sync fails, the page shows the reason reported by the server. A sync already started from the Application Manager is followed until it ends. If it is still running after five minutes the page stops following it and says so: the sync keeps going on the server and does not need this page open.</li>
+            <li>Closing the tab while installs are being launched asks for confirmation: the applications not launched yet would stay queued until they time out. If your session expires during a launch, the launch stops and says so &#8212; sign in again and relaunch the remaining applications.</li>
             <li>Dependency impact is informational: the batch installs exactly what you selected&#160;&#8212; the platform pulls in the rest by itself once an install runs. Apps shown as impact but marked&#160;<em>not selectable</em>&#160;are hidden dependencies that update automatically and cannot be picked individually.</li>
           </ul>
         </div>
@@ -462,7 +473,7 @@ html,body{background:#f5f5f7;margin:0}
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.7.0',
+    version:'1.7.1',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -471,11 +482,13 @@ html,body{background:#f5f5f7;margin:0}
     // S.selected e' indicizzato per sysId e vive fuori dal rendering, quindi la
     // selezione attraversa le pagine senza perdersi. Pagina e page size sono
     // indipendenti per vista (w1 = Step 1, sel = Step 2, mon = Monitor).
-    page:{w1:1,sel:1,mon:1},
-    pageSize:{w1:25,sel:25,mon:25},
+    page:{w1:1,sel:1,mon:1,cfsel:1,cfdep:1},
+    // cfsel / cfdep (v1.7.1, F02): liste del dialog di conferma, 25 fisse (D3).
+    pageSize:{w1:25,sel:25,mon:25,cfsel:25,cfdep:25},
     PAGE_SIZES:[25,50,100,150,200],
     // Righe di dettaglio aperte, per chiave: sopravvive ai refresh del polling.
-    whyOpen:{}, launchWhyOpen:{},
+    // S.launch (v1.7.1): stato del lancio in corso, uno per lancio (F04).
+    whyOpen:{}, launch:null,
     // Filtro per status guidato dai KPI del Monitor (v1.6.5). Stringa vuota =
     // nessun filtro. Assorbe il precedente monOnlyFailed, che faceva la stessa
     // cosa per il solo stato 'failed' con uno stato separato da mantenere.
@@ -498,7 +511,8 @@ html,body{background:#f5f5f7;margin:0}
   // Garantisce che un callback venga eseguito una volta sola. Serve nel launch:
   // se un done() non venisse mai invocato la coda si fermerebbe in silenzio, se
   // venisse invocato due volte il contatore avanzerebbe di troppo.
-  function once(fn){ var called=false; return function(){ if(called) return; called=true; fn(); }; }
+  // v1.7.1: inoltra gli argomenti (lo usa anche il watchdog di ajax(), N1).
+  function once(fn){ var called=false; return function(){ if(called) return; called=true; return fn.apply(this, arguments); }; }
 
   function debounce(fn, ms){
     var t=null;
@@ -516,7 +530,12 @@ html,body{background:#f5f5f7;margin:0}
   }
 
   // ---- Modal di conferma (nessuna dipendenza esterna) ----
-  function closeModal(){ var h=$('modal-host'); if(h){ h.innerHTML=''; } }
+  // v1.7.1 (O5) — alla chiusura il focus torna a chi ha aperto il dialog.
+  function closeModal(){
+    var h=$('modal-host'); if(h){ h.innerHTML=''; h.onkeydown=null; }
+    var o=S.modalOpener; S.modalOpener=null;
+    if(o && o.focus && document.body.contains(o) && !o.disabled){ o.focus(); }
+  }
   // v1.7.0 — opzioni aggiuntive, retrocompatibili (i chiamanti esistenti non cambiano):
   //   extraHtml       HTML reso DOPO il paragrafo del corpo (liste, checkbox)
   //   requireCheckId  id di una checkbox dentro extraHtml: il pulsante di
@@ -526,6 +545,7 @@ html,body{background:#f5f5f7;margin:0}
     var host=$('modal-host');
     if(!host){ if(opts.onConfirm && !opts.requireCheckId) opts.onConfirm(); return; }
     var danger = !!opts.danger;
+    S.modalOpener = opts.opener || document.activeElement || null;
     host.innerHTML=''
       + '<div class="modal-back" id="modal-back">'
       +   '<div class="npu-modal'+(opts.wide?' npu-modal-wide':'')+'" role="dialog" aria-modal="true" aria-labelledby="modal-title">'
@@ -545,7 +565,18 @@ html,body{background:#f5f5f7;margin:0}
     no.onclick=bail;
     // Click sullo sfondo = annulla; Esc idem.
     back.onclick=function(e){ if(e.target===back) bail(); };
-    host.onkeydown=function(e){ if(e.key==='Escape'||e.keyCode===27) bail(); };
+    // v1.7.1 (O5) — Tab e Shift+Tab restano dentro il dialog.
+    host.onkeydown=function(e){
+      if(e.key==='Escape'||e.keyCode===27){ bail(); return; }
+      if(e.key!=='Tab' && e.keyCode!==9) return;
+      var dlg=host.querySelector('.npu-modal'); if(!dlg) return;
+      var f=dlg.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),[tabindex="0"]');
+      if(!f.length) return;
+      var first=f[0], last=f[f.length-1];
+      if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+      else if(!dlg.contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+    };
     if(opts.requireCheckId){
       // Senza la checkbox (id sbagliato) la conferma resta bloccata: meglio un
       // dialog inutilizzabile che un'azione distruttiva senza attestazione.
@@ -559,16 +590,28 @@ html,body{background:#f5f5f7;margin:0}
 
   function announce(msg){ var el=$('mon-live'); if(el){ el.textContent=msg; } }
 
+  // v1.7.1 (N1) — watchdog su ogni chiamata. Quando xmlhttp.do fallisce (502
+  // osservato su Brazil) getXMLAnswer non richiama mai il callback, e ogni catena
+  // di polling si fermava in silenzio: era la causa di F06 e F13. Dopo AJAX_TIMEOUT
+  // il callback riceve 'timeout' una sola volta (once): una risposta tardiva viene
+  // ignorata. I chiamanti la trattano come qualsiasi altro errore.
+  var AJAX_TIMEOUT=45000;
   function ajax(method, params, cb){
+    var timer=null;
+    var done=once(function(err, data){ if(timer){ clearTimeout(timer); timer=null; } cb(err, data); });
+    function finish(err, data){ return function(){ done(err, data); }; }
     try {
       var ga=new GlideAjax('PluginUpdaterAjax');
       ga.addParam('sysparm_name',method);
-      if(params){ for(var k in params){ ga.addParam('sysparm_'+k, params[k]); } }
+      if(params){ for(var k in params){ if(params.hasOwnProperty(k)){ ga.addParam('sysparm_'+k, params[k]); } } }
+      timer=setTimeout(finish('timeout', null), AJAX_TIMEOUT);
       ga.getXMLAnswer(function(ans){
-        if(ans==null||ans===''){ cb('Empty response from server', null); return; }
-        try{ cb(null, JSON.parse(ans)); }catch(e){ cb('Parse error: '+e.message+' :: '+ans, null); }
+        if(ans==null||ans===''){ done('Empty response from server', null); return; }
+        var parsed;
+        try{ parsed=JSON.parse(ans); }catch(e){ done('Parse error: '+e.message+' :: '+(''+ans).substring(0,300), null); return; }
+        done(null, parsed);
       });
-    } catch(e){ cb('GlideAjax unavailable: '+e.message, null); }
+    } catch(e){ done('GlideAjax unavailable: '+e.message, null); }
   }
 
   // ---- View switching ----
@@ -595,6 +638,7 @@ html,body{background:#f5f5f7;margin:0}
       S.queueHome=d.queueHealth||null;   // v1.7.0: { status, waiting }
       S.appsFetchedAt=new Date().getTime();
       renderHome(d.infoError||d.appsError||'');
+      afterAppsReload();
     });
   }
 
@@ -633,16 +677,18 @@ html,body{background:#f5f5f7;margin:0}
       +   kpi('Apps', storeTotal, 'managed (active &amp; visible)','')
       +   kpi('Up to Date', num(a.appsUpToDate), 'no update available','success')
       +   kpi('Updates Available', avail, 'update pending', avail>0?'warning':'')
-      +   '<div class="kpi'+(inProg>0?' accent clickable':'')+'" id="kpi-inprogress" title="'+(inProg>0?'Open the running batch':'')+'"><div class="kpi-label">Installing</div>'
+      // v1.7.1 (O5) — la scheda cliccabile e' anche un controllo da tastiera.
+      +   '<div class="kpi'+(inProg>0?' accent clickable':'')+'" id="kpi-inprogress"'
+      +     (inProg>0?' role="button" tabindex="0" aria-label="Installing: '+esc(inProg)+' running now. Open the running batch" title="Open the running batch"':'')+'><div class="kpi-label">Installing</div>'
       +     '<div class="kpi-value">'+esc(inProg)+'</div><div class="kpi-sub">'+(inProg>0?'running now &#8226; open monitor':'running now')+'</div></div>'
       + '</div>'
       + '<div class="row-gap">'
-      +   '<button class="btn btn-primary" id="home-start"'+(avail>0?'':' disabled')+'>Start Wizard</button>'
+      +   '<button class="btn btn-primary" id="home-start"'+((avail>0 && !S.launching)?'':' disabled')+'>Start Wizard</button>'
       +   '<button class="btn btn-secondary" id="home-refresh">Refresh Data</button>'
-      +   '<button class="btn btn-secondary" id="home-sync">Sync with Store</button>'
+      +   '<button class="btn btn-secondary" id="home-sync"'+(S.syncing?' disabled':'')+'>'+(S.syncing?'Syncing&#8230;':'Sync with Store')+'</button>'
       +   '<button class="btn btn-secondary" id="home-monitor">Monitor installs</button>'
       + '</div>'
-      + '<div id="sync-status" style="margin-top:14px"></div>'
+      + '<div id="sync-status" style="margin-top:14px">'+((S.syncView&&S.syncView.html)||'')+'</div>'
       + (err?'<div class="alert alert-danger mt16">'+esc(err)+'</div>':'')
       + '<div style="margin-top:28px;font-size:11px;color:var(--text-3)">Now Plugin Updater v'+S.version+' &#183; by Gianmario Marongiu</div>';
     $('home-body').innerHTML=h;
@@ -652,7 +698,10 @@ html,body{background:#f5f5f7;margin:0}
     $('home-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     var hq=$('home-queue'); if(hq){ hq.onclick=function(){ openMonitor(S.currentBatch||''); }; }
     var ip=$('kpi-inprogress');
-    if(ip && inProg>0){ ip.onclick=function(){ ajax('getActiveBatch',{},function(e,d){ openMonitor((d&&d.batch)||''); }); }; }
+    if(ip && inProg>0){
+      ip.onclick=function(){ ajax('getActiveBatch',{},function(e,d){ openMonitor((d&&d.batch)||''); }); };
+      ip.onkeydown=function(e){ if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){ e.preventDefault(); ip.onclick(); } };
+    }
   }
   // `sub` arriva con entità HTML già pronte, quindi non va escapato; `label` sì,
   // per coerenza con `val` — così un domani un'etichetta dinamica resta sicura.
@@ -692,101 +741,135 @@ html,body{background:#f5f5f7;margin:0}
   // La sync stessa dura poi ~2 minuti su 1.200 app. Oltre i 5 minuti totali
   // smettiamo di seguirla ma NON la dichiariamo fallita: sta ancora girando
   // sul server.
+  // v1.7.1 (F13) — la fine della sync la decide il server: outcome 'done' o
+  // 'error' (con il messaggio), scritti dal job. Non si confrontano piu' stringhe
+  // di data. La base e' d.lastSync della risposta di syncStore. Una sync avviata
+  // dall'Application Manager (external) non scrive il nostro esito: si segue la
+  // percentuale della piattaforma e si chiude quando torna a zero.
   function syncStore(){
     var btn=$('home-sync');
     if(!btn || S.syncing){ return; }
-    var prev=(S.info&&S.info.lastStoreSync)||'';
-    S.syncing=true; btn.disabled=true; btn.textContent='Syncing…';
+    S.syncing=true; setSyncButton();
     renderSync(0,'Starting the sync job…');
 
     ajax('syncStore',{},function(e,d){
       if(e){ finishSync('Store sync could not be started: '+esc(e)); return; }
       if(d && d.error){ finishSync(esc(d.error)); return; }
-      if(d && d.alreadyRunning){ renderSync(0,'A sync is already running — following it…'); }
+      var external=!!(d && d.external);
+      if(d && d.alreadyRunning){
+        renderSync(0, external ? 'A sync started from the Application Manager is running — following it…'
+                               : 'A sync is already running — following it…');
+      }
 
       var startedAt=(d&&d.startedAt)||'';
       var t0=new Date().getTime();
       var GIVE_UP_MS=300000;          // 5 minuti di osservazione
-      var sawRunning=false;
+      var sawRunning=false, fails=0, lastPct=0;
+
+      function done(){
+        renderSync(100,'Finished');
+        S.syncing=false; setSyncButton();
+        setTimeout(function(){ refresh(); }, 700);
+      }
+      function again(ms){
+        if(GIVE_UP_MS > (new Date().getTime()-t0)){ setTimeout(poll, ms); } else { keepGoingInBackground(); }
+      }
 
       function poll(){
         if(!S.syncing){ return; }
         var elapsed=new Date().getTime()-t0;
         ajax('getSyncProgress',{},function(e2,p){
           if(!S.syncing){ return; }
-          if(e2 || !p){
-            if(GIVE_UP_MS > elapsed){ setTimeout(poll, 5000); } else { keepGoingInBackground(); }
+          if(e2 || !p || p.error){
+            // N1/T12 — una lettura fallita non ferma il follow: lo si dice e si riprova.
+            fails++;
+            renderSync(lastPct, 'Could not read the sync progress — retrying…');
+            again(Math.min(5000*fails, 30000));
             return;
           }
+          fails=0;
+          lastPct=p.pct||0;
 
           if(p.running){
             sawRunning=true;
             renderSync(p.pct, 'Updating the application catalog…');
-            if(GIVE_UP_MS > elapsed){ setTimeout(poll, 3000); } else { keepGoingInBackground(); }
+            again(3000);
+            return;
+          }
+          if(external || p.external){ done(); return; }
+
+          // Esito di un'altra sync (startedAt diverso): non e' la nostra, si aspetta.
+          var ours = !startedAt || !p.startedAt || p.startedAt===startedAt;
+          if(ours && p.outcome==='done'){ done(); return; }
+          if(ours && p.outcome==='error'){
+            finishSync('<strong>The Store sync failed.</strong> '+esc(p.message||'No reason was reported.'));
             return;
           }
 
-          // pct 0: idle oppure finita. È finita se il timestamp è avanzato.
-          var moved = !!(p.lastSync && (p.lastSync!==prev || (startedAt && p.lastSync>=startedAt)));
-          if(moved){
-            renderSync(100,'Finished');
-            S.syncing=false;
-            var b=$('home-sync'); if(b){ b.disabled=false; b.textContent='Sync with Store'; }
-            setTimeout(function(){ refresh(); }, 700);
-            return;
-          }
-
-          // Non ancora partita (il job attende lo scheduler) o già conclusa senza
-          // toccare il timestamp: continuo a osservare. Il tempo trascorso è
-          // mostrato esplicitamente — senza, un'attesa scheduler più lunga del
-          // solito (osservato: pochi minuti, non i ~30s tipici) sembra un blocco.
-          if(GIVE_UP_MS > elapsed){
-            var waitedS=Math.round(elapsed/1000);
-            var waitMsg=sawRunning
-              ? 'Finishing…'
-              : (waitedS>90
-                  ? 'Still waiting for the scheduler to pick up the sync job ('+waitedS+'s — this is taking longer than usual)…'
-                  : 'Waiting for the sync job to start… ('+waitedS+'s)');
-            renderSync(p.pct, waitMsg);
-            setTimeout(poll, sawRunning?3000:6000);
-          } else {
-            keepGoingInBackground();
-          }
+          // Il job attende lo scheduler. Il tempo trascorso è mostrato
+          // esplicitamente — senza, un'attesa scheduler più lunga del solito
+          // (osservato: pochi minuti, non i ~30s tipici) sembra un blocco.
+          var waitedS=Math.round(elapsed/1000);
+          var waitMsg=sawRunning
+            ? 'Finishing…'
+            : (waitedS>90
+                ? 'Still waiting for the scheduler to pick up the sync job ('+waitedS+'s — this is taking longer than usual)…'
+                : 'Waiting for the sync job to start… ('+waitedS+'s)');
+          renderSync(p.pct, waitMsg);
+          again(sawRunning?3000:6000);
         });
       }
       setTimeout(poll, 3000);
     });
   }
 
-  function keepGoingInBackground(){
-    S.syncing=false;
-    var btn=$('home-sync'); if(btn){ btn.disabled=false; btn.textContent='Sync with Store'; }
-    var box=$('sync-status'); if(!box){ return; }
-    box.innerHTML='<div class="sync-row"><span class="sync-dot"></span><span class="sync-msg">'
-      + '<strong>Still running after 5 minutes.</strong> The sync continues on the server &#8212; '
-      + 'it does not need this page. Reopen the app later, or use <strong>Refresh Data</strong> to pick up the updated list.'
-      + '</span></div>';
+  // v1.7.1 (F32) — lo stato del pulsante segue S.syncing anche quando la Home
+  // viene ridisegnata (Refresh Data durante una sync).
+  function setSyncButton(){
+    var b=$('home-sync'); if(!b){ return; }
+    b.disabled=!!S.syncing;
+    b.textContent=S.syncing?'Syncing…':'Sync with Store';
   }
 
+  function keepGoingInBackground(){
+    S.syncing=false; setSyncButton();
+    S.syncView={ html:'<div class="sync-row"><span class="sync-dot"></span><span class="sync-msg">'
+      + '<strong>Still running after 5 minutes.</strong> The sync continues on the server &#8212; '
+      + 'it does not need this page. Reopen the app later, or use <strong>Refresh Data</strong> to pick up the updated list.'
+      + '</span></div>' };
+    paintSync();
+  }
+
+  // L'ultimo stato della sync vive in S.syncView: renderHome lo ridisegna.
   function renderSync(pct,phase){
-    var box=$('sync-status'); if(!box) return;
-    box.innerHTML='<div class="sync-prog">'
-      + '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%"></div></div>'
-      + '<div class="sync-phase">'+esc(phase)+(pct>0?(' &#183; '+pct+'%'):'')+'</div></div>';
+    S.syncView={ html:'<div class="sync-prog">'
+      + '<div class="prog-wrap"><div class="prog-bar" style="width:'+(parseInt(pct,10)||0)+'%"></div></div>'
+      + '<div class="sync-phase">'+esc(phase)+(pct>0?(' &#183; '+(parseInt(pct,10)||0)+'%'):'')+'</div></div>' };
+    paintSync();
   }
   function finishSync(msgHtml){
-    S.syncing=false;
-    var btn=$('home-sync'); if(btn){ btn.disabled=false; btn.textContent='Sync with Store'; }
-    var box=$('sync-status'); if(box){ box.innerHTML='<div class="sync-note">'+msgHtml+'</div>'; }
+    S.syncing=false; setSyncButton();
+    S.syncView={ html:'<div class="sync-note">'+msgHtml+'</div>' };
+    paintSync();
+  }
+  function paintSync(){
+    var box=$('sync-status'); if(box){ box.innerHTML=(S.syncView&&S.syncView.html)||''; }
   }
 
   // ---- WIZARD 1 ----
   function startWizard(){
+    // v1.7.1 (F04, D5) — durante un lancio il Wizard resta bloccato: si torna
+    // alla schermata del lancio in corso.
+    if(S.launching){ showView('wizard3'); return; }
     // Selezione azzerata a ogni nuovo ingresso nel wizard: senza questo, le
     // spunte di un batch già installato restavano in S.selected (nessun punto
     // di uscita la puliva) e un giro successivo mostrava "N selected" con il
     // pulsante di install già attivo pur senza nessuna checkbox spuntata.
     S.selected={};
+    // v1.7.1 (F32) — anche filtro e scope ripartono vuoti: un nuovo giro del
+    // wizard non eredita la ricerca del precedente.
+    var sf=$('sel-filter'); if(sf){ sf.value=''; }
+    var ss=$('sel-scope'); if(ss){ ss.value=''; }
     showView('wizard1');
     // La Home ha già letto le stesse 1.200+ righe pochi secondi prima: se il dato
     // è fresco lo riuso invece di rifare la query.
@@ -800,7 +883,8 @@ html,body{background:#f5f5f7;margin:0}
       if(e){ $('wizard1-body').innerHTML='<div class="alert alert-danger">'+esc(e)+'</div>'; return; }
       S.appData=normalizeApps(d);
       S.appsFetchedAt=new Date().getTime();
-      renderWizard1();
+      afterAppsReload();
+      if(activeView()!=='wizard1'){ renderWizard1(); }
     });
   }
 
@@ -814,11 +898,24 @@ html,body{background:#f5f5f7;margin:0}
   function wth(k,label,extra){
     return '<th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.wizSort,k)+(extra||'')+'>'+label+wizSortInd(k)+'</th>';
   }
+  // v1.7.1 (F28) — confronto di versione per segmenti numerici, stessa logica di
+  // _cmpVer sul server: 1.0.2 prima di 1.0.10, 9.2.0 prima di 10.0.1.
+  function cmpVer(a,b){
+    var pa=(''+(a||'')).split(/[.\-]/), pb=(''+(b||'')).split(/[.\-]/), n=Math.max(pa.length,pb.length);
+    for(var i=0;i!==n;i++){
+      var x=parseInt(pa[i],10); if(isNaN(x)) x=0;
+      var y=parseInt(pb[i],10); if(isNaN(y)) y=0;
+      if(x!==y) return (x>y)?1:-1;
+    }
+    return 0;
+  }
+  var VERSION_KEYS={ current:true, latest:true };
   function appSortRows(list){
     var s=S.wizSort; if(!s||!s.k) return list;
     var k=s.k, dir=(s.dir===-1)?-1:1, iff=null, out=list.slice();
     out.sort(function(a,b){
       if(k==='status'){ if(!iff) iff=inFlightSet(); return ((iff[a.sysId]?1:0)-(iff[b.sysId]?1:0))*dir; }
+      if(VERSION_KEYS[k]){ return cmpVer(a[k],b[k])*dir; }
       var x=(''+(a[k]||'')).toLowerCase(), y=(''+(b[k]||'')).toLowerCase();
       if(x<y) return -dir; if(x>y) return dir; return 0;
     });
@@ -831,6 +928,7 @@ html,body{background:#f5f5f7;margin:0}
       if(S.wizSort && S.wizSort.k===k){ S.wizSort.dir=(S.wizSort.dir===1?-1:1); }
       else { S.wizSort={k:k,dir:1}; }
       rerender();
+      restoreFocus($(containerId), 'th.sortable[data-k="'+k+'"]');   // O5
     }
     for(var j=0;j<ths.length;j++){
       ths[j].onclick=function(){ apply(this); };
@@ -901,7 +999,20 @@ html,body{background:#f5f5f7;margin:0}
       var v=S.PAGE_SIZES[i];
       sizes+='<option value="'+v+'"'+(v===ps?' selected':'')+'>'+v+'</option>';
     }
-    var nav='';
+    var nav=pagerNavHtml(pg);
+    return '<div class="npu-pager">'
+      + '<div class="npu-pager-size"><label for="npu-size-'+view+'">Applications per page</label>'
+      +   '<select id="npu-size-'+view+'" data-pgsize="'+view+'">'+sizes+'</select></div>'
+      + '<div class="npu-pager-info">Showing '+pg.from+'&#8211;'+pg.to+' of '+pg.total
+      +   ' '+(pg.total===1?'application':'applications')
+      +   ((extraRows>0)?(' &#183; '+extraRows+' dependency '+(extraRows===1?'row':'rows')):'')
+      + '</div>'
+      + '<div class="npu-pager-nav">'+nav+'</div></div>';
+  }
+  // Pulsanti ‹ numeri › con ellissi, condivisi dal pager completo e da quello
+  // compatto del dialog di conferma (v1.7.1, F02).
+  function pagerNavHtml(pg){
+    var nav='', i;
     nav+='<button class="npu-pg" data-pg="prev" '+(pg.page<=1?'disabled':'')+' aria-label="Previous page">&#8249;</button>';
     var nums=pageNumbers(pg.page, pg.pages);
     for(i=0;i<nums.length;i++){
@@ -912,14 +1023,15 @@ html,body{background:#f5f5f7;margin:0}
          + (cur?' aria-current="page" disabled':'')+' aria-label="Page '+n+'">'+n+'</button>';
     }
     nav+='<button class="npu-pg" data-pg="next" '+(pg.page>=pg.pages?'disabled':'')+' aria-label="Next page">&#8250;</button>';
-    return '<div class="npu-pager">'
-      + '<div class="npu-pager-size"><label for="npu-size-'+view+'">Applications per page</label>'
-      +   '<select id="npu-size-'+view+'" data-pgsize="'+view+'">'+sizes+'</select></div>'
-      + '<div class="npu-pager-info">Showing '+pg.from+'&#8211;'+pg.to+' of '+pg.total
-      +   ' '+(pg.total===1?'application':'applications')
-      +   ((extraRows>0)?(' &#183; '+extraRows+' dependency '+(extraRows===1?'row':'rows')):'')
-      + '</div>'
-      + '<div class="npu-pager-nav">'+nav+'</div></div>';
+    return nav;
+  }
+  // v1.7.1 (O5) — dopo un ridisegno il focus tornava su body. Lo si rimette sul
+  // primo elemento che corrisponde (abilitato), altrimenti sul fallback.
+  function restoreFocus(root, selector, fallback){
+    if(!root) return;
+    var el=root.querySelector(selector);
+    if(!el || el.disabled){ el=fallback?root.querySelector(fallback+':not([disabled])'):null; }
+    if(el && el.focus){ el.focus(); }
   }
   // Un solo handler per pager. rerender e' la funzione di disegno della vista.
   function wirePager(containerId, view, rerender){
@@ -931,6 +1043,7 @@ html,body{background:#f5f5f7;margin:0}
         S.pageSize[view]=parseInt(this.value,10)||25;
         resetPage(view);   // cambiare la dimensione rimescola i confini di pagina
         rerender();
+        restoreFocus($(containerId), 'select[data-pgsize]');   // O5
       };
     }
     pager.onclick=function(e){
@@ -941,6 +1054,7 @@ html,body{background:#f5f5f7;margin:0}
       else if(v==='next'){ S.page[view]=(S.page[view]||1)+1; }
       else { S.page[view]=parseInt(v,10)||1; }
       rerender();
+      restoreFocus($(containerId), '.npu-pg[data-pg="'+v+'"]', '.npu-pg');   // O5
     };
   }
 
@@ -1073,7 +1187,7 @@ html,body{background:#f5f5f7;margin:0}
     if(tb1){
       tb1.onclick=function(e){
         var b=e.target.closest?e.target.closest('.tree-row-btn'):null;
-        if(b){ var sc=b.getAttribute('data-id'); S.treeOpenW1[sc]=!S.treeOpenW1[sc]; renderWizard1(); }
+        if(b){ var sc=b.getAttribute('data-id'); S.treeOpenW1[sc]=!S.treeOpenW1[sc]; renderWizard1(); restoreFocus($('wizard1-body'), '.tree-row-btn[data-id="'+sc+'"]'); }
       };
     }
     wireSuitePanel('w1-suite');
@@ -1082,9 +1196,17 @@ html,body{background:#f5f5f7;margin:0}
   }
 
   // ---- WIZARD 2 (Select) ----
+  // v1.7.1 (F03) — chiave = sys_id di sys_store_app (appId). Fino alla v1.7.0 si
+  // usava il sys_id del worker, che non coincide mai con quello dell'app.
   function inFlightSet(){
     var s={}; var f=S.appData.inFlight||[];
-    for(var i=0;i<f.length;i++){ s[f[i].sys_id||f[i].sysId]=true; } return s;
+    for(var i=0;i<f.length;i++){ if(f[i] && f[i].appId){ s[f[i].appId]=true; } } return s;
+  }
+  // Quante app della lista aggiornabile sono in installazione (per il suggerimento).
+  function inFlightCount(){
+    var iff=inFlightSet(), apps=S.appData.apps||[], n=0;
+    for(var i=0;i<apps.length;i++){ if(iff[apps[i].sysId]) n++; }
+    return n;
   }
   function filteredApps(){
     var txt=($('sel-filter').value||'').toLowerCase();
@@ -1153,7 +1275,7 @@ html,body{background:#f5f5f7;margin:0}
       };
       tb.onclick=function(e){
         var b=e.target.closest?e.target.closest('.tree-row-btn'):null;
-        if(b){ var sc=b.getAttribute('data-id'); S.treeOpenSel[sc]=!S.treeOpenSel[sc]; renderSelect(); }
+        if(b){ var sc=b.getAttribute('data-id'); S.treeOpenSel[sc]=!S.treeOpenSel[sc]; renderSelect(); restoreFocus($('sel-table'), '.tree-row-btn[data-id="'+sc+'"]'); }
       };
     }
     var ac=$('sel-allcheck');
@@ -1161,10 +1283,14 @@ html,body{background:#f5f5f7;margin:0}
       // "Select all" agisce su tutte le righe che passano il filtro, non solo su
       // quelle della pagina corrente: la paginazione e' un limite di rendering,
       // non di selezione (v1.6.5 — invariato rispetto al vecchio cap).
+      // v1.7.1 (F01) — lo stato non si legge da this.checked (la casella veniva
+      // ridisegnata sempre vuota, quindi ogni click riselezionava tutto): tutte
+      // selezionate -> deseleziona, altrimenti seleziona tutte.
       ac.onchange=function(){
-        var ck=this.checked, l=filteredApps(), f=inFlightSet();
-        for(var x=0;x<l.length;x++){ if(f[l[x].sysId]) continue; if(ck) S.selected[l[x].sysId]=true; else delete S.selected[l[x].sysId]; }
+        var hs=headerState(), l=hs.list;
+        for(var x=0;x<l.length;x++){ if(hs.all) delete S.selected[l[x].sysId]; else S.selected[l[x].sysId]=true; }
         renderSelect();
+        var again=$('sel-allcheck'); if(again){ again.focus(); }   // O5: il focus resta sulla casella
       };
     }
     wireSuitePanel('sel-suite');
@@ -1172,217 +1298,292 @@ html,body{background:#f5f5f7;margin:0}
     wirePager('sel-table', 'sel', renderSelect);
     updateSelCount();
   }
+  // v1.7.1 (F01) — app selezionabili del filtro corrente (le app in installazione
+  // escluse) e quante sono selezionate: guida la casella a tre stati dell'intestazione.
+  function headerState(){
+    var l=filteredApps(), f=inFlightSet(), list=[], n=0;
+    for(var i=0;i<l.length;i++){ if(f[l[i].sysId]) continue; list.push(l[i]); if(S.selected[l[i].sysId]) n++; }
+    return { list:list, selected:n, all:(list.length>0 && n===list.length), some:(n>0 && n!==list.length) };
+  }
+  function paintHeaderCheck(){
+    var ac=$('sel-allcheck'); if(!ac) return;
+    var hs=headerState();
+    ac.checked=hs.all;
+    ac.indeterminate=hs.some;
+    ac.disabled=(hs.list.length===0);
+    ac.setAttribute('aria-checked', hs.all?'true':(hs.some?'mixed':'false'));
+  }
   // Non ridisegna la tabella: aggiorna solo lo stato e la barra. È ciò che rende
   // fluida la selezione su liste lunghe.
   function toggleApp(id){ if(S.selected[id]){ delete S.selected[id]; } else { S.selected[id]=true; } updateSelCount(); }
-  function selectedIds(){ var o=[]; for(var k in S.selected){ if(S.selected[k]) o.push(k); } return o; }
+  function selectedIds(){ var o=[]; for(var k in S.selected){ if(S.selected.hasOwnProperty(k) && S.selected[k]) o.push(k); } return o; }
+  // v1.7.1 (F18, F03) — dopo ogni nuovo caricamento della lista: via le selezioni
+  // di app che non sono piu' aggiornabili o che sono ora in installazione, e si
+  // ridisegna lo step del wizard aperto. Prima il conteggio diceva 5 e se ne
+  // lanciavano 4.
+  function afterAppsReload(){
+    var ok={}, apps=S.appData.apps||[], iff=inFlightSet();
+    for(var i=0;i<apps.length;i++){ if(!iff[apps[i].sysId]) ok[apps[i].sysId]=true; }
+    for(var k in S.selected){ if(S.selected.hasOwnProperty(k) && !ok[k]) delete S.selected[k]; }
+    var v=activeView();
+    if(v==='wizard1'){ renderWizard1(); }
+    else if(v==='wizard2'){ buildScopeFilter(); renderSelect(); }
+  }
+  function activeView(){ var el=document.querySelector('.view.active'); return el?el.getAttribute('data-view'):''; }
   function updateSelCount(){
-    var n=selectedIds().length, inf=(S.appData.inFlight||[]).length;
+    var n=selectedIds().length, inf=inFlightCount();
     $('sel-count').textContent=n+' selected';
     var hint=$('sel-hint');
-    if(hint){ hint.innerHTML = inf ? (inf+' already installing (not selectable)') : ''; }
+    if(hint){ hint.textContent = inf ? (inf+' already installing (not selectable)') : ''; }
+    paintHeaderCheck();
     var btn=$('sel-install');
-    btn.disabled=(n===0);
-    btn.textContent = n ? ('Install '+plural(n,'update','updates')) : 'Install Updates';
+    btn.disabled=(n===0) || !!S.confirmLoading || !!S.launching;
+    if(S.confirmLoading){ btn.innerHTML='<span class="spinner npu-btn-spin" aria-hidden="true"></span>Checking the impact&#8230;'; }
+    else { btn.textContent = n ? ('Install '+plural(n,'update','updates')) : 'Install Updates'; }
   }
 
   // ---- WIZARD 3: LAUNCH (client fires triggers; server monitors unattended) ----
+  // v1.7.1 (F02, D3) — le due liste del dialog (app selezionate e app aggiunte
+  // dalla piattaforma) sono paginate: 25 righe, ordine alfabetico, pager compatto
+  // senza selettore di dimensione. Fino alla v1.7.0 erano tagliate a 150 righe.
+  // Un cambio pagina ridisegna solo la lista, non il dialog; ogni apertura del
+  // dialog riparte da pagina 1.
+  function byNameAsc(a,b){ var x=(''+(a.name||'')).toLowerCase(), y=(''+(b.name||'')).toLowerCase(); return x<y?-1:(x>y?1:0); }
+  function confirmListHtml(view, list){
+    var pg=paginate(list, view), rows='';
+    for(var i=0;i<pg.rows.length;i++){ var it=pg.rows[i];
+      rows+='<div class="impact-row"><span class="impact-name">'+esc(it.name)
+          + (it.hidden?'<span class="badge-hidden">not selectable</span>':'')+'</span>'
+          + '<span class="impact-ver">'+esc(it.current)+' &#8594; '+esc(it.target)+'</span></div>';
+    }
+    return '<div class="npu-cf-rows">'+rows+'</div>' + compactPagerHtml(pg);
+  }
+  function compactPagerHtml(pg){
+    if(pg.pages<=1){ return ''; }
+    return '<div class="npu-pager npu-pager-compact">'
+      + '<div class="npu-pager-info">Showing '+pg.from+'&#8211;'+pg.to+' of '+pg.total+'</div>'
+      + '<div class="npu-pager-nav">'+pagerNavHtml(pg)+'</div></div>';
+  }
+  // Pager della lista: un solo handler sul contenitore (event delegation). Dopo
+  // il ridisegno il focus torna sul pulsante equivalente (O5).
+  function wireConfirmList(listId, view, list){
+    var el=$(listId); if(!el) return;
+    el.onclick=function(e){
+      var b=e.target.closest?e.target.closest('.npu-pg'):null;
+      if(!b || b.disabled) return;
+      var v=b.getAttribute('data-pg');
+      if(v==='prev'){ S.page[view]=(S.page[view]||1)-1; }
+      else if(v==='next'){ S.page[view]=(S.page[view]||1)+1; }
+      else { S.page[view]=parseInt(v,10)||1; }
+      el.innerHTML=confirmListHtml(view, list);
+      restoreFocus(el, '.npu-pg[data-pg="'+v+'"]', '.npu-pg');
+    };
+  }
+  function confirmToggle(btnId, listId){
+    var st=$(btnId); if(!st) return;
+    st.onclick=function(){
+      var open=this.getAttribute('aria-expanded')==='true';
+      this.setAttribute('aria-expanded', open?'false':'true');
+      this.innerHTML=(open?'Show all':'Hide')+' <span class="chev">&#9660;</span>';
+      var l=$(listId); if(l){ l.className='impact-list confirm-union-list'+(open?'':' open'); }
+    };
+  }
+
+  // Unione suite + dependency branch, deduplicata per scope, senza le app gia'
+  // selezionate ("N MORE apps beyond what was picked"), in ordine alfabetico.
+  function impactUnion(res, selectedScopeSet){
+    var merged={}, order=[];
+    ((res.suite&&res.suite.apps)||[]).concat(res.dependencies||[]).forEach(function(a){
+      if(selectedScopeSet[a.scope] || merged[a.scope]){ return; }
+      merged[a.scope]=a; order.push(a);
+    });
+    return order.sort(byNameAsc);
+  }
+
   // Conferma esplicita: l'installazione è lunga e non annullabile una volta
   // avviata, quindi l'utente deve vedere cosa sta lanciando prima di partire.
   // Impatto per la selezione corrente (§6): suite branch + dependency branch
   // uniti e deduplicati per scope, stesso badge "will be updated" per
-  // entrambi — nessuna distinzione euristica, coerente col dialog nativo. Il
-  // conteggio è mostrato subito col dialog "count + show all" (§18.1.2): su
-  // un'istanza con suite ampie una lista sempre visibile appesantirebbe il
-  // dialog anche per selezioni piccole.
-  function confirmUnionHtml(union, cb){
-    var selIds={}; selectedIds().forEach(function(id){ selIds[id]=true; });
-    var scopes=selectedIds().map(function(id){ var a=(S.appData.apps||[]).filter(function(x){return x.sysId===id;})[0]; return a?a.scope:''; }).filter(Boolean);
-    ajax('getUpdateImpact', { scopes: scopes.join(',') }, function(err, res){
-      if(err || !res){ cb(''); return; }
-      var selectedScopeSet={}; (S.appData.apps||[]).forEach(function(a){ if(selIds[a.sysId]){ selectedScopeSet[a.scope]=true; } });
-      // Unione suite + dependency branch, deduplicata per scope; "N more"
-      // esclude le app già selezionate direttamente dal wizard.
-      var merged={}, order=[];
-      (res.suite&&res.suite.apps||[]).concat(res.dependencies||[]).forEach(function(a){
-        if(selectedScopeSet[a.scope] || merged[a.scope]){ return; }
-        merged[a.scope]=a; order.push(a);
-      });
-      var n=order.length;
-      if(!n){ cb(''); return; }
-      var rows='';
-      for(var i=0;i<Math.min(order.length,150);i++){ var it=order[i];
-        rows+='<div class="impact-row"><span class="impact-name">'+esc(it.name)
-            + (it.hidden?'<span class="badge-hidden">not selectable</span>':'')+'</span>'
-            + '<span class="impact-ver">'+esc(it.current)+' &#8594; '+esc(it.target)+'</span></div>';
-      }
-      // Nota di troncamento: senza questo, oltre 150 dipendenze aggregate
-      // sparivano dalla vista espansa senza alcun avviso — un troncamento
-      // silenzioso, incoerente col resto dell'app (Step 1/2 usano sempre un
-      // "showing N of M" esplicito quando tagliano una lista, v1.6 fix).
-      if(n>150){ rows+='<div class="cap-note-inline">Showing 150 of '+n+' &#8212; refine your selection to see the rest.</div>'; }
-      cb('<div class="confirm-union">'
-        + '<strong>'+n+'</strong> more '+(n===1?'application':'applications')+' will be updated as a result.'
-        + ' <button class="tree-btn" id="confirm-union-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
-        + '<div class="impact-list confirm-union-list" id="confirm-union-list">'+rows+'</div>'
-        + '</div>');
-    });
-  }
-
-  // Elenco delle app SELEZIONATE direttamente dall'admin, espandibile come il
-  // blocco dipendenze — senza questo il dialog diceva solo "N applications",
-  // un numero senza nomi: l'admin non vedeva cosa stava effettivamente per
-  // installare, solo quante app extra la piattaforma avrebbe aggiunto.
-  function selectedListHtml(){
-    var ids=selectedIds(), byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
-    var apps=[]; for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(a){ apps.push({name:a.name,current:a.current,target:a.latest}); } }
-    var n=apps.length, rows='';
-    for(var j=0;j<Math.min(apps.length,150);j++){ var it=apps[j];
-      rows+='<div class="impact-row"><span class="impact-name">'+esc(it.name)+'</span>'
-          + '<span class="impact-ver">'+esc(it.current)+' &#8594; '+esc(it.target)+'</span></div>';
-    }
-    if(n>150){ rows+='<div class="cap-note-inline">Showing 150 of '+n+' &#8212; refine your selection to see the rest.</div>'; }
-    return '<div class="confirm-union">'
-      + '<strong>'+n+'</strong> selected '+(n===1?'application':'applications')+' will be installed.'
-      + ' <button class="tree-btn" id="confirm-selected-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
-      + '<div class="impact-list confirm-union-list" id="confirm-selected-list">'+rows+'</div>'
-      + '</div>';
-  }
-
+  // entrambi — nessuna distinzione euristica, coerente col dialog nativo.
+  //
+  // v1.7.1 (F19) — la selezione viene fotografata al click: il dialog e
+  // startInstalls usano la stessa lista, anche se le spunte cambiano mentre
+  // getUpdateImpact risponde. Install resta disabilitato (con spinner) finche' il
+  // dialog non si apre, quindi un doppio click non apre due dialog.
   function confirmInstalls(){
-    var n=selectedIds().length;
-    if(!n) return;
-    var baseHtml='You are about to update <strong>'+n+'</strong> '+(n===1?'application':'applications')+' on <strong>'+esc(S.info.instanceName||'this instance')+'</strong>.'
-      + '<br/><br/>Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going.';
-    var selectedHtml=selectedListHtml();
-    confirmUnionHtml(null, function(unionHtml){
+    if(S.launching || S.confirmLoading) return;   // F04
+    var ids=selectedIds();
+    if(!ids.length) return;
+    var byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
+    var selApps=[], scopes=[], scopeSet={}, snapIds=[];
+    for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(!a) continue;
+      snapIds.push(a.sysId);
+      selApps.push({ sysId:a.sysId, name:a.name, scope:a.scope, current:a.current, target:a.latest });
+      if(a.scope){ scopes.push(a.scope); scopeSet[a.scope]=true; }
+    }
+    if(!selApps.length) return;
+    selApps.sort(byNameAsc);
+    S.confirmLoading=true; updateSelCount();
+    ajax('getUpdateImpact', { scopes: scopes.join(',') }, function(err, res){
+      S.confirmLoading=false; updateSelCount();
+      if(S.launching) return;
+      var impactFailed=!!(err || !res || res.error);
+      var union=impactFailed ? [] : impactUnion(res, scopeSet);
+      var n=selApps.length, u=union.length;
+      resetPage('cfsel'); resetPage('cfdep');
+      var baseHtml='You are about to update <strong>'+n+'</strong> '+(n===1?'application':'applications')+' on <strong>'+esc(S.info.instanceName||'this instance')+'</strong>.'
+        + '<br/><br/>Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going.';
+      var selectedHtml='<div class="confirm-union">'
+        + '<strong>'+n+'</strong> selected '+(n===1?'application':'applications')+' will be installed.'
+        + ' <button class="tree-btn" id="confirm-selected-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
+        + '<div class="impact-list confirm-union-list" id="confirm-selected-list">'+confirmListHtml('cfsel', selApps)+'</div>'
+        + '</div>';
+      var unionHtml='';
+      if(impactFailed){
+        // v1.7.1 (F17) — un errore non e' "nessun'altra app": va detto.
+        unionHtml='<div class="alert alert-danger mt16" role="alert"><div>The dependency impact could not be computed &#8212; other applications may be updated too.</div></div>';
+      } else if(u){
+        unionHtml='<div class="confirm-union">'
+          + '<strong>'+u+'</strong> more '+(u===1?'application':'applications')+' will be updated as a result.'
+          + ' <button class="tree-btn" id="confirm-union-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
+          + '<div class="impact-list confirm-union-list" id="confirm-union-list">'+confirmListHtml('cfdep', union)+'</div>'
+          + '</div>';
+      }
       confirmModal({
         title: 'Install '+plural(n,'update','updates')+'?',
         bodyHtml: baseHtml + selectedHtml + unionHtml,
         confirmLabel: 'Install '+n,
         cancelLabel: 'Review selection',
-        onConfirm: startInstalls
+        opener: $('sel-install'),
+        onConfirm: function(){ startInstalls(snapIds); }
       });
-      var st=$('confirm-selected-toggle');
-      if(st){
-        st.onclick=function(){
-          var open=this.getAttribute('aria-expanded')==='true';
-          this.setAttribute('aria-expanded', open?'false':'true');
-          this.innerHTML=(open?'Show all':'Hide')+' <span class="chev">&#9660;</span>';
-          var l=$('confirm-selected-list'); if(l){ l.className='impact-list confirm-union-list'+(open?'':' open'); }
-        };
-      }
-      var ut=$('confirm-union-toggle');
-      if(ut){
-        ut.onclick=function(){
-          var open=this.getAttribute('aria-expanded')==='true';
-          this.setAttribute('aria-expanded', open?'false':'true');
-          this.innerHTML=(open?'Show all':'Hide')+' <span class="chev">&#9660;</span>';
-          var l=$('confirm-union-list'); if(l){ l.className='impact-list confirm-union-list'+(open?'':' open'); }
-        };
-      }
+      confirmToggle('confirm-selected-toggle', 'confirm-selected-list');
+      confirmToggle('confirm-union-toggle', 'confirm-union-list');
+      wireConfirmList('confirm-selected-list', 'cfsel', selApps);
+      wireConfirmList('confirm-union-list', 'cfdep', union);
     });
   }
 
-  function startInstalls(){
-    var ids=selectedIds(), byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
+  // ---- Lancio (v1.7.1) ------------------------------------------------------
+  // Un oggetto per lancio (S.launch) al posto dei contatori condivisi S.launch*:
+  // F04 — un secondo lancio non puo' partire mentre uno e' in corso (Wizard e
+  // Install bloccati, D5), e i contatori non si mescolano piu'.
+  // Per ogni app, in sequenza (l'API CICD e' single-flight):
+  //   1. claimRow (F05): il server conferma che la riga e' ancora lanciabile;
+  //      se Cancel queued l'ha annullata nel frattempo, la si salta;
+  //   2. POST CICD con timeout (F20, AbortController) e controllo di status e
+  //      content-type prima del parse (F07);
+  //   3. 401/403, redirect o pagina HTML = sessione scaduta: si ferma tutto il
+  //      lancio e le righe non lanciate vengono segnate in UNA chiamata (D6);
+  //   4. errore di rete o risposta illeggibile: prima di riprovare si chiede al
+  //      server se l'install e' stata accodata comunque (findLaunch); si riprova
+  //      solo se non c'e' nulla. I tentativi restano per mutex / "in progress".
+  var LAUNCH_WATCHDOG_MS=120000, FETCH_TIMEOUT_MS=60000;
+
+  function setLaunching(on){
+    S.launching=!!on;
+    // F21 — avviso alla chiusura della scheda durante il lancio: le righe non
+    // ancora lanciate resterebbero 'queued' fino al timeout di 60 minuti.
+    window.onbeforeunload = on ? function(e){ if(e){ e.preventDefault(); e.returnValue=''; } return ''; } : null;
+    var tw=$('tab-wizard');
+    if(tw){ tw.disabled=!!on; tw.title=on?'A launch is in progress':''; }
+    var hs=$('home-start'); if(hs && on){ hs.disabled=true; }
+    if($('sel-install')){ updateSelCount(); }
+  }
+
+  function startInstalls(ids){
+    if(S.launching) return;   // F04
+    ids = ids || selectedIds();
+    var byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
     var apps=[];
     for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(a){
       // Snapshot delle versioni "current" delle dipendenze previste da
       // getUpdateImpact — sys_execution_tracker (v1.6, §10.3) porta solo la
       // versione target di ciò che GlideAppLoader installa, non quella di
-      // partenza; senza questo il Monitor mostrava "→ 4.0.8" senza il "da"
-      // (bug segnalato dall'utente su Setup Hub Content: partiva da 3.1.2,
-      // mostrato solo il target). Presa qui, prima del lancio, perché dopo
-      // l'installazione sys_store_app.version è già il target.
+      // partenza. Presa qui, prima del lancio, perché dopo l'installazione
+      // sys_store_app.version è già il target.
       var depSnap={};
       rowImpactList(a.scope).forEach(function(d){ depSnap[d.scope]=d.current; });
       apps.push({sysId:a.sysId,name:a.name,scope:a.scope,current:a.current,latest:a.latest,depVersions:depSnap});
     } }
     if(!apps.length) return;
-    S.launchTotal=apps.length; S.launchTriggered=0; S.launchFailed=0; S.launching=true;
-    S.launchErrors=[]; S.launchWhyOpen={};   // motivi dei mancati avvii, mostrati in wizard3
+    var L={ total:apps.length, triggered:0, failed:0, skipped:0, notQueued:0, errors:[], whyOpen:{},
+            queue:[], stopped:'', batch:'', running:true };
+    S.launch=L;
+    setLaunching(true);
     showView('wizard3'); $('launch-actions').style.display='none';
-    renderLaunch('Creating batch&#8230;');
+    renderLaunch('Creating batch…');
     ajax('createBatch',{ apps: JSON.stringify(apps) }, function(e,d){
-      if(e || !d || !d.batch){ renderLaunch('Error creating batch: '+(e||'unknown')); S.launching=false; return; }
-      S.currentBatch=d.batch;
-      var map={}; (d.rows||[]).forEach(function(r){ map[r.sysId]=r.logSysId; });
-      var queue=apps.slice(), active=0, POOL=1; // sequential: CICD app_repo install is single-flight (mutex)
-      function pump(){
-        while(active<POOL && queue.length){
-          var a=queue.shift(); active++;
-          // once() + watchdog: se una callback di rete non tornasse mai, la coda
-          // si fermerebbe a metà senza alcun segnale. Qui avanza in ogni caso.
-          var step=once(function(){ active--; S.launchTriggered++; renderLaunch(); pump(); });
-          (function(app, logId, advance){
-            var guard=setTimeout(function(){
-              renderLaunch('An install took too long to launch — moving on to the next one.');
-              advance();
-            }, 120000);
-            triggerOne(app, logId, function(){ clearTimeout(guard); advance(); });
-          })(a, map[a.sysId], step);
-        }
-        if(active===0 && queue.length===0 && S.launching){
-          S.launching=false;
-          renderLaunch();
-          $('launch-actions').style.display='flex';
-          // Se tutto è partito, vai diretto al Monitor. Se qualcosa non è partito,
-          // resta qui: i motivi sono su questa schermata e vanno letti.
-          if(!S.launchFailed){ openMonitor(S.currentBatch); }
-        }
+      if(S.launch!==L) return;
+      // F15 — righe non accodate dal server (tetto, app non piu' aggiornabile,
+      // gia' in installazione, insert fallita): non vengono lanciate.
+      var sk=(d&&d.skipped)||[];
+      for(var s=0;s<sk.length;s++){
+        L.notQueued++;
+        L.errors.push({ key:'nq'+s, kind:'notqueued', name:sk[s].name||'(unknown application)', scope:'', target:'',
+                        message:'Not queued: '+(sk[s].reason||'refused by the server') });
       }
-      pump();
+      if(e || !d || !d.batch){
+        L.total=0;
+        finishLaunch(L, 'Error creating batch: '+((d&&d.error)||e||'unknown'));
+        return;
+      }
+      L.batch=d.batch; selectMonBatch(d.batch);
+      var byApp={}; (d.rows||[]).forEach(function(r){ if(r && r.logSysId){ byApp[r.sysId]=r; } });
+      for(var q=0;q<apps.length;q++){
+        var r=byApp[apps[q].sysId];
+        if(!r) continue;            // F15: niente riga di log, niente lancio
+        var it=apps[q]; it.latest=r.target||it.latest;   // versione validata dal server
+        L.queue.push({ app:it, logSysId:r.logSysId });
+      }
+      L.total=L.queue.length;
+      nextLaunch(L);
     });
   }
 
-  function renderLaunch(msg){
-    var pct=S.launchTotal? Math.round((S.launchTriggered/S.launchTotal)*100):0;
-    var head=S.launching? ('Launching&#8230; '+S.launchTriggered+' / '+S.launchTotal) : ('Launched '+S.launchTriggered+' / '+S.launchTotal);
-    var errs=S.launchErrors||[];
-    var h='<div class="info-box">Launching <strong>'+S.launchTotal+'</strong> install(s) with your session. When launching completes you can close the tab &#8212; installs continue on the server and are tracked on the Monitor page.</div>'
-      + '<div class="card"><div class="card-body">'
-      + '<div style="font-size:15px;font-weight:600;margin-bottom:8px">'+head+(S.launchFailed?(' &#183; '+S.launchFailed+' failed to launch'):'')+'</div>'
-      + '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%"></div></div>'
-      + (msg?('<div style="margin-top:10px;font-size:12px;color:var(--text-2)">'+msg+'</div>'):'')
-      + '</div></div>';
+  function nextLaunch(L){
+    if(S.launch!==L) return;
+    renderLaunch();
+    if(L.stopped || !L.queue.length){ finishLaunch(L); return; }
+    var item=L.queue.shift();
+    launchOne(L, item, function(){ nextLaunch(L); });
+  }
 
-    // Elenco dei mancati avvii: compare solo se ce n'è almeno uno, e ogni motivo
-    // si apre su richiesta — così non invade la vista durante un lancio riuscito.
-    if(errs.length){
-      var rows='';
-      for(var i=0;i<errs.length;i++){
-        var e=errs[i], open=!!S.launchWhyOpen[e.key];
-        rows+='<tr><td class="col-name">'+esc(e.name)+'</td>'
-            + '<td class="col-scope">'+esc(e.scope)+'</td>'
-            + '<td>'+statusPill('failed')+'</td>'
-            + '<td><button class="why-btn" data-lwhy="'+esc(e.key)+'" aria-expanded="'+(open?'true':'false')+'">'
-            +   'Why failed<span class="chev" aria-hidden="true">&#9660;</span></button></td></tr>';
-        if(open){
-          rows+='<tr class="why-row"><td colspan="4"><div class="why-box">'
-              + '<div class="why-label">Reason reported by the platform</div>'
-              + '<div class="why-msg">'+esc(e.message)+'</div>'
-              + (e.target?('<div class="why-meta">Target version '+esc(e.target)+'</div>'):'')
-              + '</div></td></tr>';
-        }
+  function finishLaunch(L, msg){
+    if(!L.running) return;
+    L.running=false;
+    setLaunching(false);
+    renderLaunch(msg||'');
+    $('launch-actions').style.display='flex';
+    // Se tutto è partito, vai diretto al Monitor. Se qualcosa non è partito,
+    // resta qui: i motivi sono su questa schermata e vanno letti.
+    if(L.batch && !L.failed && !L.skipped && !L.notQueued && !L.stopped){ openMonitor(L.batch); }
+  }
+
+  function launchOne(L, item, done){
+    var ctl={ aborted:false, current:null };
+    var advance=once(done);
+    // Watchdog per app (F20): interrompe la catena (fetch compresa) e registra
+    // il mancato avvio. Se la POST era arrivata, il passaggio di riverifica
+    // delle righe 'failed' (F08) la porta a 'complete' quando l'app si installa.
+    var guard=setTimeout(function(){
+      ctl.aborted=true;
+      if(ctl.current){ try{ ctl.current.abort(); }catch(eA){} }
+      failTrigger(L, item, 'The install took too long to launch (no answer within 120 seconds).', advance);
+    }, LAUNCH_WATCHDOG_MS);
+    var fin=function(){ clearTimeout(guard); advance(); };
+    ajax('claimRow',{ log_sys_id:item.logSysId }, function(e,c){
+      if(ctl.aborted || S.launch!==L) return;
+      if(e || !c){ failTrigger(L, item, 'The row could not be reserved for launch: '+(e||'no answer from the server'), fin); return; }
+      if(!c.ok){
+        L.skipped++;
+        L.errors.push({ key:item.logSysId, kind:'skipped', name:item.app.name, scope:item.app.scope, target:item.app.latest,
+                        message:'Not launched: the row was '+(c.status||'changed')+' before its turn (for example by Cancel queued).' });
+        fin();
+        return;
       }
-      h+='<div class="mt16"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">'
-        + plural(errs.length,'application','applications')+' could not be started</div>'
-        + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
-        + '<th>Application</th><th>Scope</th><th>Status</th><th style="width:110px">Details</th>'
-        + '</tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
-    }
-
-    $('launch-body').innerHTML=h;
-
-    var lb=$('launch-body').querySelectorAll('.why-btn');
-    for(var j=0;j<lb.length;j++){
-      lb[j].onclick=function(){
-        var k=this.getAttribute('data-lwhy');
-        if(S.launchWhyOpen[k]){ delete S.launchWhyOpen[k]; } else { S.launchWhyOpen[k]=true; }
-        renderLaunch();
-      };
-    }
+      fire(L, item, ctl, fin, 0, false, null);
+    });
   }
 
   function cicdUrl(row){
@@ -1391,19 +1592,49 @@ html,body{background:#f5f5f7;margin:0}
   function headers(){
     return { 'X-UserToken': (window.g_ck||''), 'Accept':'application/json', 'Content-Type':'application/json' };
   }
+  // Una pagina HTML (login, SSO) al posto del JSON: \x3c evita la parentesi
+  // angolare letterale nel sorgente Jelly.
+  var HTML_RE=/\x3c(!doctype|html|head|body)/i;
 
   // CICD app_repo install is single-flight (a "CICD Operation" mutex): concurrent
   // enqueues return "Error enqueueing app_install". We enqueue sequentially and
-  // retry transient enqueue/mutex collisions with backoff. Offering-required (400)
-  // is retried once with the parsed offering id.
-  function triggerOne(a, logSysId, done){ fire(a, logSysId, done, 0, false, null); }
-  function fire(a, logSysId, done, attempt, withOffering, offeringId){
-    var opts={ method:'POST', credentials:'same-origin', headers:headers() };
+  // retry explicit mutex/in-progress collisions with backoff. Offering-required
+  // (400) is retried once with the parsed offering id.
+  function fire(L, item, ctl, done, attempt, withOffering, offeringId){
+    if(ctl.aborted || L.stopped) return;
+    var a=item.app;
+    var ac=(typeof AbortController!=='undefined')?new AbortController():null;
+    ctl.current=ac;
+    var opts={ method:'POST', credentials:'same-origin', headers:headers(), redirect:'manual' };
+    if(ac){ opts.signal=ac.signal; }
     if(withOffering && offeringId){ opts.body=JSON.stringify({ offering:offeringId }); }
+    var tmo=setTimeout(function(){ if(ac){ try{ ac.abort(); }catch(eT){} } }, FETCH_TIMEOUT_MS);
     fetch(cicdUrl(a), opts)
-      .then(function(resp){ return resp.json().then(function(b){ return {status:resp.status, body:b}; }); })
-      .then(function(r){ handleTrigger(a, logSysId, r, done, attempt, withOffering); })
-      .catch(function(err){ retryOrFail(a, logSysId, done, attempt, 'Fetch error: '+err.message); });
+      .then(function(resp){
+        clearTimeout(tmo);
+        var ct=''+((resp.headers && resp.headers.get && resp.headers.get('content-type'))||'');
+        if(resp.type==='opaqueredirect' || resp.status===401 || resp.status===403 || (resp.status>=300 && 400>resp.status)){
+          return { session:true, status:resp.status };
+        }
+        if(ct.toLowerCase().indexOf('json')===-1){
+          return resp.text().then(function(t){
+            return HTML_RE.test(''+t) ? { session:true, status:resp.status } : { unknown:true, status:resp.status };
+          }, function(){ return { unknown:true, status:resp.status }; });
+        }
+        return resp.json().then(function(b){ return { status:resp.status, body:b }; },
+                                function(){ return { unknown:true, status:resp.status }; });
+      })
+      .then(function(r){
+        if(ctl.aborted || L.stopped) return;
+        if(r.session){ sessionExpired(L, item, done); return; }
+        if(r.unknown){ afterLostResponse(L, item, ctl, done, attempt, 'Unreadable answer from the install API (HTTP '+r.status+')'); return; }
+        handleTrigger(L, item, ctl, r, done, attempt, withOffering);
+      })
+      .catch(function(err){
+        clearTimeout(tmo);
+        if(ctl.aborted || L.stopped) return;
+        afterLostResponse(L, item, ctl, done, attempt, 'Network error: '+((err&&err.message)||err));
+      });
   }
   function trigErr(r){ return (r.body&&r.body.result&&r.body.result.error) || (r.body&&r.body.error&&(r.body.error.message||r.body.error.detail)) || ('HTTP '+r.status); }
   function isTransient(status, msg){
@@ -1411,54 +1642,150 @@ html,body{background:#f5f5f7;margin:0}
     var m=(''+msg).toLowerCase();
     return m.indexOf('enqueue')>-1 || m.indexOf('mutex')>-1 || m.indexOf('in progress')>-1 || m.indexOf('try again')>-1 || m.indexOf('another')>-1;
   }
-  function handleTrigger(a, logSysId, r, done, attempt, withOffering){
+  function handleTrigger(L, item, ctl, r, done, attempt, withOffering){
     if(r.status===200||r.status===201){
       var pid=r.body&&r.body.result&&r.body.result.links&&r.body.result.links.progress&&r.body.result.links.progress.id;
-      if(pid){ ajax('attachWorker',{ log_sys_id:logSysId, progress_id:pid }, function(){ done(); }); return; }
-      failTrigger(a, logSysId,'The install was accepted but no progress ID was returned, so it cannot be tracked.', done); return;
+      if(pid){ ajax('attachWorker',{ log_sys_id:item.logSysId, progress_id:pid }, function(){ if(!ctl.aborted){ L.triggered++; } done(); }); return; }
+      failTrigger(L, item, 'The install was accepted but no progress ID was returned, so it cannot be tracked.', done); return;
     }
     var msg=trigErr(r);
     if(r.status===400 && !withOffering){
       var m1=(''+msg).match(/\[([^\]]+)\]/), m2=(''+msg).match(/"offering"\s*:\s*"([^"]+)"/);
       var offering=(m1&&m1[1])||(m2&&m2[1])||null;
-      if(offering && (''+msg).toLowerCase().indexOf('offering')>-1){ fire(a, logSysId, done, attempt, true, offering); return; }
+      if(offering && (''+msg).toLowerCase().indexOf('offering')>-1){ fire(L, item, ctl, done, attempt, true, offering); return; }
     }
-    if(isTransient(r.status, msg)){ retryOrFail(a, logSysId, done, attempt, msg); return; }
-    failTrigger(a, logSysId, 'HTTP ' + r.status + ' — ' + msg, done);
+    if(isTransient(r.status, msg)){ retryOrFail(L, item, ctl, done, attempt, msg); return; }
+    failTrigger(L, item, 'HTTP ' + r.status + ' — ' + msg, done);
   }
-  function retryOrFail(a, logSysId, done, attempt, msg){
+  // F07 — risposta persa: la POST puo' essere stata accettata. Si chiede al server
+  // prima di ripeterla; se il server non risponde non si ripete alla cieca.
+  function afterLostResponse(L, item, ctl, done, attempt, msg){
+    renderLaunch('Checking whether the install was accepted…');
+    ajax('findLaunch',{ log_sys_id:item.logSysId }, function(e,f){
+      if(ctl.aborted || L.stopped) return;
+      if(!e && f && f.found){ L.triggered++; done(); return; }
+      if(e || !f || f.ok===false || f.unknown){
+        failTrigger(L, item, msg+' — and it could not be checked whether the install was accepted. If it was, its row turns Complete by itself.', done);
+        return;
+      }
+      retryOrFail(L, item, ctl, done, attempt, msg);
+    });
+  }
+  function retryOrFail(L, item, ctl, done, attempt, msg){
     var MAX=8;
     if(attempt<MAX){
-      renderLaunch('Waiting for the CICD queue&#8230; (retry '+(attempt+1)+'/'+MAX+')');
-      setTimeout(function(){ fire(a, logSysId, done, attempt+1, false, null); }, 2000 + attempt*800);
+      renderLaunch('Waiting for the CICD queue… (retry '+(attempt+1)+'/'+MAX+')');
+      setTimeout(function(){ fire(L, item, ctl, done, attempt+1, false, null); }, 2000 + attempt*800);
     } else {
-      failTrigger(a, logSysId, 'Still rejected after '+MAX+' retries — ' + msg, done);
+      failTrigger(L, item, 'Still rejected after '+MAX+' retries — ' + msg, done);
     }
   }
-  // Registra il motivo del mancato avvio, oltre a marcare la riga sul server:
-  // senza questo l'utente vedeva solo "N failed to launch" senza il perché.
-  function failTrigger(a, logSysId, message, done){
-    S.launchFailed++;
-    if(!S.launchErrors){ S.launchErrors=[]; }
-    S.launchErrors.push({
-      key:   logSysId || ('e'+S.launchErrors.length),
-      name:  (a && a.name) || '(unknown application)',
-      scope: (a && a.scope) || '',
-      target:(a && a.latest) || '',
-      message: message
+  // D6 — sessione scaduta (o redirect al login): si ferma tutto il lancio e le
+  // righe non lanciate, compresa quella corrente, vengono segnate in una chiamata.
+  var SESSION_MSG='Session expired — sign in again and relaunch the remaining apps.';
+  function sessionExpired(L, item, done){
+    if(L.stopped) return;
+    L.stopped='session';
+    var ids=[item.logSysId];
+    for(var i=0;i<L.queue.length;i++){ ids.push(L.queue[i].logSysId); }
+    var n=ids.length;
+    L.queue=[];
+    ajax('failRows',{ log_sys_ids:ids.join(','), message:'Not launched: the session expired during the launch.' }, function(e,d){
+      L.failed+=n;
+      L.errors.push({ key:'session', kind:'session', name:plural(n,'application','applications')+' not launched', scope:'', target:'',
+                      message:SESSION_MSG+(e?(' (The rows could not be updated: '+e+'. They time out by themselves.)'):'') });
+      done();
     });
-    ajax('failRow',{ log_sys_id:logSysId, message:message }, function(){ done(); });
+  }
+  // Registra il motivo del mancato avvio, oltre a marcare la riga sul server.
+  // F08: il server scrive solo se la riga e' ancora 'queued'.
+  function failTrigger(L, item, message, done){
+    L.failed++;
+    var err={ key:item.logSysId || ('e'+L.errors.length), kind:'failed', name:(item.app&&item.app.name)||'(unknown application)',
+              scope:(item.app&&item.app.scope)||'', target:(item.app&&item.app.latest)||'', message:message };
+    L.errors.push(err);
+    ajax('failRow',{ log_sys_id:item.logSysId, message:message }, function(e,d){
+      if(d && d.ok===false && d.status){ err.message+=' (On the server the row was already '+d.status+', so it was left as is.)'; }
+      done();
+    });
+  }
+
+  // F16 — msg e' testo semplice: viene sempre escapato.
+  function renderLaunch(msg){
+    var L=S.launch||{ total:0, triggered:0, failed:0, skipped:0, notQueued:0, errors:[], whyOpen:{} };
+    var processed=L.triggered+L.failed+L.skipped;
+    var pct=L.total? Math.min(100, Math.round((processed/L.total)*100)):0;
+    var head=S.launching? ('Launching… '+processed+' / '+L.total) : ('Launched '+L.triggered+' / '+L.total);
+    var bits=[];
+    if(L.failed){ bits.push(L.failed+' failed to launch'); }
+    if(L.skipped){ bits.push(L.skipped+' skipped'); }
+    if(L.notQueued){ bits.push(L.notQueued+' not queued'); }
+    var errs=L.errors||[];
+    var h='<div class="info-box">Launching <strong>'+esc(L.total)+'</strong> install(s) with your session. When launching completes you can close the tab &#8212; installs continue on the server and are tracked on the Monitor page.</div>'
+      + (L.stopped==='session'?('<div class="alert alert-danger" role="alert"><div><strong>'+esc(SESSION_MSG)+'</strong></div></div>'):'')
+      + '<div class="card"><div class="card-body">'
+      + '<div style="font-size:15px;font-weight:600;margin-bottom:8px">'+esc(head)+(bits.length?(' &#183; '+esc(bits.join(' · '))):'')+'</div>'
+      + '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%"></div></div>'
+      + (msg?('<div style="margin-top:10px;font-size:12px;color:var(--text-2)">'+esc(msg)+'</div>'):'')
+      + '</div></div>';
+
+    // Elenco dei mancati avvii: compare solo se ce n'è almeno uno, e ogni motivo
+    // si apre su richiesta — così non invade la vista durante un lancio riuscito.
+    if(errs.length){
+      var rows='';
+      for(var i=0;i<errs.length;i++){
+        var e=errs[i], open=!!L.whyOpen[e.key], isFail=(e.kind==='failed'||e.kind==='session');
+        rows+='<tr><td class="col-name">'+esc(e.name)+'</td>'
+            + '<td class="col-scope">'+esc(e.scope)+'</td>'
+            + '<td>'+statusPill(isFail?'failed':'cancelled')+'</td>'
+            + '<td><button class="why-btn" data-lwhy="'+esc(e.key)+'" aria-expanded="'+(open?'true':'false')+'">'
+            +   (isFail?'Why failed':'Details')+'<span class="chev" aria-hidden="true">&#9660;</span></button></td></tr>';
+        if(open){
+          rows+='<tr class="why-row"><td colspan="4"><div class="why-box">'
+              + '<div class="why-label">'+(isFail?'Reason':'Details')+'</div>'
+              + '<div class="why-msg">'+esc(e.message)+'</div>'
+              + (e.target?('<div class="why-meta">Target version '+esc(e.target)+'</div>'):'')
+              + '</div></td></tr>';
+        }
+      }
+      // Conta le app, non le voci: la voce della sessione scaduta ne copre piu' d'una.
+      var notStarted=L.failed+L.skipped+L.notQueued;
+      h+='<div class="mt16"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">'
+        + esc(plural(notStarted||errs.length,'application','applications'))+' could not be started</div>'
+        + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
+        + '<th>Application</th><th>Scope</th><th>Status</th><th style="width:110px">Details</th>'
+        + '</tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
+    }
+
+    var body=$('launch-body');
+    body.innerHTML=h;
+    // Un solo handler (event delegation); il focus torna sul pulsante (O5).
+    body.onclick=function(ev){
+      var b=ev.target.closest?ev.target.closest('.why-btn'):null;
+      if(!b) return;
+      var k=b.getAttribute('data-lwhy');
+      if(L.whyOpen[k]){ delete L.whyOpen[k]; } else { L.whyOpen[k]=true; }
+      renderLaunch(msg);
+      restoreFocus($('launch-body'), '.why-btn[data-lwhy="'+k+'"]');
+    };
   }
 
   // ---- MONITOR (server-side, persistent across close/reopen) ----
   function monitorActive(){ var el=document.querySelector('.view[data-view="monitor"]'); return !!(el && el.classList.contains('active')); }
   function openMonitor(batch){
     showView('monitor');
-    S.queueResult=null; loadQueueHealth();   // v1.7.0: stato della coda a ogni apertura
-    if(batch){ S.currentBatch=batch; loadBatchList(batch); startMonitorPolling(); }
-    else { ajax('getMyLatestBatch',{},function(e,d){ S.currentBatch=(d&&d.batch)||''; loadBatchList(S.currentBatch); if(S.currentBatch){ startMonitorPolling(); } else { renderMonitorEmpty(); } }); }
+    if(!S.releasing){ S.queueResult=null; }
+    loadQueueHealth();   // v1.7.0: stato della coda a ogni apertura
+    if(batch){ selectMonBatch(batch); loadBatchList(batch); startMonitorPolling(); }
+    else { ajax('getMyLatestBatch',{},function(e,d){ selectMonBatch((d&&d.batch)||''); loadBatchList(S.currentBatch); if(S.currentBatch){ startMonitorPolling(); } else { renderMonitorEmpty(); } }); }
   }
-  function renderMonitorEmpty(){ $('mon-body').innerHTML='<div class="empty">No install batches yet. Launch updates from the Wizard.</div>'; var s=$('mon-batch'); if(s){ s.innerHTML='<option value="">(no batches)</option>'; } }
+  // Cambio di batch: la cache delle dipendenze, l'avviso di Cancel queued e la
+  // chiave di rendering appartengono al batch precedente (O2, O4).
+  function selectMonBatch(batch){
+    if(batch!==S.currentBatch){ S.monNotice=null; S.monKey=''; S.monDepsBatch=''; S.monDepCache={}; S.monDepFinal={}; S.monData=null; }
+    S.currentBatch=batch;
+  }
+  function renderMonitorEmpty(){ $('mon-body').innerHTML='<div class="empty">No install batches yet. Launch updates from the Wizard.</div>'; S.monKey=''; var s=$('mon-batch'); if(s){ s.innerHTML='<option value="">(no batches)</option>'; } }
   function loadBatchList(selected){
     ajax('listBatches',{},function(e,d){
       var batches=(d&&d.batches)||[]; var sel=$('mon-batch'); if(!sel) return;
@@ -1479,36 +1806,108 @@ html,body{background:#f5f5f7;margin:0}
       }
     });
   }
-  function startMonitorPolling(){ if(S.monTimer){ clearTimeout(S.monTimer); } pollMonitor(); }
+  function monIsActive(d){ var c=(d&&d.counts)||{}; return ((c.installing||0)>0) || ((c.queued||0)>0); }
+  function startMonitorPolling(){ if(S.monTimer){ clearTimeout(S.monTimer); S.monTimer=null; } pollMonitor(); }
+
+  // v1.7.1 (F06) — numero di sequenza: una risposta per un batch precedente (cambio
+  // di batch, Refresh now ripetuto) viene scartata invece di ridisegnare la vista
+  // sbagliata e cancellarne il timer. Una risposta fallita (o il timeout di
+  // ajax(), N1) non ferma il polling: si mantiene lo stato attivo precedente e si
+  // riprova con backoff 15 s -> 30 s -> 60 s, dicendolo accanto a "Last refreshed".
+  // v1.7.1 (O2) — il polling automatico chiede le dipendenze delle sole righe non
+  // finali (deps=active); quelle delle righe finali restano dalla risposta completa
+  // precedente. Una riga che diventa finale riceve una risposta completa in piu',
+  // cosi' le sue dipendenze riportano lo stato finale.
   function pollMonitor(){
     if(!monitorActive()) return;
     if(!S.currentBatch){ renderMonitorEmpty(); return; }
     // "Refresh now" chiede anche la riconciliazione lato server (reconcile:1); il
     // polling automatico no, perche' ci pensa gia' il job ogni minuto.
     var force=!!S.monForce; S.monForce=false;
-    ajax('getBatchStatus', force?{ batch:S.currentBatch, reconcile:1 }:{ batch:S.currentBatch }, function(e,d){
-      if(!e && d && !d.error){ renderMonitor(d); }
-      // Il server espone 'installing', non 'running': con la chiave sbagliata il
-      // polling si fermava appena l'ultima app usciva dalla coda, congelando il
-      // monitor su uno stato non definitivo.
-      var c=(d&&d.counts)||{};
-      var act = ((c.installing||0)>0) || ((c.queued||0)>0);
-      if(S.monTimer){ clearTimeout(S.monTimer); S.monTimer=null; }
-      if(act){ S.monTimer=setTimeout(pollMonitor, 15000); }
+    var batch=S.currentBatch, seq=(S.monSeq=(S.monSeq||0)+1);
+    var full=force || S.monDepsBatch!==batch || !!S.monNeedFull;
+    S.monNeedFull=false;
+    var params={ batch:batch };
+    if(force){ params.reconcile=1; }
+    if(!full){ params.deps='active'; }
+    if(S.monTimer){ clearTimeout(S.monTimer); S.monTimer=null; }
+    ajax('getBatchStatus', params, function(e,d){
+      if(seq!==S.monSeq || batch!==S.currentBatch) return;   // risposta superata
+      if(!e && d && d.batch && d.batch!==batch) return;
+      if(e || !d || d.error){
+        S.monFails=(S.monFails||0)+1;
+        var wait=Math.min(15000*Math.pow(2, S.monFails-1), 60000);
+        S.monRefreshNote='Last refresh failed — retrying in '+Math.round(wait/1000)+' s';
+        paintMonRefresh();
+        var wasActive = (S.monData && S.monData.batch===batch) ? monIsActive(S.monData) : true;
+        if(wasActive){ S.monTimer=setTimeout(pollMonitor, wait); }
+        return;
+      }
+      S.monFails=0; S.monRefreshNote='';
+      if(full){ S.monDepsBatch=batch; }
+      mergeMonDeps(d, full);
+      renderMonitorIfChanged(d);
+      if(S.monNeedFull){ S.monTimer=setTimeout(pollMonitor, 1000); }
+      else if(monIsActive(d)){ S.monTimer=setTimeout(pollMonitor, 15000); }
     });
   }
+  function isFinalStatus(st){ return st==='complete' || st==='failed' || st==='cancelled'; }
+  function mergeMonDeps(d, full){
+    S.monDepCache=S.monDepCache||{}; S.monDepFinal=S.monDepFinal||{};
+    var rows=d.rows||[];
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i], k=r.logSysId;
+      if(r.depsOmitted){
+        r.deps=S.monDepCache[k]||[];
+        if(!S.monDepFinal[k]){ S.monNeedFull=true; }   // finita da poco: serve l'albero finale
+      } else {
+        S.monDepCache[k]=r.deps||[];
+        if(isFinalStatus(r.status)){ S.monDepFinal[k]=true; }
+      }
+    }
+  }
+  function paintMonRefresh(){
+    var el=$('mon-refreshed'); if(!el) return;
+    var d=S.monData||{};
+    el.textContent=(d.checkedAt?('Last refreshed '+d.checkedAt):'')+(S.monRefreshNote?((d.checkedAt?' · ':'')+S.monRefreshNote):'');
+    el.className=S.monRefreshNote?'npu-refresh-warn':'';
+  }
+
+  // v1.7.1 (F09, D4) — l'esito di Cancel queued resta visibile sopra la tabella:
+  // le righe gia' accodate dalla piattaforma non vengono annullate e si
+  // installeranno comunque, e va detto.
   function cancelQueued(){
     if(!S.currentBatch) return;
     var c=(S.monData&&S.monData.counts)||{}, q=c.queued||0;
     if(!q) return;
+    var batch=S.currentBatch;
     confirmModal({
       title:'Cancel '+plural(q,'queued install','queued installs')+'?',
-      bodyHtml:'The '+q+' '+(q===1?'application':'applications')+' still waiting in the queue will be marked <strong>cancelled</strong>.'
+      bodyHtml:'The '+q+' '+(q===1?'application':'applications')+' still waiting will be marked <strong>cancelled</strong>, '
+        + 'except those the platform has already queued: those cannot be removed from the platform queue and will still install.'
         + '<br/><br/>Installs already running cannot be interrupted and will finish.',
       confirmLabel:'Cancel '+q, cancelLabel:'Keep queued', danger:true,
+      opener:$('mon-cancel'),
       onConfirm:function(){
-        ajax('cancelRemaining',{ batch:S.currentBatch }, function(e,d){
-          if(!e && d && d.ok){ announce(d.cancelled+' queued installs cancelled'+(d.kept?(' · '+d.kept+' had already started and will finish'):'')); }
+        ajax('cancelRemaining',{ batch:batch }, function(e,d){
+          if(batch!==S.currentBatch) return;
+          var parts=[], cls='info';
+          if(e || !d || !d.ok){
+            cls='danger'; parts.push('Cancel queued failed: '+((d&&d.error)||e||'no answer from the server')+'.');
+          } else {
+            parts.push(plural(d.cancelled||0,'queued install was','queued installs were')+' cancelled.');
+            function wv(n){ return n+' '+(n===1?'was':'were'); }
+            if(d.alreadyQueued){ parts.push(wv(d.alreadyQueued)+' already queued on the platform and will still install.'); }
+            if(d.alreadyStarted){ parts.push(d.alreadyStarted+' had already started and will finish.'); }
+            if(d.installed){ parts.push(wv(d.installed)+' already installed.'); }
+            if(d.failed){ parts.push(d.failed+' had already ended below the target version and '+(d.failed===1?'is':'are')+' marked failed.'); }
+            if(d.launching){ parts.push(wv(d.launching)+' being launched from the browser and left as '+(d.launching===1?'it is':'they are')+'.'); }
+            if(d.changed){ parts.push(d.changed+' changed while cancelling and '+(d.changed===1?'was':'were')+' left as '+(d.changed===1?'it is':'they are')+'.'); }
+            if(d.alreadyQueued || d.alreadyStarted){ cls='warn'; }
+          }
+          S.monNotice={ cls:cls, text:parts.join(' ') };
+          announce(S.monNotice.text);
+          S.monKey='';   // ridisegno anche se i dati non cambiano
           startMonitorPolling();
         });
       }
@@ -1528,7 +1927,11 @@ html,body{background:#f5f5f7;margin:0}
       box.innerHTML='<div class="card npu-qh"><div class="card-body"><div class="npu-qh-head"><div class="npu-qh-title">Platform install queue</div></div>'
         + '<div class="npu-qh-text"><span class="spinner" style="display:inline-block;width:12px;height:12px;vertical-align:-2px;margin-right:8px"></span>Checking the install queue&#8230;</div></div></div>';
     }
+    // v1.7.1 (F23) — numero di sequenza: una risposta superata (ad esempio partita
+    // prima di uno sblocco e arrivata dopo) non riporta in vita lo stato "blocked".
+    var seq=(S.qhSeq=(S.qhSeq||0)+1);
     ajax('getQueueHealth',{},function(e,d){
+      if(seq!==S.qhSeq) return;
       if(e || !d || (d.error && !d.status)){
         S.queue={ status:'unavailable', reason:(e||(d&&d.error)||'No data returned'), owners:[], waiting:0 };
       } else {
@@ -1573,7 +1976,9 @@ html,body{background:#f5f5f7;margin:0}
         + ((o&&o.idleHours!=null)?(' &#183; no progress for '+esc(o.idleHours)+' h'):'')
         + ' &#183; '+(w?esc(waitTxt):'the next install will wait')+'.';
       if(q.releasable){
-        act='<button class="btn btn-danger btn-sm" id="qh-release">Release blocked operation&#8230;</button>';
+        // F23 — durante uno sblocco il pulsante resta disabilitato anche se la
+        // scheda viene ridisegnata (Check again, Refresh now).
+        act='<button class="btn btn-danger btn-sm" id="qh-release"'+(S.releasing?' disabled':'')+'>Release blocked operation&#8230;</button>';
       } else {
         meta.push(esc((o&&o.reason)||'This lock cannot be released from this page.'));
       }
@@ -1604,6 +2009,7 @@ html,body{background:#f5f5f7;margin:0}
   }
 
   function openReleaseDialog(){
+    if(S.releasing){ return; }   // F23
     var q=S.queue, o=qhOwner(q);
     if(!o || !o.releasable){ return; }
     var locks=o.locks||[], li='';
@@ -1623,7 +2029,7 @@ html,body{background:#f5f5f7;margin:0}
         + 'Queued operations, other locks and running transactions are not touched. The stuck install will not complete: run it again afterwards.'
         + '<label class="npu-ack" for="qh-ack"><input type="checkbox" id="qh-ack" class="check"/>'
         +   '<span>I checked <a href="/v_cluster_transaction_list.do" target="_blank" rel="noopener">Active Transactions</a> and no transaction of this install is still running.</span></label>',
-      requireCheckId:'qh-ack', wide:true,
+      requireCheckId:'qh-ack', wide:true, opener:$('qh-release'),
       confirmLabel:'Release', cancelLabel:'Keep as is', danger:true,
       onConfirm:function(){ releaseStuck(o.trackerId); }
     });
@@ -1632,10 +2038,13 @@ html,body{background:#f5f5f7;margin:0}
   // La conferma "nessuna transazione attiva" parte solo da qui, cioe' solo dopo
   // la checkbox. Il server rifiuta qualsiasi chiamata senza.
   function releaseStuck(trackerId){
+    if(S.releasing){ return; }   // F23: un solo sblocco alla volta
+    S.releasing=true;
+    S.qhSeq=(S.qhSeq||0)+1;      // ogni lettura della coda partita prima e' superata
     S.queueResult={ cls:'info', html:'Releasing the blocked operation&#8230;' };
     renderQueueCard();
-    var rb=$('qh-release'); if(rb){ rb.disabled=true; }
     ajax('releaseStuckOperation',{ tracker_id:trackerId, confirm_no_active_tx:'true' },function(e,d){
+      S.releasing=false;
       var said;
       if(e || !d){
         said='Release failed: '+(e||'no response from the server');
@@ -1665,6 +2074,7 @@ html,body{background:#f5f5f7;margin:0}
     var out=list.slice();
     out.sort(function(a,b){
       if(k==='pct'){ return ((a.pct||0)-(b.pct||0))*dir; }
+      if(VERSION_KEYS[k]){ return cmpVer(a[k],b[k])*dir; }
       var x=(''+(a[k]||'')).toLowerCase(), y=(''+(b[k]||'')).toLowerCase();
       if(x<y) return -dir; if(x>y) return dir; return 0;
     });
@@ -1692,7 +2102,30 @@ html,body{background:#f5f5f7;margin:0}
       + '<div class="summary-text">'+esc(text.join(' · '))+'.'+extra+'</div></div></div>';
   }
 
+  // v1.7.1 (O4) — il polling ridisegna la tabella solo se i dati sono cambiati:
+  // ogni 15 s la ricostruzione completa faceva perdere focus e scroll, e
+  // l'annuncio per screen reader ripeteva lo stesso testo. Con dati invariati si
+  // aggiorna solo "Last refreshed".
+  function renderMonitorIfChanged(d){
+    var key='';
+    try{ key=JSON.stringify([d.status, d.counts, d.rows, d.truncated, d.rowsShown, d.depsTruncated]); }catch(eK){ key=''; }
+    if(key && key===S.monKey){ S.monData.checkedAt=d.checkedAt; paintMonRefresh(); return; }
+    S.monKey=key;
+    renderMonitor(d);
+  }
+
+  // Elemento con il focus dentro il Monitor, descritto in modo da ritrovarlo
+  // dopo il ridisegno (O5): sort, pager, KPI, dettagli.
+  function monFocusSelector(){
+    var a=document.activeElement, root=$('mon-body');
+    if(!a || !root || !root.contains(a)) return '';
+    var attrs=['data-why','data-kpi','data-k','data-pg','data-pgsize'];
+    for(var i=0;i<attrs.length;i++){ var v=a.getAttribute(attrs[i]); if(v!=null){ return '['+attrs[i]+'="'+v+'"]'; } }
+    return a.id?('#'+a.id):'';
+  }
+
   function renderMonitor(d){
+    var focusSel=monFocusSelector();
     S.monData=d;
     var c=d.counts||{}, all=d.rows||[];
     // Filtro KPI (v1.6.5): guarda SOLO lo status della riga principale. Le righe
@@ -1722,8 +2155,8 @@ html,body{background:#f5f5f7;margin:0}
       rows+='<tr><td class="col-name">'+esc(r.name)+'</td><td class="col-scope">'+esc(r.scope)+'</td>'
           + '<td class="col-ver">'+verCell(r.current,r.latest)+'</td>'
           + '<td>'+statusPill(st)+'</td>'
-          + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+pct+'%</div>'
-          + '<div class="prog-wrap"><div class="prog-bar'+(st==='complete'?' success':(st==='failed'?' failed':''))+'" style="width:'+pct+'%"></div></div></td>'
+          + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+esc(pct)+'%</div>'
+          + '<div class="prog-wrap"><div class="prog-bar'+(st==='complete'?' success':(st==='failed'?' failed':''))+'" style="width:'+(parseInt(pct,10)||0)+'%"></div></div></td>'
           + '<td>'+detail+'</td></tr>';
       // Riga di dettaglio a piena larghezza, resa solo se aperta.
       if(hasMsg && open){
@@ -1735,10 +2168,7 @@ html,body{background:#f5f5f7;margin:0}
       }
       // Righe dipendenza (v1.6, §10.3): app che la piattaforma ha davvero
       // installato insieme a questa, letto da sys_execution_tracker — non
-      // una previsione, un fatto osservato dopo il lancio. Badge "dependency"
-      // le distingue dalle righe principali; nessuna colonna Details perché
-      // il tracker non porta un messaggio d'errore leggibile come le nostre
-      // righe (solo stato/percentuale).
+      // una previsione, un fatto osservato dopo il lancio.
       var deps=r.deps||[];
       depRowsShown+=deps.length;   // dichiarate nell'etichetta del pager (v1.6.5 fix)
       for(var di=0;di<deps.length;di++){ var dep=deps[di]; var dpct=dep.pct||0;
@@ -1749,8 +2179,8 @@ html,body{background:#f5f5f7;margin:0}
             + '<td class="col-scope">'+esc(dep.scope)+'</td>'
             + '<td class="col-ver">'+depVerHtml+'</td>'
             + '<td>'+statusPill(dep.status)+'</td>'
-            + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+dpct+'%</div>'
-            + '<div class="prog-wrap"><div class="prog-bar'+(dep.status==='complete'?' success':(dep.status==='failed'?' failed':''))+'" style="width:'+dpct+'%"></div></div></td>'
+            + '<td><div style="font-size:11px;color:var(--text-2);margin-bottom:2px">'+esc(dpct)+'%</div>'
+            + '<div class="prog-wrap"><div class="prog-bar'+(dep.status==='complete'?' success':(dep.status==='failed'?' failed':''))+'" style="width:'+(parseInt(dpct,10)||0)+'%"></div></div></td>'
             + '<td><span style="color:var(--text-3);font-size:12px">&#8212;</span></td></tr>';
       }
     }
@@ -1764,7 +2194,21 @@ html,body{background:#f5f5f7;margin:0}
     function th(k,label,extra){
       return '<th class="sortable" data-k="'+k+'" role="columnheader" tabindex="0"'+ariaSort(S.monSort,k)+(extra||'')+'>'+label+sortInd(k)+'</th>';
     }
+    // v1.7.1 (F22) — oltre ROW_CAP righe il server ne restituisce solo una parte:
+    // i KPI contano l'intero batch, la tabella no, e va detto.
+    var notes='';
+    if(d.truncated){
+      notes+='<div class="cap-note">Showing the first '+esc(d.rowsShown||all.length)+' of '+esc(c.total||0)
+        + ' applications. The counters above cover the whole batch.</div>';
+    }
+    if(d.depsTruncated){
+      notes+='<div class="cap-note">Some dependency rows are not shown: the platform tracker tree is too large.</div>';
+    }
+    var notice=S.monNotice
+      ? ('<div class="alert '+(S.monNotice.cls==='danger'?'alert-danger':('npu-alert-'+S.monNotice.cls))+'" role="status"><div>'+esc(S.monNotice.text)+'</div></div>')
+      : '';
     var h=batchSummary(d)
+      + notice
       + '<div class="kpi-grid">'
       + kpi('Total', c.total||0, S.monFilter?'in this batch &#8226; clear filter':'in this batch','','__all__')
       + kpi('Installing', c.installing||0, 'running now', (c.installing>0)?'accent':'', 'installing')
@@ -1774,76 +2218,85 @@ html,body{background:#f5f5f7;margin:0}
       + '</div>'
       + '<div class="actions-bar"><div style="font-size:13px;color:var(--text-2)">Batch status: '+statusPill(bs)
       +   (S.monFilter?' &#183; filtered by <strong>'+esc(S.monFilter)+'</strong> <button class="link-btn" id="mon-showall-rows">show all</button>':'')+'</div>'
-      +   '<div style="font-size:12px;color:var(--text-3)">Last refreshed '+esc(new Date().toLocaleString())+'</div></div>'
+      // v1.7.1 (N3) — ora del server, nel fuso dell'utente: la stessa convenzione
+      // di "Checked" nella scheda della coda (prima: ora locale del browser).
+      +   '<div style="font-size:12px;color:var(--text-3)" id="mon-refreshed"></div></div>'
       + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
       + th('name','Application')+th('scope','Scope')+th('latest','Version')+th('status','Status')+th('pct','Progress',' style="min-width:160px"')
       + '<th style="width:110px">Details</th>'
       + '</tr></thead><tbody>'+rows+'</tbody></table></div>'
+      + notes
       + pagerHtml('mon', pg, depRowsShown)+'</div>';
     $('mon-body').innerHTML=h;
-
-    // Espansione/chiusura del dettaglio: lo stato vive in S.whyOpen, quindi
-    // sopravvive ai refresh del polling e all'ordinamento.
-    var wb=$('mon-body').querySelectorAll('.why-btn');
-    for(var w=0;w<wb.length;w++){
-      wb[w].onclick=function(){
-        var k=this.getAttribute('data-why');
-        if(S.whyOpen[k]){ delete S.whyOpen[k]; } else { S.whyOpen[k]=true; }
-        renderMonitor(S.monData);
-      };
-    }
-
-    // Filtro per status. Un solo punto di verita' (S.monFilter): "Show only
-    // failures" del riquadro conclusivo e il KPI Failed sono lo stesso stato,
-    // cosi' il KPI si illumina anche quando il filtro parte dal riquadro.
-    function setMonFilter(k){
-      if(k==='__all__' || S.monFilter===k){ S.monFilter=''; }   // Total = reset, ri-click = toggle-off
-      else { S.monFilter=k; }
-      resetPage('mon');            // il filtro cambia la lista: si riparte da pagina 1
-      renderMonitor(S.monData);
-    }
-    var of=$('mon-onlyfailed'); if(of){ of.onclick=function(){ S.monFilter='failed'; resetPage('mon'); renderMonitor(S.monData); }; }
-    var sr=$('mon-showall-rows'); if(sr){ sr.onclick=function(){ setMonFilter('__all__'); }; }
-
-    // Un solo handler per l'intera griglia KPI (event delegation), come il
-    // resto dell'app. I KPI a zero non portano data-kpi e restano inerti.
-    var kg=$('mon-body').querySelector('.kpi-grid');
-    if(kg){
-      kg.onclick=function(e){
-        var card=e.target.closest?e.target.closest('[data-kpi]'):null;
-        if(card){ setMonFilter(card.getAttribute('data-kpi')); }
-      };
-      // Stessa azione da tastiera: le schede sono role="button".
-      kg.onkeydown=function(e){
-        if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){
-          var card=e.target.closest?e.target.closest('[data-kpi]'):null;
-          if(card){ e.preventDefault(); setMonFilter(card.getAttribute('data-kpi')); }
-        }
-      };
-    }
-    wirePager('mon-body', 'mon', function(){ renderMonitor(S.monData); });
+    paintMonRefresh();
 
     // "Cancel queued" solo quando c'è effettivamente qualcosa da annullare.
     var cb=$('mon-cancel');
     if(cb){ cb.style.display=((c.queued||0)>0)?'inline-flex':'none'; }
 
     // Annuncio per screen reader: il polling cambia il DOM senza che l'utente
-    // non vedente se ne accorga.
-    if(bs!=='running'){ announce('Batch '+bs+': '+(c.complete||0)+' complete, '+(c.failed||0)+' failed'); }
-    else { announce((c.installing||0)+' installing, '+(c.queued||0)+' queued, '+(c.complete||0)+' complete'); }
+    // non vedente se ne accorga. O4: solo quando il testo cambia.
+    var said = (bs!=='running')
+      ? ('Batch '+bs+': '+(c.complete||0)+' complete, '+(c.failed||0)+' failed')
+      : ((c.installing||0)+' installing, '+(c.queued||0)+' queued, '+(c.complete||0)+' complete');
+    if(said!==S.monAnnounced){ S.monAnnounced=said; announce(said); }
 
-    var ths=$('mon-body').querySelectorAll('th.sortable');
-    function applyMon(th2){
-      var k=th2.getAttribute('data-k');
-      if(S.monSort && S.monSort.k===k){ S.monSort.dir=(S.monSort.dir===1?-1:1); }
-      else { S.monSort={k:k,dir:1}; }
+    if(focusSel){ restoreFocus($('mon-body'), focusSel); }
+  }
+
+  // v1.7.1 (O4) — handler del Monitor agganciati UNA volta su #mon-body (event
+  // delegation) invece di riagganciarli a ogni ridisegno.
+  function setMonFilter(k){
+    if(k==='__all__' || S.monFilter===k){ S.monFilter=''; }   // Total = reset, ri-click = toggle-off
+    else { S.monFilter=k; }
+    resetPage('mon');            // il filtro cambia la lista: si riparte da pagina 1
+    if(S.monData){ renderMonitor(S.monData); }
+  }
+  function applyMonSort(k){
+    if(S.monSort && S.monSort.k===k){ S.monSort.dir=(S.monSort.dir===1?-1:1); }
+    else { S.monSort={k:k,dir:1}; }
+    resetPage('mon');
+    if(S.monData){ renderMonitor(S.monData); }
+  }
+  function wireMonitor(){
+    var root=$('mon-body'); if(!root) return;
+    function closest(e, sel){ return e.target.closest?e.target.closest(sel):null; }
+    root.onclick=function(e){
+      if(!S.monData) return;
+      var b;
+      if((b=closest(e,'.why-btn'))){
+        var k=b.getAttribute('data-why');
+        if(S.whyOpen[k]){ delete S.whyOpen[k]; } else { S.whyOpen[k]=true; }
+        renderMonitor(S.monData); restoreFocus(root, '.why-btn[data-why="'+k+'"]');
+        return;
+      }
+      if((b=closest(e,'#mon-onlyfailed'))){ S.monFilter='failed'; resetPage('mon'); renderMonitor(S.monData); return; }
+      if((b=closest(e,'#mon-showall-rows'))){ setMonFilter('__all__'); return; }
+      if((b=closest(e,'[data-kpi]'))){ var kk=b.getAttribute('data-kpi'); setMonFilter(kk); restoreFocus(root, '[data-kpi="'+kk+'"]'); return; }
+      if((b=closest(e,'th.sortable'))){ var sk=b.getAttribute('data-k'); applyMonSort(sk); restoreFocus(root, 'th.sortable[data-k="'+sk+'"]'); return; }
+      if((b=closest(e,'.npu-pg'))){
+        if(b.disabled) return;
+        var v=b.getAttribute('data-pg');
+        if(v==='prev'){ S.page.mon=(S.page.mon||1)-1; }
+        else if(v==='next'){ S.page.mon=(S.page.mon||1)+1; }
+        else { S.page.mon=parseInt(v,10)||1; }
+        renderMonitor(S.monData); restoreFocus(root, '.npu-pg[data-pg="'+v+'"]', '.npu-pg');
+      }
+    };
+    root.onkeydown=function(e){
+      if(!(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32)) return;
+      var b=closest(e,'[data-kpi]');
+      if(b){ e.preventDefault(); var kk=b.getAttribute('data-kpi'); setMonFilter(kk); restoreFocus(root, '[data-kpi="'+kk+'"]'); return; }
+      b=closest(e,'th.sortable');
+      if(b){ e.preventDefault(); var sk=b.getAttribute('data-k'); applyMonSort(sk); restoreFocus(root, 'th.sortable[data-k="'+sk+'"]'); }
+    };
+    root.onchange=function(e){
+      var sel=closest(e,'select[data-pgsize]');
+      if(!sel || !S.monData) return;
+      S.pageSize.mon=parseInt(sel.value,10)||25;
       resetPage('mon');
-      renderMonitor(S.monData);
-    }
-    for(var j=0;j<ths.length;j++){
-      ths[j].onclick=function(){ applyMon(this); };
-      ths[j].onkeydown=function(e){ if(e.key==='Enter'||e.key===' '||e.keyCode===13||e.keyCode===32){ e.preventDefault(); applyMon(this); } };
-    }
+      renderMonitor(S.monData); restoreFocus(root, 'select[data-pgsize]');
+    };
   }
 
   // ---- Wiring ----
@@ -1874,15 +2327,16 @@ html,body{background:#f5f5f7;margin:0}
     // w1-next / w1-cancel sono resi dentro renderWizard1(): agganciati là.
     $('launch-monitor').onclick=function(){ openMonitor(S.currentBatch||''); };
     $('launch-home').onclick=function(){ showView('home'); refresh(); };
-    $('mon-batch').onchange=function(){ S.currentBatch=this.value; S.monFilter=''; resetPage('mon'); startMonitorPolling(); };
-    $('mon-refresh').onclick=function(){ S.monForce=true; startMonitorPolling(); S.queueResult=null; loadQueueHealth(); };
+    $('mon-batch').onchange=function(){ selectMonBatch(this.value); S.monFilter=''; resetPage('mon'); startMonitorPolling(); };
+    wireMonitor();   // v1.7.1 (O4): handler del Monitor agganciati una volta sola
+    $('mon-refresh').onclick=function(){ S.monForce=true; startMonitorPolling(); if(!S.releasing){ S.queueResult=null; } loadQueueHealth(); };
     $('mon-cancel').onclick=cancelQueued;
     // v1.7.0 — un solo handler per la scheda della coda (event delegation): i
     // pulsanti vengono ricreati a ogni render.
     $('mon-queue').onclick=function(e){
       var b=e.target.closest?e.target.closest('button'):null;
       if(!b || b.disabled) return;
-      if(b.id==='qh-check'){ S.queueResult=null; loadQueueHealth(); }
+      if(b.id==='qh-check'){ if(!S.releasing){ S.queueResult=null; } loadQueueHealth(); }
       else if(b.id==='qh-release'){ openReleaseDialog(); }
     };
     refresh();

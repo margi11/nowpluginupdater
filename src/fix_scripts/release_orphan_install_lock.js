@@ -1,5 +1,5 @@
 /**
- * Now Plugin Updater — sblocco di una coda di installazione bloccata da lock orfani (v1.7.0)
+ * Now Plugin Updater — sblocco di una coda di installazione bloccata da lock orfani (v1.7.0, rivisto in v1.7.1)
  * ---------------------------------------------------------------------------
  * PERCHE'
  * La piattaforma esegue le operazioni di installazione (Application Manager, CICD,
@@ -25,7 +25,12 @@
  *   3. stampa il backup JSON dei record che cambiera' (e in APPLY lo salva anche
  *      come allegato sul tracker radice: se non riesce, non cambia nulla);
  *   4. in APPLY: porta a Failed i tracker Running/Pending dell'albero e cancella
- *      SOLO i padlock con quella lock_key; poi verifica e scrive una riga di audit.
+ *      SOLO i padlock valutati al punto 2 (per sys_id); poi verifica e scrive una
+ *      riga di audit.
+ *   v1.7.1 — fail closed: prima del backup e prima della prima scrittura rilegge
+ *   l'intero albero e si ferma senza toccare nulla se uno stato o un
+ *   sys_updated_on e' cambiato; non cancella nessun padlock se un tracker non
+ *   si e' potuto portare a Failed; rifiuta con 100 o piu' padlock da verificare.
  *
  * COSA NON FA, MAI
  *   Non tocca i messaggi NowMQ, i latch e gli altri padlock (lock_key vuota o
@@ -85,17 +90,29 @@
     }
 
     // Valori di sys_execution_tracker.state da sys_choice (lingua en).
+    // v1.7.1 (F29): solo scelte attive, in ordine di sequence; se i cinque valori
+    // non sono distinti (o failed coincide con running/pending) valgono i default.
     function trackerStates() {
-        var v = { pending: '0', running: '1', successful: '2', failed: '3', cancelled: '4' };
+        var DEF = { pending: '0', running: '1', successful: '2', failed: '3', cancelled: '4' };
+        var v = { pending: DEF.pending, running: DEF.running, successful: DEF.successful, failed: DEF.failed, cancelled: DEF.cancelled };
         var c = new GlideRecord('sys_choice');
         c.addQuery('name', 'sys_execution_tracker');
         c.addQuery('element', 'state');
         c.addQuery('language', 'en');
+        c.addQuery('inactive', false);
+        c.orderBy('sequence');
         c.setLimit(20);
         c.query();
+        var got = {};
         while (c.next()) {
             var k = str(c.getValue('label')).toLowerCase();
-            if (v.hasOwnProperty(k)) { v[k] = str(c.getValue('value')); }
+            if (v.hasOwnProperty(k) && !got.hasOwnProperty(k)) { v[k] = str(c.getValue('value')); got[k] = true; }
+        }
+        var seen = {}, n = 0;
+        for (var d in v) { if (v.hasOwnProperty(d) && !seen.hasOwnProperty(v[d])) { seen[v[d]] = true; n++; } }
+        if (n !== 5 || v.failed === v.running || v.failed === v.pending) {
+            log('scelte di sys_execution_tracker.state incoerenti (' + JSON.stringify(v) + '): uso i default');
+            return DEF;
         }
         return v;
     }
@@ -150,9 +167,33 @@
         return { root: root, nodes: nodes, last: last, truncated: truncated };
     }
 
+    // v1.7.1 (F10) — l'albero e' ancora quello valutato? '' se invariato.
+    function treeChanged(rootId, before) {
+        var now = opTree(rootId);
+        if (!now) { return 'il tracker radice non esiste piu\''; }
+        if (now.truncated) { return 'l\'albero non e\' piu\' verificabile per intero'; }
+        if (now.nodes.length !== before.nodes.length) { return 'numero di tracker cambiato (' + before.nodes.length + ' -> ' + now.nodes.length + ')'; }
+        var was = {};
+        for (var i = 0; i < before.nodes.length; i++) { was[before.nodes[i].id] = before.nodes[i]; }
+        for (var j = 0; j < now.nodes.length; j++) {
+            var n = now.nodes[j], o = was.hasOwnProperty(n.id) ? was[n.id] : null;
+            if (!o) { return 'nuovo tracker ' + n.id; }
+            if (o.state !== n.state || o.updated !== n.updated) { return 'tracker ' + n.id + ' cambiato dopo la verifica'; }
+        }
+        return '';
+    }
+
     // Verifiche su un proprietario: restituisce { ok, reasons[], plan }
     function evaluate(rootId, st) {
         var key = 'r*' + rootId, res = { id: rootId, key: key, ok: false, reasons: [], locks: [], toFail: [], tree: null };
+        // v1.7.1 (F11) — conteggio prima della lettura: oltre il tetto non si
+        // verifica un sottoinsieme, si rifiuta.
+        var lc = new GlideAggregate('sys_padlock');
+        lc.addQuery('lock_key', key);
+        lc.addAggregate('COUNT');
+        lc.query();
+        var lockCount = lc.next() ? (parseInt(lc.getAggregate('COUNT'), 10) || 0) : 0;
+        if (lockCount >= LOCK_CAP) { res.reasons.push('troppi padlock da verificare (' + lockCount + ', limite ' + (LOCK_CAP - 1) + ')'); return res; }
         var p = new GlideRecord('sys_padlock');
         p.addQuery('lock_key', key);
         p.setLimit(LOCK_CAP);
@@ -209,11 +250,13 @@
     pl.orderBy('sys_created_on');
     pl.setLimit(LOCK_CAP);
     pl.query();
+    var plRows = 0;
     while (pl.next()) {
+        plRows++;
         var k = str(pl.getValue('lock_key'));
         if (!seenKey.hasOwnProperty(k)) { seenKey[k] = true; keys.push(k); }
     }
-    log('padlock di operazione (lock_key r*): ' + keys.length + ' proprietari');
+    log('padlock di operazione (lock_key r*): ' + keys.length + ' proprietari' + (plRows >= LOCK_CAP ? ' (letti i primi ' + LOCK_CAP + ' padlock: potrebbero essercene altri)' : ''));
 
     // ---- 2. Valutazione dei proprietari -------------------------------------
     var target = null, candidates = 0;
@@ -257,6 +300,11 @@
     if (!APPLY) { log('DRY_RUN completato. Nessuna modifica. Per applicare: MODE = \'APPLY\' e CONFIRM_NO_ACTIVE_TX = true.'); return; }
     if (!CONFIRM_NO_ACTIVE_TX) { stop('CONFIRM_NO_ACTIVE_TX non e\' true: controlla prima Active Transactions'); return; }
 
+    // v1.7.1 (F10) — prima di qualsiasi scrittura l'albero deve essere identico a
+    // quello valutato (stato e sys_updated_on di ogni tracker).
+    var ch = treeChanged(target.id, target.tree);
+    if (ch) { stop('l\'operazione e\' cambiata durante la verifica (' + ch + '): l\'installazione potrebbe essere viva'); return; }
+
     var fileName = 'npu_release_backup_' + now.replace(/[^0-9]/g, '') + '.json';
     var attId = '';
     try { attId = str(new GlideSysAttachment().write(target.tree.root, fileName, 'application/json', json)); } catch (eA) { log('errore backup: ' + eA); }
@@ -265,22 +313,36 @@
 
     var note = ('Marked Failed by Now Plugin Updater release_orphan_install_lock.js (' + user + ', ' + now + ' UTC): no progress since ' +
                 target.tree.last + ' UTC and its resource locks were blocking the install queue. Backup: ' + fileName + ' on this tracker.').substring(0, 4000);
+    // Seconda verifica, subito prima della prima scrittura sui tracker.
+    ch = treeChanged(target.id, target.tree);
+    if (ch) { stop('l\'operazione e\' cambiata dopo il backup (' + ch + '); il backup ' + fileName + ' resta sul tracker'); return; }
+
+    // Dentro il ciclo si controlla solo lo stato: portare a Failed un tracker puo'
+    // far aggiornare gli altri dalla piattaforma (effetto di questa scrittura).
     var failed = 0, failErr = 0;
-    for (var f = 0; f < target.toFail.length; f++) {
+    for (var f = 0; f < target.toFail.length && !failErr; f++) {
         var u = new GlideRecord('sys_execution_tracker');
-        if (!u.get(target.toFail[f])) { failErr++; continue; }
+        if (!u.get(target.toFail[f])) { failErr++; break; }
         var s = str(u.getValue('state'));
-        if (s !== st.running && s !== st.pending) { continue; }
+        if (s === st.failed) { failed++; continue; }
+        if (s !== st.running && s !== st.pending) { failErr++; break; }
         u.setValue('state', st.failed);
         u.setValue('message', note);
         if (u.update()) { failed++; } else { failErr++; }
     }
-    var del = 0, delErr = 0;
-    var dp = new GlideRecord('sys_padlock');
-    dp.addQuery('lock_key', target.key);
-    dp.setLimit(LOCK_CAP);
-    dp.query();
-    while (dp.next()) { dp.setWorkflow(false); if (dp.deleteRecord()) { del++; } else { delErr++; } }
+    if (failErr) {
+        stop(failed + ' tracker a Failed, poi un tracker e\' cambiato o non si e\' potuto aggiornare: NESSUN padlock cancellato. Backup ' + fileName);
+        return;
+    }
+    // v1.7.1 (F10) — solo i padlock valutati, per sys_id, e solo se invariati.
+    var del = 0, delErr = 0, gone = 0;
+    for (var dl = 0; dl < target.locks.length; dl++) {
+        var lk = target.locks[dl], dp = new GlideRecord('sys_padlock');
+        if (!dp.get(lk.sys_id)) { gone++; continue; }
+        if (str(dp.getValue('lock_key')) !== target.key || str(dp.getValue('sys_updated_on')) !== (lk.sys_updated_on || '')) { delErr++; continue; }
+        dp.setWorkflow(false);
+        if (dp.deleteRecord()) { del++; } else { delErr++; }
+    }
 
     var left = new GlideAggregate('sys_padlock');
     left.addQuery('lock_key', target.key);
@@ -289,9 +351,10 @@
     var nLeft = left.next() ? (parseInt(left.getAggregate('COUNT'), 10) || 0) : 0;
 
     gs.info('[PluginUpdater] release_orphan_install_lock tracker=' + target.id + ' by=' + user + ' trackersFailed=' + failed + '/' +
-            target.toFail.length + ' locksDeleted=' + del + '/' + target.locks.length + ' locksLeft=' + nLeft + ' backup=sys_attachment:' + attId);
+            target.toFail.length + ' locksDeleted=' + del + '/' + target.locks.length + ' locksAlreadyGone=' + gone + ' lockErrors=' + delErr +
+            ' locksLeft=' + nLeft + ' backup=sys_attachment:' + attId);
     log('=========================================================');
     log((nLeft === 0 && !failErr && !delErr ? 'APPLICATO' : 'APPLICATO CON ERRORI') + ': tracker a Failed ' + failed + '/' + target.toFail.length +
-        ' (errori ' + failErr + ') | padlock cancellati ' + del + '/' + target.locks.length + ' (errori ' + delErr + ') | residui ' + nLeft);
+        ' (errori ' + failErr + ') | padlock cancellati ' + del + '/' + target.locks.length + ' (gia\' rilasciati ' + gone + ', errori ' + delErr + ') | residui ' + nLeft);
     log('Le installazioni in coda dovrebbero ripartire entro un paio di minuti; quella bloccata va rilanciata.');
 })();
