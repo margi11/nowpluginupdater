@@ -2208,18 +2208,32 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
     // Valori di sys_execution_tracker.state letti da sys_choice (lingua en),
     // come lo sblocco manuale; i default sono quelli osservati su Brazil.
+    // v1.7.1 (F29) — solo scelte attive, in ordine di sequence; se i cinque valori
+    // letti non sono distinti (o failed coincide con running/pending) si usano i
+    // default: un valore sbagliato qui farebbe portare a Failed il tracker giusto
+    // con lo stato sbagliato, o considerare "running" un'operazione finita.
     _trackerStates: function() {
         if (this._qhStates) { return this._qhStates; }
-        var v = { pending: '0', running: '1', successful: '2', failed: '3', cancelled: '4' };
+        var DEF = { pending: '0', running: '1', successful: '2', failed: '3', cancelled: '4' };
+        var v = { pending: DEF.pending, running: DEF.running, successful: DEF.successful, failed: DEF.failed, cancelled: DEF.cancelled };
         var c = new GlideRecord('sys_choice');
         c.addQuery('name', 'sys_execution_tracker');
         c.addQuery('element', 'state');
         c.addQuery('language', 'en');
+        c.addQuery('inactive', false);
+        c.orderBy('sequence');
         c.setLimit(20);
         c.query();
+        var got = {};
         while (c.next()) {
             var k = ('' + c.getValue('label')).toLowerCase();
-            if (v.hasOwnProperty(k)) { v[k] = '' + c.getValue('value'); }
+            if (v.hasOwnProperty(k) && !got.hasOwnProperty(k)) { v[k] = '' + c.getValue('value'); got[k] = true; }
+        }
+        var distinct = {}, nDistinct = 0;
+        for (var dk in v) { if (v.hasOwnProperty(dk) && !distinct.hasOwnProperty(v[dk])) { distinct[v[dk]] = true; nDistinct++; } }
+        if (nDistinct !== 5 || v.failed === v.running || v.failed === v.pending) {
+            gs.warn('[PluginUpdater] sys_execution_tracker.state choices are not consistent (' + JSON.stringify(v) + '): using the defaults');
+            v = DEF;
         }
         var name = {};
         for (var n in v) { if (v.hasOwnProperty(n)) { name[v[n]] = n; } }
@@ -2306,6 +2320,16 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // Messaggi della coda NowMQ delle operazioni. waiting = non DELIVERED.
     _qhMessages: function(detail) {
         var out = { waiting: 0 };
+        if (!detail) {
+            // v1.7.1 (O3) — versione leggera (Home): un solo COUNT, niente groupBy.
+            var lc = new GlideAggregate('sys_nowmq_message');
+            lc.addQuery('subject', this.QH_SUBJECT);
+            lc.addQuery('state', '!=', 'DELIVERED');
+            lc.addAggregate('COUNT');
+            lc.query();
+            out.waiting = lc.next() ? (parseInt(lc.getAggregate('COUNT'), 10) || 0) : 0;
+            return out;
+        }
         var ga = new GlideAggregate('sys_nowmq_message');
         ga.addQuery('subject', this.QH_SUBJECT);
         ga.addAggregate('COUNT');
@@ -2358,8 +2382,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         p.orderBy('sys_created_on');
         p.setLimit(this.QH_LOCK_CAP);
         p.query();
-        var byKey = {}, keys = [];
+        var byKey = {}, keys = [], lockRows = 0;
         while (p.next()) {
+            lockRows++;
             var k = '' + p.getValue('lock_key');
             // hasOwnProperty, non !byKey[k]: nel Rhino dello scope global un array
             // vuoto e' falsy (verificato su Brazil), quindi mai testare un array.
@@ -2376,7 +2401,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         for (var i = 0; i < keys.length && this.QH_OWNER_CAP > list.length; i++) {
             list.push(this._qhLockOwner(keys[i].substring(2), byKey[keys[i]], detail, hours, st));
         }
-        return { list: list, truncated: keys.length > list.length };
+        // v1.7.1 (O8) — anche con QH_LOCK_CAP righe lette possono esserci altri
+        // proprietari non visti: lo si dice.
+        return { list: list, truncated: (keys.length > list.length) || (lockRows >= this.QH_LOCK_CAP) };
     },
 
     // Un proprietario di lock. stale = albero E lock fermi oltre la soglia.
@@ -2392,6 +2419,13 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         }
         var lockAge = this._ageHours(newestLock);
         var id = this._sysId(rawId);
+        // v1.7.1 (O3) — nella versione leggera (Home) un lock piu' giovane della
+        // soglia non puo' essere 'stale' (stale richiede lockAge >= soglia): l'albero
+        // del proprietario non serve e non viene letto.
+        if (!detail && hours > lockAge) {
+            o.state = 'unknown';
+            return o;
+        }
         var tree = id ? this._opTree(id) : null;
         if (!tree) {
             o.stale = lockAge >= hours;
