@@ -246,6 +246,8 @@ html,body{background:#f5f5f7;margin:0}
 #app .tree-box .impact-row:first-child{border-top:none}
 #app .confirm-union{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
 #app .confirm-union-list{max-height:220px;overflow-y:auto;margin-top:10px}
+#app .npu-pager-compact{padding:10px 0 2px;background:transparent;border-top:1px solid rgba(0,113,227,.12);margin-top:4px}
+#app .npu-btn-spin{width:12px;height:12px;border-width:2px;border-color:rgba(255,255,255,.45);border-top-color:#fff}
 #app .cap-note-inline{padding:10px 0 2px;font-size:12px;color:var(--text-3);text-align:center;border-top:1px solid rgba(0,113,227,.12);margin-top:4px}
 
 /* --- Monitor: dependency rows (v1.6, §10.3) ---------------------------------
@@ -471,8 +473,9 @@ html,body{background:#f5f5f7;margin:0}
     // S.selected e' indicizzato per sysId e vive fuori dal rendering, quindi la
     // selezione attraversa le pagine senza perdersi. Pagina e page size sono
     // indipendenti per vista (w1 = Step 1, sel = Step 2, mon = Monitor).
-    page:{w1:1,sel:1,mon:1},
-    pageSize:{w1:25,sel:25,mon:25},
+    page:{w1:1,sel:1,mon:1,cfsel:1,cfdep:1},
+    // cfsel / cfdep (v1.7.1, F02): liste del dialog di conferma, 25 fisse (D3).
+    pageSize:{w1:25,sel:25,mon:25,cfsel:25,cfdep:25},
     PAGE_SIZES:[25,50,100,150,200],
     // Righe di dettaglio aperte, per chiave: sopravvive ai refresh del polling.
     whyOpen:{}, launchWhyOpen:{},
@@ -517,7 +520,12 @@ html,body{background:#f5f5f7;margin:0}
   }
 
   // ---- Modal di conferma (nessuna dipendenza esterna) ----
-  function closeModal(){ var h=$('modal-host'); if(h){ h.innerHTML=''; } }
+  // v1.7.1 (O5) — alla chiusura il focus torna a chi ha aperto il dialog.
+  function closeModal(){
+    var h=$('modal-host'); if(h){ h.innerHTML=''; h.onkeydown=null; }
+    var o=S.modalOpener; S.modalOpener=null;
+    if(o && o.focus && document.body.contains(o) && !o.disabled){ o.focus(); }
+  }
   // v1.7.0 — opzioni aggiuntive, retrocompatibili (i chiamanti esistenti non cambiano):
   //   extraHtml       HTML reso DOPO il paragrafo del corpo (liste, checkbox)
   //   requireCheckId  id di una checkbox dentro extraHtml: il pulsante di
@@ -527,6 +535,7 @@ html,body{background:#f5f5f7;margin:0}
     var host=$('modal-host');
     if(!host){ if(opts.onConfirm && !opts.requireCheckId) opts.onConfirm(); return; }
     var danger = !!opts.danger;
+    S.modalOpener = opts.opener || document.activeElement || null;
     host.innerHTML=''
       + '<div class="modal-back" id="modal-back">'
       +   '<div class="npu-modal'+(opts.wide?' npu-modal-wide':'')+'" role="dialog" aria-modal="true" aria-labelledby="modal-title">'
@@ -546,7 +555,18 @@ html,body{background:#f5f5f7;margin:0}
     no.onclick=bail;
     // Click sullo sfondo = annulla; Esc idem.
     back.onclick=function(e){ if(e.target===back) bail(); };
-    host.onkeydown=function(e){ if(e.key==='Escape'||e.keyCode===27) bail(); };
+    // v1.7.1 (O5) — Tab e Shift+Tab restano dentro il dialog.
+    host.onkeydown=function(e){
+      if(e.key==='Escape'||e.keyCode===27){ bail(); return; }
+      if(e.key!=='Tab' && e.keyCode!==9) return;
+      var dlg=host.querySelector('.npu-modal'); if(!dlg) return;
+      var f=dlg.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),[tabindex="0"]');
+      if(!f.length) return;
+      var first=f[0], last=f[f.length-1];
+      if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+      else if(!dlg.contains(document.activeElement)){ e.preventDefault(); first.focus(); }
+    };
     if(opts.requireCheckId){
       // Senza la checkbox (id sbagliato) la conferma resta bloccata: meglio un
       // dialog inutilizzabile che un'azione distruttiva senza attestazione.
@@ -960,7 +980,20 @@ html,body{background:#f5f5f7;margin:0}
       var v=S.PAGE_SIZES[i];
       sizes+='<option value="'+v+'"'+(v===ps?' selected':'')+'>'+v+'</option>';
     }
-    var nav='';
+    var nav=pagerNavHtml(pg);
+    return '<div class="npu-pager">'
+      + '<div class="npu-pager-size"><label for="npu-size-'+view+'">Applications per page</label>'
+      +   '<select id="npu-size-'+view+'" data-pgsize="'+view+'">'+sizes+'</select></div>'
+      + '<div class="npu-pager-info">Showing '+pg.from+'&#8211;'+pg.to+' of '+pg.total
+      +   ' '+(pg.total===1?'application':'applications')
+      +   ((extraRows>0)?(' &#183; '+extraRows+' dependency '+(extraRows===1?'row':'rows')):'')
+      + '</div>'
+      + '<div class="npu-pager-nav">'+nav+'</div></div>';
+  }
+  // Pulsanti ‹ numeri › con ellissi, condivisi dal pager completo e da quello
+  // compatto del dialog di conferma (v1.7.1, F02).
+  function pagerNavHtml(pg){
+    var nav='', i;
     nav+='<button class="npu-pg" data-pg="prev" '+(pg.page<=1?'disabled':'')+' aria-label="Previous page">&#8249;</button>';
     var nums=pageNumbers(pg.page, pg.pages);
     for(i=0;i<nums.length;i++){
@@ -971,14 +1004,15 @@ html,body{background:#f5f5f7;margin:0}
          + (cur?' aria-current="page" disabled':'')+' aria-label="Page '+n+'">'+n+'</button>';
     }
     nav+='<button class="npu-pg" data-pg="next" '+(pg.page>=pg.pages?'disabled':'')+' aria-label="Next page">&#8250;</button>';
-    return '<div class="npu-pager">'
-      + '<div class="npu-pager-size"><label for="npu-size-'+view+'">Applications per page</label>'
-      +   '<select id="npu-size-'+view+'" data-pgsize="'+view+'">'+sizes+'</select></div>'
-      + '<div class="npu-pager-info">Showing '+pg.from+'&#8211;'+pg.to+' of '+pg.total
-      +   ' '+(pg.total===1?'application':'applications')
-      +   ((extraRows>0)?(' &#183; '+extraRows+' dependency '+(extraRows===1?'row':'rows')):'')
-      + '</div>'
-      + '<div class="npu-pager-nav">'+nav+'</div></div>';
+    return nav;
+  }
+  // v1.7.1 (O5) — dopo un ridisegno il focus tornava su body. Lo si rimette sul
+  // primo elemento che corrisponde (abilitato), altrimenti sul fallback.
+  function restoreFocus(root, selector, fallback){
+    if(!root) return;
+    var el=root.querySelector(selector);
+    if(!el || el.disabled){ el=fallback?root.querySelector(fallback+':not([disabled])'):null; }
+    if(el && el.focus){ el.focus(); }
   }
   // Un solo handler per pager. rerender e' la funzione di disegno della vista.
   function wirePager(containerId, view, rerender){
@@ -1282,109 +1316,130 @@ html,body{background:#f5f5f7;margin:0}
     if(hint){ hint.textContent = inf ? (inf+' already installing (not selectable)') : ''; }
     paintHeaderCheck();
     var btn=$('sel-install');
-    btn.disabled=(n===0);
-    btn.textContent = n ? ('Install '+plural(n,'update','updates')) : 'Install Updates';
+    btn.disabled=(n===0) || !!S.confirmLoading || !!S.launching;
+    if(S.confirmLoading){ btn.innerHTML='<span class="spinner npu-btn-spin" aria-hidden="true"></span>Checking the impact&#8230;'; }
+    else { btn.textContent = n ? ('Install '+plural(n,'update','updates')) : 'Install Updates'; }
   }
 
   // ---- WIZARD 3: LAUNCH (client fires triggers; server monitors unattended) ----
+  // v1.7.1 (F02, D3) — le due liste del dialog (app selezionate e app aggiunte
+  // dalla piattaforma) sono paginate: 25 righe, ordine alfabetico, pager compatto
+  // senza selettore di dimensione. Fino alla v1.7.0 erano tagliate a 150 righe.
+  // Un cambio pagina ridisegna solo la lista, non il dialog; ogni apertura del
+  // dialog riparte da pagina 1.
+  function byNameAsc(a,b){ var x=(''+(a.name||'')).toLowerCase(), y=(''+(b.name||'')).toLowerCase(); return x<y?-1:(x>y?1:0); }
+  function confirmListHtml(view, list){
+    var pg=paginate(list, view), rows='';
+    for(var i=0;i<pg.rows.length;i++){ var it=pg.rows[i];
+      rows+='<div class="impact-row"><span class="impact-name">'+esc(it.name)
+          + (it.hidden?'<span class="badge-hidden">not selectable</span>':'')+'</span>'
+          + '<span class="impact-ver">'+esc(it.current)+' &#8594; '+esc(it.target)+'</span></div>';
+    }
+    return rows + compactPagerHtml(pg);
+  }
+  function compactPagerHtml(pg){
+    if(pg.pages<=1){ return ''; }
+    return '<div class="npu-pager npu-pager-compact">'
+      + '<div class="npu-pager-info">Showing '+pg.from+'&#8211;'+pg.to+' of '+pg.total+'</div>'
+      + '<div class="npu-pager-nav">'+pagerNavHtml(pg)+'</div></div>';
+  }
+  // Pager della lista: un solo handler sul contenitore (event delegation). Dopo
+  // il ridisegno il focus torna sul pulsante equivalente (O5).
+  function wireConfirmList(listId, view, list){
+    var el=$(listId); if(!el) return;
+    el.onclick=function(e){
+      var b=e.target.closest?e.target.closest('.npu-pg'):null;
+      if(!b || b.disabled) return;
+      var v=b.getAttribute('data-pg');
+      if(v==='prev'){ S.page[view]=(S.page[view]||1)-1; }
+      else if(v==='next'){ S.page[view]=(S.page[view]||1)+1; }
+      else { S.page[view]=parseInt(v,10)||1; }
+      el.innerHTML=confirmListHtml(view, list);
+      restoreFocus(el, '.npu-pg[data-pg="'+v+'"]', '.npu-pg');
+    };
+  }
+  function confirmToggle(btnId, listId){
+    var st=$(btnId); if(!st) return;
+    st.onclick=function(){
+      var open=this.getAttribute('aria-expanded')==='true';
+      this.setAttribute('aria-expanded', open?'false':'true');
+      this.innerHTML=(open?'Show all':'Hide')+' <span class="chev">&#9660;</span>';
+      var l=$(listId); if(l){ l.className='impact-list confirm-union-list'+(open?'':' open'); }
+    };
+  }
+
+  // Unione suite + dependency branch, deduplicata per scope, senza le app gia'
+  // selezionate ("N MORE apps beyond what was picked"), in ordine alfabetico.
+  function impactUnion(res, selectedScopeSet){
+    var merged={}, order=[];
+    ((res.suite&&res.suite.apps)||[]).concat(res.dependencies||[]).forEach(function(a){
+      if(selectedScopeSet[a.scope] || merged[a.scope]){ return; }
+      merged[a.scope]=a; order.push(a);
+    });
+    return order.sort(byNameAsc);
+  }
+
   // Conferma esplicita: l'installazione è lunga e non annullabile una volta
   // avviata, quindi l'utente deve vedere cosa sta lanciando prima di partire.
   // Impatto per la selezione corrente (§6): suite branch + dependency branch
   // uniti e deduplicati per scope, stesso badge "will be updated" per
-  // entrambi — nessuna distinzione euristica, coerente col dialog nativo. Il
-  // conteggio è mostrato subito col dialog "count + show all" (§18.1.2): su
-  // un'istanza con suite ampie una lista sempre visibile appesantirebbe il
-  // dialog anche per selezioni piccole.
-  function confirmUnionHtml(union, cb){
-    var selIds={}; selectedIds().forEach(function(id){ selIds[id]=true; });
-    var scopes=selectedIds().map(function(id){ var a=(S.appData.apps||[]).filter(function(x){return x.sysId===id;})[0]; return a?a.scope:''; }).filter(Boolean);
-    ajax('getUpdateImpact', { scopes: scopes.join(',') }, function(err, res){
-      // v1.7.1 (F17) — un errore non e' "nessun'altra app": va detto.
-      if(err || !res || res.error){
-        cb('<div class="alert alert-danger mt16" role="alert"><div>The dependency impact could not be computed &#8212; other applications may be updated too.</div></div>');
-        return;
-      }
-      var selectedScopeSet={}; (S.appData.apps||[]).forEach(function(a){ if(selIds[a.sysId]){ selectedScopeSet[a.scope]=true; } });
-      // Unione suite + dependency branch, deduplicata per scope; "N more"
-      // esclude le app già selezionate direttamente dal wizard.
-      var merged={}, order=[];
-      (res.suite&&res.suite.apps||[]).concat(res.dependencies||[]).forEach(function(a){
-        if(selectedScopeSet[a.scope] || merged[a.scope]){ return; }
-        merged[a.scope]=a; order.push(a);
-      });
-      var n=order.length;
-      if(!n){ cb(''); return; }
-      var rows='';
-      for(var i=0;i<Math.min(order.length,150);i++){ var it=order[i];
-        rows+='<div class="impact-row"><span class="impact-name">'+esc(it.name)
-            + (it.hidden?'<span class="badge-hidden">not selectable</span>':'')+'</span>'
-            + '<span class="impact-ver">'+esc(it.current)+' &#8594; '+esc(it.target)+'</span></div>';
-      }
-      // Nota di troncamento: senza questo, oltre 150 dipendenze aggregate
-      // sparivano dalla vista espansa senza alcun avviso — un troncamento
-      // silenzioso, incoerente col resto dell'app (Step 1/2 usano sempre un
-      // "showing N of M" esplicito quando tagliano una lista, v1.6 fix).
-      if(n>150){ rows+='<div class="cap-note-inline">Showing 150 of '+n+' &#8212; refine your selection to see the rest.</div>'; }
-      cb('<div class="confirm-union">'
-        + '<strong>'+n+'</strong> more '+(n===1?'application':'applications')+' will be updated as a result.'
-        + ' <button class="tree-btn" id="confirm-union-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
-        + '<div class="impact-list confirm-union-list" id="confirm-union-list">'+rows+'</div>'
-        + '</div>');
-    });
-  }
-
-  // Elenco delle app SELEZIONATE direttamente dall'admin, espandibile come il
-  // blocco dipendenze — senza questo il dialog diceva solo "N applications",
-  // un numero senza nomi: l'admin non vedeva cosa stava effettivamente per
-  // installare, solo quante app extra la piattaforma avrebbe aggiunto.
-  function selectedListHtml(){
-    var ids=selectedIds(), byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
-    var apps=[]; for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(a){ apps.push({name:a.name,current:a.current,target:a.latest}); } }
-    var n=apps.length, rows='';
-    for(var j=0;j<Math.min(apps.length,150);j++){ var it=apps[j];
-      rows+='<div class="impact-row"><span class="impact-name">'+esc(it.name)+'</span>'
-          + '<span class="impact-ver">'+esc(it.current)+' &#8594; '+esc(it.target)+'</span></div>';
-    }
-    if(n>150){ rows+='<div class="cap-note-inline">Showing 150 of '+n+' &#8212; refine your selection to see the rest.</div>'; }
-    return '<div class="confirm-union">'
-      + '<strong>'+n+'</strong> selected '+(n===1?'application':'applications')+' will be installed.'
-      + ' <button class="tree-btn" id="confirm-selected-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
-      + '<div class="impact-list confirm-union-list" id="confirm-selected-list">'+rows+'</div>'
-      + '</div>';
-  }
-
+  // entrambi — nessuna distinzione euristica, coerente col dialog nativo.
+  //
+  // v1.7.1 (F19) — la selezione viene fotografata al click: il dialog e
+  // startInstalls usano la stessa lista, anche se le spunte cambiano mentre
+  // getUpdateImpact risponde. Install resta disabilitato (con spinner) finche' il
+  // dialog non si apre, quindi un doppio click non apre due dialog.
   function confirmInstalls(){
-    var n=selectedIds().length;
-    if(!n) return;
-    var baseHtml='You are about to update <strong>'+n+'</strong> '+(n===1?'application':'applications')+' on <strong>'+esc(S.info.instanceName||'this instance')+'</strong>.'
-      + '<br/><br/>Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going.';
-    var selectedHtml=selectedListHtml();
-    confirmUnionHtml(null, function(unionHtml){
+    if(S.launching || S.confirmLoading) return;   // F04
+    var ids=selectedIds();
+    if(!ids.length) return;
+    var byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
+    var selApps=[], scopes=[], scopeSet={}, snapIds=[];
+    for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(!a) continue;
+      snapIds.push(a.sysId);
+      selApps.push({ sysId:a.sysId, name:a.name, scope:a.scope, current:a.current, target:a.latest });
+      if(a.scope){ scopes.push(a.scope); scopeSet[a.scope]=true; }
+    }
+    if(!selApps.length) return;
+    selApps.sort(byNameAsc);
+    S.confirmLoading=true; updateSelCount();
+    ajax('getUpdateImpact', { scopes: scopes.join(',') }, function(err, res){
+      S.confirmLoading=false; updateSelCount();
+      if(S.launching) return;
+      var impactFailed=!!(err || !res || res.error);
+      var union=impactFailed ? [] : impactUnion(res, scopeSet);
+      var n=selApps.length, u=union.length;
+      resetPage('cfsel'); resetPage('cfdep');
+      var baseHtml='You are about to update <strong>'+n+'</strong> '+(n===1?'application':'applications')+' on <strong>'+esc(S.info.instanceName||'this instance')+'</strong>.'
+        + '<br/><br/>Installs are queued one at a time and cannot be undone. You can close the page once launching finishes — the server keeps going.';
+      var selectedHtml='<div class="confirm-union">'
+        + '<strong>'+n+'</strong> selected '+(n===1?'application':'applications')+' will be installed.'
+        + ' <button class="tree-btn" id="confirm-selected-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
+        + '<div class="impact-list confirm-union-list" id="confirm-selected-list">'+confirmListHtml('cfsel', selApps)+'</div>'
+        + '</div>';
+      var unionHtml='';
+      if(impactFailed){
+        // v1.7.1 (F17) — un errore non e' "nessun'altra app": va detto.
+        unionHtml='<div class="alert alert-danger mt16" role="alert"><div>The dependency impact could not be computed &#8212; other applications may be updated too.</div></div>';
+      } else if(u){
+        unionHtml='<div class="confirm-union">'
+          + '<strong>'+u+'</strong> more '+(u===1?'application':'applications')+' will be updated as a result.'
+          + ' <button class="tree-btn" id="confirm-union-toggle" aria-expanded="false">Show all <span class="chev">&#9660;</span></button>'
+          + '<div class="impact-list confirm-union-list" id="confirm-union-list">'+confirmListHtml('cfdep', union)+'</div>'
+          + '</div>';
+      }
       confirmModal({
         title: 'Install '+plural(n,'update','updates')+'?',
         bodyHtml: baseHtml + selectedHtml + unionHtml,
         confirmLabel: 'Install '+n,
         cancelLabel: 'Review selection',
-        onConfirm: startInstalls
+        opener: $('sel-install'),
+        onConfirm: function(){ startInstalls(snapIds); }
       });
-      var st=$('confirm-selected-toggle');
-      if(st){
-        st.onclick=function(){
-          var open=this.getAttribute('aria-expanded')==='true';
-          this.setAttribute('aria-expanded', open?'false':'true');
-          this.innerHTML=(open?'Show all':'Hide')+' <span class="chev">&#9660;</span>';
-          var l=$('confirm-selected-list'); if(l){ l.className='impact-list confirm-union-list'+(open?'':' open'); }
-        };
-      }
-      var ut=$('confirm-union-toggle');
-      if(ut){
-        ut.onclick=function(){
-          var open=this.getAttribute('aria-expanded')==='true';
-          this.setAttribute('aria-expanded', open?'false':'true');
-          this.innerHTML=(open?'Show all':'Hide')+' <span class="chev">&#9660;</span>';
-          var l=$('confirm-union-list'); if(l){ l.className='impact-list confirm-union-list'+(open?'':' open'); }
-        };
-      }
+      confirmToggle('confirm-selected-toggle', 'confirm-selected-list');
+      confirmToggle('confirm-union-toggle', 'confirm-union-list');
+      wireConfirmList('confirm-selected-list', 'cfsel', selApps);
+      wireConfirmList('confirm-union-list', 'cfdep', union);
     });
   }
 
