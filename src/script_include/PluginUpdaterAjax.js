@@ -119,8 +119,15 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         lu.setLimit(1);
         lu.query();
         if (lu.next()) {
-            var when = lu.getDisplayValue('completed') || lu.getDisplayValue('started') || lu.getDisplayValue('sys_created_on') || '';
-            info.lastUpgraded = when ? when.split(' ')[0] : '';
+            // v1.7.1 (O6) — getDisplayValue().split(' ')[0] si rompeva con i formati
+            // di data che contengono spazi. Si parte dal valore interno (UTC) e si
+            // prende la data locale dell'utente nel suo formato.
+            var whenRaw = '' + (lu.getValue('completed') || lu.getValue('started') || lu.getValue('sys_created_on') || '');
+            if (whenRaw) {
+                var whenGdt = new GlideDateTime();
+                whenGdt.setValue(whenRaw);
+                info.lastUpgraded = '' + whenGdt.getLocalDate().getDisplayValue();
+            }
         }
 
         // Last successful sync with the ServiceNow Store (App Manager parity).
