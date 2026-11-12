@@ -410,13 +410,13 @@ html,body{background:#f5f5f7;margin:0}
         </div>
         <div class="guide-section mt16">
           <h3>3 &#183; Wizard &#8212; Select</h3>
-          <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The buttons sit&#160;<strong>above the list</strong>, so you never have to scroll hundreds of rows to continue. Apps already being installed are shown as&#160;<em>installing</em>&#160;and cannot be re-selected.</p>
+          <p>Filter by name, narrow by&#160;<strong>scope</strong>, tick the applications to update (or use&#160;<strong>Select All</strong>), then click&#160;<strong>Install</strong>&#160;and confirm. The buttons sit&#160;<strong>above the list</strong>, so you never have to scroll hundreds of rows to continue. Apps already being installed &#8212; by this app in any batch, or by the Application Manager &#8212; are shown as&#160;<em>installing</em>&#160;and cannot be selected. The checkbox in the table header selects every selectable application matching the filter; when they are all selected it clears them, and a partial selection shows it as half-filled. While a launch is running, the Wizard and&#160;<strong>Install</strong>&#160;stay disabled until it ends.</p>
           <p>Long lists are split into pages &#8212; choose 25, 50, 100, 150 or 200&#160;<strong>applications per page</strong>. Your selection is kept when you change page, sort or filter, and&#160;<strong>Select All</strong>&#160;always applies to everything matching the current filter, not just the visible page.</p>
           <p>The per-row&#160;<strong>N&#160;more</strong>&#160;links from Discover are shown here too, so the impact of a row stays visible while you're choosing what to install.</p>
         </div>
         <div class="guide-section mt16">
           <h3>4 &#183; Confirm &amp; Launch</h3>
-          <p>Before anything installs, the confirmation dialog names the instance, lists the&#160;<strong>selected applications</strong>&#160;you are about to install (expand&#160;<strong>Show all</strong>&#160;on long lists), and separately shows how many&#160;<strong>additional</strong>&#160;applications will update as a result of those selections &#8212; a single deduplicated count, never a per-row sum, with its own&#160;<strong>Show all</strong>&#160;link. The two lists are kept apart on purpose: one is what you chose, the other is what the platform adds on its own. Review both, then confirm to launch.</p>
+          <p>Before anything installs, the confirmation dialog names the instance, lists the&#160;<strong>selected applications</strong>&#160;you are about to install (expand&#160;<strong>Show all</strong>; long lists are shown 25 at a time, in alphabetical order, with page controls), and separately shows how many&#160;<strong>additional</strong>&#160;applications will update as a result of those selections &#8212; a single deduplicated count, never a per-row sum, with its own&#160;<strong>Show all</strong>&#160;link. The two lists are kept apart on purpose: one is what you chose, the other is what the platform adds on its own. Review both, then confirm to launch.</p>
         </div>
         <div class="guide-section mt16">
           <h3>5 &#183; Launch &amp; Monitor</h3>
@@ -428,7 +428,7 @@ html,body{background:#f5f5f7;margin:0}
             <li>Whenever a row carries a message, a&#160;<strong>Details</strong>&#160;(or&#160;<strong>Why failed</strong>) button appears in the last column. It opens the exact text reported by the platform underneath that row &#8212; useful for telling apart an app that was rejected at launch from one whose install did not apply. If any application fails to launch, the wizard stays on the Launch step so you can read the reasons before moving on.</li>
             <li>The&#160;<strong>Monitor</strong>&#160;tab shows the batch with five counters &#8212; Total,&#160;<strong>Installing</strong>&#160;(running right now),&#160;<strong>Queued</strong>&#160;(waiting in the server queue), Complete, Failed &#8212; and a sortable per-app table. When the batch ends a summary appears, with a shortcut to list only the failures.</li>
             <li>Underneath any application that pulled in dependencies, a&#160;<strong>dependency</strong>&#160;badge marks the applications the platform actually installed alongside it &#8212; this reflects what really happened, read directly from the platform's own installation tracker, not a prediction made before launch.</li>
-            <li><strong>Cancel queued</strong>&#160;marks the applications still waiting as&#160;<em>cancelled</em>. It checks each one first: an application that has already started, or is already installed, is kept and reported as already started. The platform's own install queue is not changed, so an application it had already accepted can still install &#8212; its row then turns&#160;<em>Complete</em>. Installs already running cannot be interrupted and will finish.</li>
+            <li><strong>Cancel queued</strong>&#160;marks as&#160;<em>cancelled</em>&#160;the applications still waiting that the platform has not taken yet; if the launch is still running, the page skips them. An application the platform has already queued cannot be removed from the platform's queue: it stays&#160;<em>queued</em>, will still install, and the result says how many these are. An application that has already started or is already installed is kept. Installs already running cannot be interrupted and will finish.</li>
             <li>Reopening the page reloads your most recent batch automatically; the batch selector lets you review earlier ones.</li>
           </ul>
         </div>
@@ -443,7 +443,8 @@ html,body{background:#f5f5f7;margin:0}
           <ul>
             <li>Because the list mirrors the Application Manager, a few platform-bundled apps that cannot be updated via the Store API will end as&#160;<strong>Failed</strong>&#160;&#8212; this is expected.</li>
             <li>Keep the page open only for the few seconds of launching; installs and monitoring then continue on the server.</li>
-            <li><strong>Sync with Store</strong>&#160;runs the same catalog check as the Application Manager and shows its real progress, then reloads the page when it finishes &#8212; typically a couple of minutes. If it is still running after five minutes the page stops following it and says so: the sync keeps going on the server and does not need this page open.</li>
+            <li><strong>Sync with Store</strong>&#160;runs the same catalog check as the Application Manager and shows its real progress, then reloads the page when it finishes &#8212; typically a couple of minutes. If the sync fails, the page shows the reason reported by the server. A sync already started from the Application Manager is followed until it ends. If it is still running after five minutes the page stops following it and says so: the sync keeps going on the server and does not need this page open.</li>
+            <li>Closing the tab while installs are being launched asks for confirmation: the applications not launched yet would stay queued until they time out. If your session expires during a launch, the launch stops and says so &#8212; sign in again and relaunch the remaining applications.</li>
             <li>Dependency impact is informational: the batch installs exactly what you selected&#160;&#8212; the platform pulls in the rest by itself once an install runs. Apps shown as impact but marked&#160;<em>not selectable</em>&#160;are hidden dependencies that update automatically and cannot be picked individually.</li>
           </ul>
         </div>
@@ -466,7 +467,7 @@ html,body{background:#f5f5f7;margin:0}
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.7.0',
+    version:'1.7.1',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
