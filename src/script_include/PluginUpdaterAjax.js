@@ -2490,6 +2490,17 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         var miss = this._qhSchemaMissing();
         if (miss.length) { return { ok: false, error: 'Not available on this release (missing: ' + miss.join(', ') + ').' + NOTHING }; }
         var hours = this._stuckHours(), st = this._trackerStates(), key = 'r*' + id;
+        // v1.7.1 (F11) — si conta PRIMA di leggere: oltre il tetto non si puo'
+        // verificare ogni lock, quindi si rifiuta invece di lavorare su un sottoinsieme.
+        var lc = new GlideAggregate('sys_padlock');
+        lc.addQuery('lock_key', key);
+        lc.addAggregate('COUNT');
+        lc.query();
+        var lockCount = lc.next() ? (parseInt(lc.getAggregate('COUNT'), 10) || 0) : 0;
+        if (!lockCount) { return { ok: true, nothing: true, message: 'Nothing to release: this operation holds no resource lock.' }; }
+        if (lockCount >= this.QH_LOCK_CAP) {
+            return { ok: false, error: 'Too many locks to verify (' + lockCount + ', limit ' + (this.QH_LOCK_CAP - 1) + ').' + NOTHING };
+        }
         var locks = [];
         var p = new GlideRecord('sys_padlock');
         p.addQuery('lock_key', key);
@@ -2515,19 +2526,47 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             if (tree.nodes[i].state === st.v.running || tree.nodes[i].state === st.v.pending) { toFail.push(tree.nodes[i].sysId); }
         }
         for (var j = 0; j < locks.length; j++) {
-            var lu = locks[j].sys_updated_on || '', lc = locks[j].sys_created_on || '';
-            var lAge = this._ageHours(lu > lc ? lu : lc);
+            var lu = locks[j].sys_updated_on || '', lc2 = locks[j].sys_created_on || '';
+            var lAge = this._ageHours(lu > lc2 ? lu : lc2);
             if (hours > lAge) {
                 return { ok: false, error: 'A lock of this operation is only ' + this._fmtHours(lAge) + ' old (threshold ' + hours + ' h).' + NOTHING };
             }
         }
-        return { ok: true, rootId: id, key: key, hours: hours, toFail: toFail, locks: locks, treeSize: tree.nodes.length,
+        return { ok: true, rootId: id, key: key, hours: hours, toFail: toFail, locks: locks, nodes: tree.nodes, treeSize: tree.nodes.length,
                  lastUpdated: tree.lastUpdated, detail: this._parseOpDetail(root.getValue('detail_message')) };
     },
 
+    // v1.7.1 (F10) — l'albero e' ancora quello del piano? Rilegge ogni tracker
+    // dell'albero e confronta insieme, stato e sys_updated_on. '' se invariato,
+    // altrimenti il motivo.
+    _planChanged: function(plan) {
+        var tree = this._opTree(plan.rootId);
+        if (!tree) { return 'the operation tracker no longer exists'; }
+        if (tree.truncated) { return 'the operation grew beyond what can be verified'; }
+        if (tree.nodes.length !== plan.nodes.length) { return 'the number of trackers changed (' + plan.nodes.length + ' -> ' + tree.nodes.length + ')'; }
+        var was = {};
+        for (var i = 0; i < plan.nodes.length; i++) { was[plan.nodes[i].sysId] = plan.nodes[i]; }
+        for (var j = 0; j < tree.nodes.length; j++) {
+            var n = tree.nodes[j], o = was.hasOwnProperty(n.sysId) ? was[n.sysId] : null;
+            if (!o) { return 'a new tracker appeared (' + n.sysId + ')'; }
+            if (o.state !== n.state || o.updated !== n.updated) { return 'tracker ' + n.sysId + ' changed since the check'; }
+        }
+        return '';
+    },
+
     // Sblocco vero e proprio: verifiche (_releasePlan), backup, tracker a
-    // Failed, cancellazione dei padlock con la lock_key esatta, verifica finale.
+    // Failed, cancellazione dei soli padlock del piano, verifica finale.
     // Senza backup salvato non si modifica nulla.
+    //
+    // v1.7.1 (F10) — fail closed:
+    //   - prima del backup e di nuovo prima della prima scrittura si rilegge ogni
+    //     tracker del piano: se uno stato o un sys_updated_on e' cambiato, si
+    //     rifiuta senza toccare nulla (fino alla v1.7.0 i tracker cambiati venivano
+    //     saltati in silenzio e il resto proseguiva);
+    //   - se un tracker non si puo' portare a Failed, i lock NON vengono cancellati;
+    //   - si cancellano solo i sys_id dei padlock del piano, e solo se il loro
+    //     sys_updated_on e' invariato (prima: tutti i padlock con la lock_key,
+    //     trovati con una nuova query).
     _releaseStuck: function(id) {
         // '' + : le API Glide restituiscono stringhe Java. Su una stringa Java,
         // replace() con una regex e' ambiguo e lancia un InternalError (CP4).
@@ -2541,7 +2580,14 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             gs.warn('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ' refused: ' + plan.error);
             return { ok: false, released: false, error: plan.error };
         }
+        var changed = this._planChanged(plan);
+        if (changed) {
+            gs.warn('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ' refused: ' + changed);
+            return { ok: false, released: false, error: 'The operation changed during the check (' + changed + '): the install may still be alive. Nothing was changed.' };
+        }
         var st = this._trackerStates(), now = '' + new GlideDateTime().getValue();
+        var planned = {};
+        for (var pn = 0; pn < plan.nodes.length; pn++) { planned[plan.nodes[pn].sysId] = plan.nodes[pn]; }
 
         // 1. Backup: solo i record che verranno modificati o cancellati.
         var trackers = [];
@@ -2567,31 +2613,59 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             gs.error('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ': backup not saved, nothing changed');
             return { ok: false, released: false, error: 'The backup could not be saved, so nothing was changed.' };
         }
+        // Seconda verifica, subito prima della prima scrittura sui tracker. La
+        // scrittura dell'allegato non aggiorna il tracker radice: se qualcosa e'
+        // cambiato, e' stata la piattaforma.
+        changed = this._planChanged(plan);
+        if (changed) {
+            gs.warn('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ' refused after backup: ' + changed);
+            return { ok: false, released: false, backupFile: fileName,
+                     error: 'The operation changed during the check (' + changed + '): the install may still be alive. ' +
+                            'No tracker or lock was changed (the backup ' + fileName + ' was kept on the tracker).' };
+        }
 
         // 2. Tracker Running/Pending dell'albero -> Failed, con un messaggio esplicativo.
         var note = ('Marked Failed by Now Plugin Updater (' + user + ', ' + now + ' UTC): no progress since ' + plan.lastUpdated +
                     ' UTC and its resource locks were blocking the install queue. Backup: ' + fileName + ' on this tracker.').substring(0, 4000);
         var failed = 0, failErr = 0;
-        for (var k = 0; k < plan.toFail.length; k++) {
+        // Il confronto completo (stato + sys_updated_on) e' appena stato fatto su
+        // tutto l'albero. Dentro il ciclo si controlla solo lo stato: portare a
+        // Failed un tracker puo' far aggiornare gli altri dalla piattaforma, e quello
+        // e' un effetto di questa scrittura, non un segno di vita. Un tracker gia'
+        // Failed conta come fatto; uno in qualsiasi altro stato ferma tutto.
+        for (var k = 0; k < plan.toFail.length && !failErr; k++) {
             var u = new GlideRecord('sys_execution_tracker');
-            if (!u.get(plan.toFail[k])) { failErr++; continue; }
+            if (!planned.hasOwnProperty(plan.toFail[k]) || !u.get(plan.toFail[k])) { failErr++; break; }
             var s = '' + u.getValue('state');
-            if (s !== st.v.running && s !== st.v.pending) { continue; } // cambiato nel frattempo: non lo tocco
+            if (s === st.v.failed) { failed++; continue; }
+            if (s !== st.v.running && s !== st.v.pending) { failErr++; break; }
             u.setValue('state', st.v.failed);
             u.setValue('message', note);
             if (u.update()) { failed++; } else { failErr++; }
         }
+        if (failErr) {
+            gs.error('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ': ' + failErr +
+                     ' tracker(s) could not be marked Failed after ' + failed + '; locks NOT deleted. Backup: sys_attachment:' + attId);
+            return {
+                ok: false, released: false,
+                trackersFailed: failed, trackersExpected: plan.toFail.length, trackerErrors: failErr,
+                locksDeleted: 0, locksExpected: plan.locks.length, locksLeft: plan.locks.length, lockErrors: 0,
+                backupId: attId, backupFile: fileName,
+                error: (failed ? (failed + ' tracker(s) were marked Failed, but another one changed or could not be updated, ')
+                               : 'A tracker changed or could not be updated, ') +
+                       'so no lock was deleted. Check the system log for [PluginUpdater]; the backup ' + fileName + ' is on the tracker.'
+            };
+        }
 
-        // 3. Solo i padlock con la lock_key esatta (alcuni possono essere gia'
-        //    stati rilasciati dalla piattaforma al passo 2).
-        var del = 0, delErr = 0;
-        var p = new GlideRecord('sys_padlock');
-        p.addQuery('lock_key', plan.key);
-        p.setLimit(this.QH_LOCK_CAP);
-        p.query();
-        while (p.next()) {
-            p.setWorkflow(false);
-            if (p.deleteRecord()) { del++; } else { delErr++; }
+        // 3. Solo i padlock del piano, per sys_id, e solo se invariati. Alcuni possono
+        //    essere gia' stati rilasciati dalla piattaforma al passo 2.
+        var del = 0, delErr = 0, gone = 0;
+        for (var q = 0; q < plan.locks.length; q++) {
+            var lk = plan.locks[q], pg = new GlideRecord('sys_padlock');
+            if (!pg.get(lk.sys_id)) { gone++; continue; }
+            if ('' + pg.getValue('lock_key') !== plan.key || '' + (pg.getValue('sys_updated_on') || '') !== (lk.sys_updated_on || '')) { delErr++; continue; }
+            pg.setWorkflow(false);
+            if (pg.deleteRecord()) { del++; } else { delErr++; }
         }
 
         // 4. Verifica finale.
@@ -2603,15 +2677,22 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
         gs.info('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ' app=' + plan.detail.appId +
                 ' version=' + plan.detail.version + ' idleSince=' + plan.lastUpdated + 'Z trackersFailed=' + failed + '/' +
-                plan.toFail.length + ' locksDeleted=' + del + '/' + plan.locks.length + ' locksLeft=' + left +
-                ' backup=sys_attachment:' + attId);
+                plan.toFail.length + ' locksDeleted=' + del + '/' + plan.locks.length + ' locksAlreadyGone=' + gone +
+                ' lockErrors=' + delErr + ' locksLeft=' + left + ' backup=sys_attachment:' + attId);
+        var msg;
+        if (left === 0 && delErr === 0) {
+            msg = 'The blocked operation was released' + (gone ? (' (' + gone + ' lock(s) had already been released by the platform)') : '') +
+                  '. Queued installs should start within a minute or two.';
+        } else {
+            msg = left + ' lock(s) are still held' + (delErr ? (', ' + delErr + ' changed or could not be deleted') : '') +
+                  '. Check the system log for [PluginUpdater].';
+        }
         return {
-            ok: left === 0 && failErr === 0 && delErr === 0, released: true,
-            trackersFailed: failed, trackersExpected: plan.toFail.length, trackerErrors: failErr,
-            locksDeleted: del, locksExpected: plan.locks.length, locksLeft: left, lockErrors: delErr,
+            ok: left === 0 && delErr === 0, released: true,
+            trackersFailed: failed, trackersExpected: plan.toFail.length, trackerErrors: 0,
+            locksDeleted: del, locksAlreadyGone: gone, locksExpected: plan.locks.length, locksLeft: left, lockErrors: delErr,
             backupId: attId, backupFile: fileName,
-            message: left === 0 ? 'The blocked operation was released. Queued installs should start within a minute or two.'
-                                : (left + ' lock(s) could not be released. Check the system log for [PluginUpdater].')
+            message: msg
         };
     },
 
