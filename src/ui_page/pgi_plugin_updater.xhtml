@@ -652,10 +652,10 @@ html,body{background:#f5f5f7;margin:0}
       + '<div class="row-gap">'
       +   '<button class="btn btn-primary" id="home-start"'+(avail>0?'':' disabled')+'>Start Wizard</button>'
       +   '<button class="btn btn-secondary" id="home-refresh">Refresh Data</button>'
-      +   '<button class="btn btn-secondary" id="home-sync">Sync with Store</button>'
+      +   '<button class="btn btn-secondary" id="home-sync"'+(S.syncing?' disabled':'')+'>'+(S.syncing?'Syncing&#8230;':'Sync with Store')+'</button>'
       +   '<button class="btn btn-secondary" id="home-monitor">Monitor installs</button>'
       + '</div>'
-      + '<div id="sync-status" style="margin-top:14px"></div>'
+      + '<div id="sync-status" style="margin-top:14px">'+((S.syncView&&S.syncView.html)||'')+'</div>'
       + (err?'<div class="alert alert-danger mt16">'+esc(err)+'</div>':'')
       + '<div style="margin-top:28px;font-size:11px;color:var(--text-3)">Now Plugin Updater v'+S.version+' &#183; by Gianmario Marongiu</div>';
     $('home-body').innerHTML=h;
@@ -705,92 +705,119 @@ html,body{background:#f5f5f7;margin:0}
   // La sync stessa dura poi ~2 minuti su 1.200 app. Oltre i 5 minuti totali
   // smettiamo di seguirla ma NON la dichiariamo fallita: sta ancora girando
   // sul server.
+  // v1.7.1 (F13) — la fine della sync la decide il server: outcome 'done' o
+  // 'error' (con il messaggio), scritti dal job. Non si confrontano piu' stringhe
+  // di data. La base e' d.lastSync della risposta di syncStore. Una sync avviata
+  // dall'Application Manager (external) non scrive il nostro esito: si segue la
+  // percentuale della piattaforma e si chiude quando torna a zero.
   function syncStore(){
     var btn=$('home-sync');
     if(!btn || S.syncing){ return; }
-    var prev=(S.info&&S.info.lastStoreSync)||'';
-    S.syncing=true; btn.disabled=true; btn.textContent='Syncing…';
+    S.syncing=true; setSyncButton();
     renderSync(0,'Starting the sync job…');
 
     ajax('syncStore',{},function(e,d){
       if(e){ finishSync('Store sync could not be started: '+esc(e)); return; }
       if(d && d.error){ finishSync(esc(d.error)); return; }
-      if(d && d.alreadyRunning){ renderSync(0,'A sync is already running — following it…'); }
+      var external=!!(d && d.external);
+      if(d && d.alreadyRunning){
+        renderSync(0, external ? 'A sync started from the Application Manager is running — following it…'
+                               : 'A sync is already running — following it…');
+      }
 
       var startedAt=(d&&d.startedAt)||'';
       var t0=new Date().getTime();
       var GIVE_UP_MS=300000;          // 5 minuti di osservazione
-      var sawRunning=false;
+      var sawRunning=false, fails=0, lastPct=0;
+
+      function done(){
+        renderSync(100,'Finished');
+        S.syncing=false; setSyncButton();
+        setTimeout(function(){ refresh(); }, 700);
+      }
+      function again(ms){
+        if(GIVE_UP_MS > (new Date().getTime()-t0)){ setTimeout(poll, ms); } else { keepGoingInBackground(); }
+      }
 
       function poll(){
         if(!S.syncing){ return; }
         var elapsed=new Date().getTime()-t0;
         ajax('getSyncProgress',{},function(e2,p){
           if(!S.syncing){ return; }
-          if(e2 || !p){
-            if(GIVE_UP_MS > elapsed){ setTimeout(poll, 5000); } else { keepGoingInBackground(); }
+          if(e2 || !p || p.error){
+            // N1/T12 — una lettura fallita non ferma il follow: lo si dice e si riprova.
+            fails++;
+            renderSync(lastPct, 'Could not read the sync progress — retrying…');
+            again(Math.min(5000*fails, 30000));
             return;
           }
+          fails=0;
+          lastPct=p.pct||0;
 
           if(p.running){
             sawRunning=true;
             renderSync(p.pct, 'Updating the application catalog…');
-            if(GIVE_UP_MS > elapsed){ setTimeout(poll, 3000); } else { keepGoingInBackground(); }
+            again(3000);
+            return;
+          }
+          if(external || p.external){ done(); return; }
+
+          // Esito di un'altra sync (startedAt diverso): non e' la nostra, si aspetta.
+          var ours = !startedAt || !p.startedAt || p.startedAt===startedAt;
+          if(ours && p.outcome==='done'){ done(); return; }
+          if(ours && p.outcome==='error'){
+            finishSync('<strong>The Store sync failed.</strong> '+esc(p.message||'No reason was reported.'));
             return;
           }
 
-          // pct 0: idle oppure finita. È finita se il timestamp è avanzato.
-          var moved = !!(p.lastSync && (p.lastSync!==prev || (startedAt && p.lastSync>=startedAt)));
-          if(moved){
-            renderSync(100,'Finished');
-            S.syncing=false;
-            var b=$('home-sync'); if(b){ b.disabled=false; b.textContent='Sync with Store'; }
-            setTimeout(function(){ refresh(); }, 700);
-            return;
-          }
-
-          // Non ancora partita (il job attende lo scheduler) o già conclusa senza
-          // toccare il timestamp: continuo a osservare. Il tempo trascorso è
-          // mostrato esplicitamente — senza, un'attesa scheduler più lunga del
-          // solito (osservato: pochi minuti, non i ~30s tipici) sembra un blocco.
-          if(GIVE_UP_MS > elapsed){
-            var waitedS=Math.round(elapsed/1000);
-            var waitMsg=sawRunning
-              ? 'Finishing…'
-              : (waitedS>90
-                  ? 'Still waiting for the scheduler to pick up the sync job ('+waitedS+'s — this is taking longer than usual)…'
-                  : 'Waiting for the sync job to start… ('+waitedS+'s)');
-            renderSync(p.pct, waitMsg);
-            setTimeout(poll, sawRunning?3000:6000);
-          } else {
-            keepGoingInBackground();
-          }
+          // Il job attende lo scheduler. Il tempo trascorso è mostrato
+          // esplicitamente — senza, un'attesa scheduler più lunga del solito
+          // (osservato: pochi minuti, non i ~30s tipici) sembra un blocco.
+          var waitedS=Math.round(elapsed/1000);
+          var waitMsg=sawRunning
+            ? 'Finishing…'
+            : (waitedS>90
+                ? 'Still waiting for the scheduler to pick up the sync job ('+waitedS+'s — this is taking longer than usual)…'
+                : 'Waiting for the sync job to start… ('+waitedS+'s)');
+          renderSync(p.pct, waitMsg);
+          again(sawRunning?3000:6000);
         });
       }
       setTimeout(poll, 3000);
     });
   }
 
-  function keepGoingInBackground(){
-    S.syncing=false;
-    var btn=$('home-sync'); if(btn){ btn.disabled=false; btn.textContent='Sync with Store'; }
-    var box=$('sync-status'); if(!box){ return; }
-    box.innerHTML='<div class="sync-row"><span class="sync-dot"></span><span class="sync-msg">'
-      + '<strong>Still running after 5 minutes.</strong> The sync continues on the server &#8212; '
-      + 'it does not need this page. Reopen the app later, or use <strong>Refresh Data</strong> to pick up the updated list.'
-      + '</span></div>';
+  // v1.7.1 (F32) — lo stato del pulsante segue S.syncing anche quando la Home
+  // viene ridisegnata (Refresh Data durante una sync).
+  function setSyncButton(){
+    var b=$('home-sync'); if(!b){ return; }
+    b.disabled=!!S.syncing;
+    b.textContent=S.syncing?'Syncing…':'Sync with Store';
   }
 
+  function keepGoingInBackground(){
+    S.syncing=false; setSyncButton();
+    S.syncView={ html:'<div class="sync-row"><span class="sync-dot"></span><span class="sync-msg">'
+      + '<strong>Still running after 5 minutes.</strong> The sync continues on the server &#8212; '
+      + 'it does not need this page. Reopen the app later, or use <strong>Refresh Data</strong> to pick up the updated list.'
+      + '</span></div>' };
+    paintSync();
+  }
+
+  // L'ultimo stato della sync vive in S.syncView: renderHome lo ridisegna.
   function renderSync(pct,phase){
-    var box=$('sync-status'); if(!box) return;
-    box.innerHTML='<div class="sync-prog">'
-      + '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%"></div></div>'
-      + '<div class="sync-phase">'+esc(phase)+(pct>0?(' &#183; '+pct+'%'):'')+'</div></div>';
+    S.syncView={ html:'<div class="sync-prog">'
+      + '<div class="prog-wrap"><div class="prog-bar" style="width:'+(parseInt(pct,10)||0)+'%"></div></div>'
+      + '<div class="sync-phase">'+esc(phase)+(pct>0?(' &#183; '+(parseInt(pct,10)||0)+'%'):'')+'</div></div>' };
+    paintSync();
   }
   function finishSync(msgHtml){
-    S.syncing=false;
-    var btn=$('home-sync'); if(btn){ btn.disabled=false; btn.textContent='Sync with Store'; }
-    var box=$('sync-status'); if(box){ box.innerHTML='<div class="sync-note">'+msgHtml+'</div>'; }
+    S.syncing=false; setSyncButton();
+    S.syncView={ html:'<div class="sync-note">'+msgHtml+'</div>' };
+    paintSync();
+  }
+  function paintSync(){
+    var box=$('sync-status'); if(box){ box.innerHTML=(S.syncView&&S.syncView.html)||''; }
   }
 
   // ---- WIZARD 1 ----
@@ -800,6 +827,10 @@ html,body{background:#f5f5f7;margin:0}
     // di uscita la puliva) e un giro successivo mostrava "N selected" con il
     // pulsante di install già attivo pur senza nessuna checkbox spuntata.
     S.selected={};
+    // v1.7.1 (F32) — anche filtro e scope ripartono vuoti: un nuovo giro del
+    // wizard non eredita la ricerca del precedente.
+    var sf=$('sel-filter'); if(sf){ sf.value=''; }
+    var ss=$('sel-scope'); if(ss){ ss.value=''; }
     showView('wizard1');
     // La Home ha già letto le stesse 1.200+ righe pochi secondi prima: se il dato
     // è fresco lo riuso invece di rifare la query.
