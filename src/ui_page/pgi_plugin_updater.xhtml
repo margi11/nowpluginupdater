@@ -36,6 +36,7 @@ html,body{background:#f5f5f7;margin:0}
 #app .nav-tabs{display:flex;gap:2px;background:rgba(0,0,0,.045);padding:3px;border-radius:var(--r-pill)}
 #app .nav-tab{padding:6px 16px;border-radius:var(--r-pill);border:none;background:transparent;font:inherit;font-size:13px;font-weight:500;color:var(--text-2);cursor:pointer;transition:color .2s,background .2s,box-shadow .2s}
 #app .nav-tab:hover{color:var(--text)}
+#app .nav-tab:disabled{opacity:.45;cursor:not-allowed}
 #app .nav-tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
 #app .nav-actions{display:flex;gap:8px}
 #app .content{flex:1;padding:36px 28px;max-width:1120px;margin:0 auto;width:100%}
@@ -478,7 +479,8 @@ html,body{background:#f5f5f7;margin:0}
     pageSize:{w1:25,sel:25,mon:25,cfsel:25,cfdep:25},
     PAGE_SIZES:[25,50,100,150,200],
     // Righe di dettaglio aperte, per chiave: sopravvive ai refresh del polling.
-    whyOpen:{}, launchWhyOpen:{},
+    // S.launch (v1.7.1): stato del lancio in corso, uno per lancio (F04).
+    whyOpen:{}, launch:null,
     // Filtro per status guidato dai KPI del Monitor (v1.6.5). Stringa vuota =
     // nessun filtro. Assorbe il precedente monOnlyFailed, che faceva la stessa
     // cosa per il solo stato 'failed' con uno stato separato da mantenere.
@@ -671,7 +673,7 @@ html,body{background:#f5f5f7;margin:0}
       +     '<div class="kpi-value">'+esc(inProg)+'</div><div class="kpi-sub">'+(inProg>0?'running now &#8226; open monitor':'running now')+'</div></div>'
       + '</div>'
       + '<div class="row-gap">'
-      +   '<button class="btn btn-primary" id="home-start"'+(avail>0?'':' disabled')+'>Start Wizard</button>'
+      +   '<button class="btn btn-primary" id="home-start"'+((avail>0 && !S.launching)?'':' disabled')+'>Start Wizard</button>'
       +   '<button class="btn btn-secondary" id="home-refresh">Refresh Data</button>'
       +   '<button class="btn btn-secondary" id="home-sync"'+(S.syncing?' disabled':'')+'>'+(S.syncing?'Syncing&#8230;':'Sync with Store')+'</button>'
       +   '<button class="btn btn-secondary" id="home-monitor">Monitor installs</button>'
@@ -843,6 +845,9 @@ html,body{background:#f5f5f7;margin:0}
 
   // ---- WIZARD 1 ----
   function startWizard(){
+    // v1.7.1 (F04, D5) — durante un lancio il Wizard resta bloccato: si torna
+    // alla schermata del lancio in corso.
+    if(S.launching){ showView('wizard3'); return; }
     // Selezione azzerata a ogni nuovo ingresso nel wizard: senza questo, le
     // spunte di un batch già installato restavano in S.selected (nessun punto
     // di uscita la puliva) e un giro successivo mostrava "N selected" con il
@@ -1443,105 +1448,126 @@ html,body{background:#f5f5f7;margin:0}
     });
   }
 
-  function startInstalls(){
-    var ids=selectedIds(), byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
+  // ---- Lancio (v1.7.1) ------------------------------------------------------
+  // Un oggetto per lancio (S.launch) al posto dei contatori condivisi S.launch*:
+  // F04 — un secondo lancio non puo' partire mentre uno e' in corso (Wizard e
+  // Install bloccati, D5), e i contatori non si mescolano piu'.
+  // Per ogni app, in sequenza (l'API CICD e' single-flight):
+  //   1. claimRow (F05): il server conferma che la riga e' ancora lanciabile;
+  //      se Cancel queued l'ha annullata nel frattempo, la si salta;
+  //   2. POST CICD con timeout (F20, AbortController) e controllo di status e
+  //      content-type prima del parse (F07);
+  //   3. 401/403, redirect o pagina HTML = sessione scaduta: si ferma tutto il
+  //      lancio e le righe non lanciate vengono segnate in UNA chiamata (D6);
+  //   4. errore di rete o risposta illeggibile: prima di riprovare si chiede al
+  //      server se l'install e' stata accodata comunque (findLaunch); si riprova
+  //      solo se non c'e' nulla. I tentativi restano per mutex / "in progress".
+  var LAUNCH_WATCHDOG_MS=120000, FETCH_TIMEOUT_MS=60000;
+
+  function setLaunching(on){
+    S.launching=!!on;
+    // F21 — avviso alla chiusura della scheda durante il lancio: le righe non
+    // ancora lanciate resterebbero 'queued' fino al timeout di 60 minuti.
+    window.onbeforeunload = on ? function(e){ if(e){ e.preventDefault(); e.returnValue=''; } return ''; } : null;
+    var tw=$('tab-wizard');
+    if(tw){ tw.disabled=!!on; tw.title=on?'A launch is in progress':''; }
+    var hs=$('home-start'); if(hs && on){ hs.disabled=true; }
+    if($('sel-install')){ updateSelCount(); }
+  }
+
+  function startInstalls(ids){
+    if(S.launching) return;   // F04
+    ids = ids || selectedIds();
+    var byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
     var apps=[];
     for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(a){
       // Snapshot delle versioni "current" delle dipendenze previste da
       // getUpdateImpact — sys_execution_tracker (v1.6, §10.3) porta solo la
       // versione target di ciò che GlideAppLoader installa, non quella di
-      // partenza; senza questo il Monitor mostrava "→ 4.0.8" senza il "da"
-      // (bug segnalato dall'utente su Setup Hub Content: partiva da 3.1.2,
-      // mostrato solo il target). Presa qui, prima del lancio, perché dopo
-      // l'installazione sys_store_app.version è già il target.
+      // partenza. Presa qui, prima del lancio, perché dopo l'installazione
+      // sys_store_app.version è già il target.
       var depSnap={};
       rowImpactList(a.scope).forEach(function(d){ depSnap[d.scope]=d.current; });
       apps.push({sysId:a.sysId,name:a.name,scope:a.scope,current:a.current,latest:a.latest,depVersions:depSnap});
     } }
     if(!apps.length) return;
-    S.launchTotal=apps.length; S.launchTriggered=0; S.launchFailed=0; S.launching=true;
-    S.launchErrors=[]; S.launchWhyOpen={};   // motivi dei mancati avvii, mostrati in wizard3
+    var L={ total:apps.length, triggered:0, failed:0, skipped:0, notQueued:0, errors:[], whyOpen:{},
+            queue:[], stopped:'', batch:'', running:true };
+    S.launch=L;
+    setLaunching(true);
     showView('wizard3'); $('launch-actions').style.display='none';
-    renderLaunch('Creating batch&#8230;');
+    renderLaunch('Creating batch…');
     ajax('createBatch',{ apps: JSON.stringify(apps) }, function(e,d){
-      if(e || !d || !d.batch){ renderLaunch('Error creating batch: '+(e||'unknown')); S.launching=false; return; }
-      S.currentBatch=d.batch;
-      var map={}; (d.rows||[]).forEach(function(r){ map[r.sysId]=r.logSysId; });
-      var queue=apps.slice(), active=0, POOL=1; // sequential: CICD app_repo install is single-flight (mutex)
-      function pump(){
-        while(active<POOL && queue.length){
-          var a=queue.shift(); active++;
-          // once() + watchdog: se una callback di rete non tornasse mai, la coda
-          // si fermerebbe a metà senza alcun segnale. Qui avanza in ogni caso.
-          var step=once(function(){ active--; S.launchTriggered++; renderLaunch(); pump(); });
-          (function(app, logId, advance){
-            var guard=setTimeout(function(){
-              renderLaunch('An install took too long to launch — moving on to the next one.');
-              advance();
-            }, 120000);
-            triggerOne(app, logId, function(){ clearTimeout(guard); advance(); });
-          })(a, map[a.sysId], step);
-        }
-        if(active===0 && queue.length===0 && S.launching){
-          S.launching=false;
-          renderLaunch();
-          $('launch-actions').style.display='flex';
-          // Se tutto è partito, vai diretto al Monitor. Se qualcosa non è partito,
-          // resta qui: i motivi sono su questa schermata e vanno letti.
-          if(!S.launchFailed){ openMonitor(S.currentBatch); }
-        }
+      if(S.launch!==L) return;
+      // F15 — righe non accodate dal server (tetto, app non piu' aggiornabile,
+      // gia' in installazione, insert fallita): non vengono lanciate.
+      var sk=(d&&d.skipped)||[];
+      for(var s=0;s<sk.length;s++){
+        L.notQueued++;
+        L.errors.push({ key:'nq'+s, kind:'notqueued', name:sk[s].name||'(unknown application)', scope:'', target:'',
+                        message:'Not queued: '+(sk[s].reason||'refused by the server') });
       }
-      pump();
+      if(e || !d || !d.batch){
+        L.total=0;
+        finishLaunch(L, 'Error creating batch: '+((d&&d.error)||e||'unknown'));
+        return;
+      }
+      L.batch=d.batch; S.currentBatch=d.batch;
+      var byApp={}; (d.rows||[]).forEach(function(r){ if(r && r.logSysId){ byApp[r.sysId]=r; } });
+      for(var q=0;q<apps.length;q++){
+        var r=byApp[apps[q].sysId];
+        if(!r) continue;            // F15: niente riga di log, niente lancio
+        var it=apps[q]; it.latest=r.target||it.latest;   // versione validata dal server
+        L.queue.push({ app:it, logSysId:r.logSysId });
+      }
+      L.total=L.queue.length;
+      nextLaunch(L);
     });
   }
 
-  function renderLaunch(msg){
-    var pct=S.launchTotal? Math.round((S.launchTriggered/S.launchTotal)*100):0;
-    var head=S.launching? ('Launching&#8230; '+S.launchTriggered+' / '+S.launchTotal) : ('Launched '+S.launchTriggered+' / '+S.launchTotal);
-    var errs=S.launchErrors||[];
-    var h='<div class="info-box">Launching <strong>'+S.launchTotal+'</strong> install(s) with your session. When launching completes you can close the tab &#8212; installs continue on the server and are tracked on the Monitor page.</div>'
-      + '<div class="card"><div class="card-body">'
-      + '<div style="font-size:15px;font-weight:600;margin-bottom:8px">'+head+(S.launchFailed?(' &#183; '+S.launchFailed+' failed to launch'):'')+'</div>'
-      + '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%"></div></div>'
-      + (msg?('<div style="margin-top:10px;font-size:12px;color:var(--text-2)">'+msg+'</div>'):'')
-      + '</div></div>';
+  function nextLaunch(L){
+    if(S.launch!==L) return;
+    renderLaunch();
+    if(L.stopped || !L.queue.length){ finishLaunch(L); return; }
+    var item=L.queue.shift();
+    launchOne(L, item, function(){ nextLaunch(L); });
+  }
 
-    // Elenco dei mancati avvii: compare solo se ce n'è almeno uno, e ogni motivo
-    // si apre su richiesta — così non invade la vista durante un lancio riuscito.
-    if(errs.length){
-      var rows='';
-      for(var i=0;i<errs.length;i++){
-        var e=errs[i], open=!!S.launchWhyOpen[e.key];
-        rows+='<tr><td class="col-name">'+esc(e.name)+'</td>'
-            + '<td class="col-scope">'+esc(e.scope)+'</td>'
-            + '<td>'+statusPill('failed')+'</td>'
-            + '<td><button class="why-btn" data-lwhy="'+esc(e.key)+'" aria-expanded="'+(open?'true':'false')+'">'
-            +   'Why failed<span class="chev" aria-hidden="true">&#9660;</span></button></td></tr>';
-        if(open){
-          rows+='<tr class="why-row"><td colspan="4"><div class="why-box">'
-              + '<div class="why-label">Reason reported by the platform</div>'
-              + '<div class="why-msg">'+esc(e.message)+'</div>'
-              + (e.target?('<div class="why-meta">Target version '+esc(e.target)+'</div>'):'')
-              + '</div></td></tr>';
-        }
+  function finishLaunch(L, msg){
+    if(!L.running) return;
+    L.running=false;
+    setLaunching(false);
+    renderLaunch(msg||'');
+    $('launch-actions').style.display='flex';
+    // Se tutto è partito, vai diretto al Monitor. Se qualcosa non è partito,
+    // resta qui: i motivi sono su questa schermata e vanno letti.
+    if(L.batch && !L.failed && !L.skipped && !L.notQueued && !L.stopped){ openMonitor(L.batch); }
+  }
+
+  function launchOne(L, item, done){
+    var ctl={ aborted:false, current:null };
+    var advance=once(done);
+    // Watchdog per app (F20): interrompe la catena (fetch compresa) e registra
+    // il mancato avvio. Se la POST era arrivata, il passaggio di riverifica
+    // delle righe 'failed' (F08) la porta a 'complete' quando l'app si installa.
+    var guard=setTimeout(function(){
+      ctl.aborted=true;
+      if(ctl.current){ try{ ctl.current.abort(); }catch(eA){} }
+      failTrigger(L, item, 'The install took too long to launch (no answer within 120 seconds).', advance);
+    }, LAUNCH_WATCHDOG_MS);
+    var fin=function(){ clearTimeout(guard); advance(); };
+    ajax('claimRow',{ log_sys_id:item.logSysId }, function(e,c){
+      if(ctl.aborted || S.launch!==L) return;
+      if(e || !c){ failTrigger(L, item, 'The row could not be reserved for launch: '+(e||'no answer from the server'), fin); return; }
+      if(!c.ok){
+        L.skipped++;
+        L.errors.push({ key:item.logSysId, kind:'skipped', name:item.app.name, scope:item.app.scope, target:item.app.latest,
+                        message:'Not launched: the row was '+(c.status||'changed')+' before its turn (for example by Cancel queued).' });
+        fin();
+        return;
       }
-      h+='<div class="mt16"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">'
-        + plural(errs.length,'application','applications')+' could not be started</div>'
-        + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
-        + '<th>Application</th><th>Scope</th><th>Status</th><th style="width:110px">Details</th>'
-        + '</tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
-    }
-
-    $('launch-body').innerHTML=h;
-
-    var lb=$('launch-body').querySelectorAll('.why-btn');
-    for(var j=0;j<lb.length;j++){
-      lb[j].onclick=function(){
-        var k=this.getAttribute('data-lwhy');
-        if(S.launchWhyOpen[k]){ delete S.launchWhyOpen[k]; } else { S.launchWhyOpen[k]=true; }
-        renderLaunch();
-      };
-    }
+      fire(L, item, ctl, fin, 0, false, null);
+    });
   }
 
   function cicdUrl(row){
@@ -1550,19 +1576,49 @@ html,body{background:#f5f5f7;margin:0}
   function headers(){
     return { 'X-UserToken': (window.g_ck||''), 'Accept':'application/json', 'Content-Type':'application/json' };
   }
+  // Una pagina HTML (login, SSO) al posto del JSON: \x3c evita la parentesi
+  // angolare letterale nel sorgente Jelly.
+  var HTML_RE=/\x3c(!doctype|html|head|body)/i;
 
   // CICD app_repo install is single-flight (a "CICD Operation" mutex): concurrent
   // enqueues return "Error enqueueing app_install". We enqueue sequentially and
-  // retry transient enqueue/mutex collisions with backoff. Offering-required (400)
-  // is retried once with the parsed offering id.
-  function triggerOne(a, logSysId, done){ fire(a, logSysId, done, 0, false, null); }
-  function fire(a, logSysId, done, attempt, withOffering, offeringId){
-    var opts={ method:'POST', credentials:'same-origin', headers:headers() };
+  // retry explicit mutex/in-progress collisions with backoff. Offering-required
+  // (400) is retried once with the parsed offering id.
+  function fire(L, item, ctl, done, attempt, withOffering, offeringId){
+    if(ctl.aborted || L.stopped) return;
+    var a=item.app;
+    var ac=(typeof AbortController!=='undefined')?new AbortController():null;
+    ctl.current=ac;
+    var opts={ method:'POST', credentials:'same-origin', headers:headers(), redirect:'manual' };
+    if(ac){ opts.signal=ac.signal; }
     if(withOffering && offeringId){ opts.body=JSON.stringify({ offering:offeringId }); }
+    var tmo=setTimeout(function(){ if(ac){ try{ ac.abort(); }catch(eT){} } }, FETCH_TIMEOUT_MS);
     fetch(cicdUrl(a), opts)
-      .then(function(resp){ return resp.json().then(function(b){ return {status:resp.status, body:b}; }); })
-      .then(function(r){ handleTrigger(a, logSysId, r, done, attempt, withOffering); })
-      .catch(function(err){ retryOrFail(a, logSysId, done, attempt, 'Fetch error: '+err.message); });
+      .then(function(resp){
+        clearTimeout(tmo);
+        var ct=''+((resp.headers && resp.headers.get && resp.headers.get('content-type'))||'');
+        if(resp.type==='opaqueredirect' || resp.status===401 || resp.status===403 || (resp.status>=300 && 400>resp.status)){
+          return { session:true, status:resp.status };
+        }
+        if(ct.toLowerCase().indexOf('json')===-1){
+          return resp.text().then(function(t){
+            return HTML_RE.test(''+t) ? { session:true, status:resp.status } : { unknown:true, status:resp.status };
+          }, function(){ return { unknown:true, status:resp.status }; });
+        }
+        return resp.json().then(function(b){ return { status:resp.status, body:b }; },
+                                function(){ return { unknown:true, status:resp.status }; });
+      })
+      .then(function(r){
+        if(ctl.aborted || L.stopped) return;
+        if(r.session){ sessionExpired(L, item, done); return; }
+        if(r.unknown){ afterLostResponse(L, item, ctl, done, attempt, 'Unreadable answer from the install API (HTTP '+r.status+')'); return; }
+        handleTrigger(L, item, ctl, r, done, attempt, withOffering);
+      })
+      .catch(function(err){
+        clearTimeout(tmo);
+        if(ctl.aborted || L.stopped) return;
+        afterLostResponse(L, item, ctl, done, attempt, 'Network error: '+((err&&err.message)||err));
+      });
   }
   function trigErr(r){ return (r.body&&r.body.result&&r.body.result.error) || (r.body&&r.body.error&&(r.body.error.message||r.body.error.detail)) || ('HTTP '+r.status); }
   function isTransient(status, msg){
@@ -1570,43 +1626,130 @@ html,body{background:#f5f5f7;margin:0}
     var m=(''+msg).toLowerCase();
     return m.indexOf('enqueue')>-1 || m.indexOf('mutex')>-1 || m.indexOf('in progress')>-1 || m.indexOf('try again')>-1 || m.indexOf('another')>-1;
   }
-  function handleTrigger(a, logSysId, r, done, attempt, withOffering){
+  function handleTrigger(L, item, ctl, r, done, attempt, withOffering){
     if(r.status===200||r.status===201){
       var pid=r.body&&r.body.result&&r.body.result.links&&r.body.result.links.progress&&r.body.result.links.progress.id;
-      if(pid){ ajax('attachWorker',{ log_sys_id:logSysId, progress_id:pid }, function(){ done(); }); return; }
-      failTrigger(a, logSysId,'The install was accepted but no progress ID was returned, so it cannot be tracked.', done); return;
+      if(pid){ ajax('attachWorker',{ log_sys_id:item.logSysId, progress_id:pid }, function(){ if(!ctl.aborted){ L.triggered++; } done(); }); return; }
+      failTrigger(L, item, 'The install was accepted but no progress ID was returned, so it cannot be tracked.', done); return;
     }
     var msg=trigErr(r);
     if(r.status===400 && !withOffering){
       var m1=(''+msg).match(/\[([^\]]+)\]/), m2=(''+msg).match(/"offering"\s*:\s*"([^"]+)"/);
       var offering=(m1&&m1[1])||(m2&&m2[1])||null;
-      if(offering && (''+msg).toLowerCase().indexOf('offering')>-1){ fire(a, logSysId, done, attempt, true, offering); return; }
+      if(offering && (''+msg).toLowerCase().indexOf('offering')>-1){ fire(L, item, ctl, done, attempt, true, offering); return; }
     }
-    if(isTransient(r.status, msg)){ retryOrFail(a, logSysId, done, attempt, msg); return; }
-    failTrigger(a, logSysId, 'HTTP ' + r.status + ' — ' + msg, done);
+    if(isTransient(r.status, msg)){ retryOrFail(L, item, ctl, done, attempt, msg); return; }
+    failTrigger(L, item, 'HTTP ' + r.status + ' — ' + msg, done);
   }
-  function retryOrFail(a, logSysId, done, attempt, msg){
+  // F07 — risposta persa: la POST puo' essere stata accettata. Si chiede al server
+  // prima di ripeterla; se il server non risponde non si ripete alla cieca.
+  function afterLostResponse(L, item, ctl, done, attempt, msg){
+    renderLaunch('Checking whether the install was accepted…');
+    ajax('findLaunch',{ log_sys_id:item.logSysId }, function(e,f){
+      if(ctl.aborted || L.stopped) return;
+      if(!e && f && f.found){ L.triggered++; done(); return; }
+      if(e || !f || f.ok===false || f.unknown){
+        failTrigger(L, item, msg+' — and it could not be checked whether the install was accepted. If it was, its row turns Complete by itself.', done);
+        return;
+      }
+      retryOrFail(L, item, ctl, done, attempt, msg);
+    });
+  }
+  function retryOrFail(L, item, ctl, done, attempt, msg){
     var MAX=8;
     if(attempt<MAX){
-      renderLaunch('Waiting for the CICD queue&#8230; (retry '+(attempt+1)+'/'+MAX+')');
-      setTimeout(function(){ fire(a, logSysId, done, attempt+1, false, null); }, 2000 + attempt*800);
+      renderLaunch('Waiting for the CICD queue… (retry '+(attempt+1)+'/'+MAX+')');
+      setTimeout(function(){ fire(L, item, ctl, done, attempt+1, false, null); }, 2000 + attempt*800);
     } else {
-      failTrigger(a, logSysId, 'Still rejected after '+MAX+' retries — ' + msg, done);
+      failTrigger(L, item, 'Still rejected after '+MAX+' retries — ' + msg, done);
     }
   }
-  // Registra il motivo del mancato avvio, oltre a marcare la riga sul server:
-  // senza questo l'utente vedeva solo "N failed to launch" senza il perché.
-  function failTrigger(a, logSysId, message, done){
-    S.launchFailed++;
-    if(!S.launchErrors){ S.launchErrors=[]; }
-    S.launchErrors.push({
-      key:   logSysId || ('e'+S.launchErrors.length),
-      name:  (a && a.name) || '(unknown application)',
-      scope: (a && a.scope) || '',
-      target:(a && a.latest) || '',
-      message: message
+  // D6 — sessione scaduta (o redirect al login): si ferma tutto il lancio e le
+  // righe non lanciate, compresa quella corrente, vengono segnate in una chiamata.
+  var SESSION_MSG='Session expired — sign in again and relaunch the remaining apps.';
+  function sessionExpired(L, item, done){
+    if(L.stopped) return;
+    L.stopped='session';
+    var ids=[item.logSysId];
+    for(var i=0;i<L.queue.length;i++){ ids.push(L.queue[i].logSysId); }
+    var n=ids.length;
+    L.queue=[];
+    ajax('failRows',{ log_sys_ids:ids.join(','), message:'Not launched: the session expired during the launch.' }, function(e,d){
+      L.failed+=n;
+      L.errors.push({ key:'session', kind:'session', name:plural(n,'application','applications')+' not launched', scope:'', target:'',
+                      message:SESSION_MSG+(e?(' (The rows could not be updated: '+e+'. They time out by themselves.)'):'') });
+      done();
     });
-    ajax('failRow',{ log_sys_id:logSysId, message:message }, function(){ done(); });
+  }
+  // Registra il motivo del mancato avvio, oltre a marcare la riga sul server.
+  // F08: il server scrive solo se la riga e' ancora 'queued'.
+  function failTrigger(L, item, message, done){
+    L.failed++;
+    var err={ key:item.logSysId || ('e'+L.errors.length), kind:'failed', name:(item.app&&item.app.name)||'(unknown application)',
+              scope:(item.app&&item.app.scope)||'', target:(item.app&&item.app.latest)||'', message:message };
+    L.errors.push(err);
+    ajax('failRow',{ log_sys_id:item.logSysId, message:message }, function(e,d){
+      if(d && d.ok===false && d.status){ err.message+=' (On the server the row was already '+d.status+', so it was left as is.)'; }
+      done();
+    });
+  }
+
+  // F16 — msg e' testo semplice: viene sempre escapato.
+  function renderLaunch(msg){
+    var L=S.launch||{ total:0, triggered:0, failed:0, skipped:0, notQueued:0, errors:[], whyOpen:{} };
+    var processed=L.triggered+L.failed+L.skipped;
+    var pct=L.total? Math.min(100, Math.round((processed/L.total)*100)):0;
+    var head=S.launching? ('Launching… '+processed+' / '+L.total) : ('Launched '+L.triggered+' / '+L.total);
+    var bits=[];
+    if(L.failed){ bits.push(L.failed+' failed to launch'); }
+    if(L.skipped){ bits.push(L.skipped+' skipped'); }
+    if(L.notQueued){ bits.push(L.notQueued+' not queued'); }
+    var errs=L.errors||[];
+    var h='<div class="info-box">Launching <strong>'+esc(L.total)+'</strong> install(s) with your session. When launching completes you can close the tab &#8212; installs continue on the server and are tracked on the Monitor page.</div>'
+      + (L.stopped==='session'?('<div class="alert alert-danger" role="alert"><div><strong>'+esc(SESSION_MSG)+'</strong></div></div>'):'')
+      + '<div class="card"><div class="card-body">'
+      + '<div style="font-size:15px;font-weight:600;margin-bottom:8px">'+esc(head)+(bits.length?(' &#183; '+esc(bits.join(' · '))):'')+'</div>'
+      + '<div class="prog-wrap"><div class="prog-bar" style="width:'+pct+'%"></div></div>'
+      + (msg?('<div style="margin-top:10px;font-size:12px;color:var(--text-2)">'+esc(msg)+'</div>'):'')
+      + '</div></div>';
+
+    // Elenco dei mancati avvii: compare solo se ce n'è almeno uno, e ogni motivo
+    // si apre su richiesta — così non invade la vista durante un lancio riuscito.
+    if(errs.length){
+      var rows='';
+      for(var i=0;i<errs.length;i++){
+        var e=errs[i], open=!!L.whyOpen[e.key], isFail=(e.kind==='failed'||e.kind==='session');
+        rows+='<tr><td class="col-name">'+esc(e.name)+'</td>'
+            + '<td class="col-scope">'+esc(e.scope)+'</td>'
+            + '<td>'+statusPill(isFail?'failed':'cancelled')+'</td>'
+            + '<td><button class="why-btn" data-lwhy="'+esc(e.key)+'" aria-expanded="'+(open?'true':'false')+'">'
+            +   (isFail?'Why failed':'Details')+'<span class="chev" aria-hidden="true">&#9660;</span></button></td></tr>';
+        if(open){
+          rows+='<tr class="why-row"><td colspan="4"><div class="why-box">'
+              + '<div class="why-label">'+(isFail?'Reason':'Details')+'</div>'
+              + '<div class="why-msg">'+esc(e.message)+'</div>'
+              + (e.target?('<div class="why-meta">Target version '+esc(e.target)+'</div>'):'')
+              + '</div></td></tr>';
+        }
+      }
+      h+='<div class="mt16"><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:10px">'
+        + esc(plural(errs.length,'application','applications'))+' could not be started</div>'
+        + '<div class="card"><div class="tbl-wrap"><table><thead><tr>'
+        + '<th>Application</th><th>Scope</th><th>Status</th><th style="width:110px">Details</th>'
+        + '</tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
+    }
+
+    var body=$('launch-body');
+    body.innerHTML=h;
+    // Un solo handler (event delegation); il focus torna sul pulsante (O5).
+    body.onclick=function(ev){
+      var b=ev.target.closest?ev.target.closest('.why-btn'):null;
+      if(!b) return;
+      var k=b.getAttribute('data-lwhy');
+      if(L.whyOpen[k]){ delete L.whyOpen[k]; } else { L.whyOpen[k]=true; }
+      renderLaunch(msg);
+      restoreFocus($('launch-body'), '.why-btn[data-lwhy="'+k+'"]');
+    };
   }
 
   // ---- MONITOR (server-side, persistent across close/reopen) ----
