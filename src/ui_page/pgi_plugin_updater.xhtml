@@ -498,7 +498,8 @@ html,body{background:#f5f5f7;margin:0}
   // Garantisce che un callback venga eseguito una volta sola. Serve nel launch:
   // se un done() non venisse mai invocato la coda si fermerebbe in silenzio, se
   // venisse invocato due volte il contatore avanzerebbe di troppo.
-  function once(fn){ var called=false; return function(){ if(called) return; called=true; fn(); }; }
+  // v1.7.1: inoltra gli argomenti (lo usa anche il watchdog di ajax(), N1).
+  function once(fn){ var called=false; return function(){ if(called) return; called=true; return fn.apply(this, arguments); }; }
 
   function debounce(fn, ms){
     var t=null;
@@ -559,16 +560,28 @@ html,body{background:#f5f5f7;margin:0}
 
   function announce(msg){ var el=$('mon-live'); if(el){ el.textContent=msg; } }
 
+  // v1.7.1 (N1) — watchdog su ogni chiamata. Quando xmlhttp.do fallisce (502
+  // osservato su Brazil) getXMLAnswer non richiama mai il callback, e ogni catena
+  // di polling si fermava in silenzio: era la causa di F06 e F13. Dopo AJAX_TIMEOUT
+  // il callback riceve 'timeout' una sola volta (once): una risposta tardiva viene
+  // ignorata. I chiamanti la trattano come qualsiasi altro errore.
+  var AJAX_TIMEOUT=45000;
   function ajax(method, params, cb){
+    var timer=null;
+    var done=once(function(err, data){ if(timer){ clearTimeout(timer); timer=null; } cb(err, data); });
+    function finish(err, data){ return function(){ done(err, data); }; }
     try {
       var ga=new GlideAjax('PluginUpdaterAjax');
       ga.addParam('sysparm_name',method);
-      if(params){ for(var k in params){ ga.addParam('sysparm_'+k, params[k]); } }
+      if(params){ for(var k in params){ if(params.hasOwnProperty(k)){ ga.addParam('sysparm_'+k, params[k]); } } }
+      timer=setTimeout(finish('timeout', null), AJAX_TIMEOUT);
       ga.getXMLAnswer(function(ans){
-        if(ans==null||ans===''){ cb('Empty response from server', null); return; }
-        try{ cb(null, JSON.parse(ans)); }catch(e){ cb('Parse error: '+e.message+' :: '+ans, null); }
+        if(ans==null||ans===''){ done('Empty response from server', null); return; }
+        var parsed;
+        try{ parsed=JSON.parse(ans); }catch(e){ done('Parse error: '+e.message+' :: '+(''+ans).substring(0,300), null); return; }
+        done(null, parsed);
       });
-    } catch(e){ cb('GlideAjax unavailable: '+e.message, null); }
+    } catch(e){ done('GlideAjax unavailable: '+e.message, null); }
   }
 
   // ---- View switching ----
