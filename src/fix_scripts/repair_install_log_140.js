@@ -88,7 +88,10 @@
 
     var gr = new GlideRecord('u_plugin_updater_install_log');
     gr.addQuery('u_status', 'complete');
-    gr.orderByDesc('sys_created_on');
+    // v1.7.2 (F4) — ordine crescente: le righe da riparare (pre-1.4.0) sono le
+    // piu' vecchie. Con orderByDesc il tetto prendeva le 5000 piu' recenti e
+    // lasciava fuori proprio quelle.
+    gr.orderBy('sys_created_on');
     gr.setLimit(LIMIT);
     gr.query();
 
@@ -122,7 +125,8 @@
 
         // Motivo leggibile, coerente con _failMessage() dello Script Include.
         var reason = 'Install did not apply: still at ' + (cur || 'unknown') + ', below the target ' + target;
-        var wm = ('' + ((w && (w.error || w.message)) || '')).trim();
+        // v1.7.2 (F6) — workerOutcome restituisce 'msg', non 'message'.
+        var wm = ('' + ((w && (w.error || w.msg)) || '')).trim();
         if (wm && wm.toLowerCase().indexOf('executing queued operation') === -1) {
             reason += ' — ' + wm;
         }
@@ -154,6 +158,10 @@
             ' gia_corrette=' + stats.alreadyOk +
             ' non_verificabili=' + stats.unverifiable);
     gs.info('=========================================================');
+    if (stats.examined >= LIMIT) {
+        gs.warn('[PluginUpdater repair] raggiunto il tetto di ' + LIMIT + ' righe: esaminate solo le piu\' vecchie. ' +
+                'Alzare LIMIT e rieseguire per coprire le altre (le righe gia\' corrette restano nel risultato).');
+    }
 
     for (var i = 0; i < changes.length; i++) {
         var c = changes[i];

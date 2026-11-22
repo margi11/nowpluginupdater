@@ -74,6 +74,8 @@
     function log(s) { gs.info(P + s); }
     function stop(s) { log('STOP: ' + s + ' -> nessuna modifica eseguita.'); }
     function str(v) { return '' + (v === null || v === undefined ? '' : v); }
+    // v1.7.2 (S7) — tracker portato a Failed da un rilascio (script o app).
+    function ours(gr) { return str(gr.getValue('message')).indexOf('Marked Failed by Now Plugin Updater') === 0; }
     function ageHours(utc) {
         if (!utc) { return -1; }
         return (new GlideDateTime().getNumericValue() - new GlideDateTime(str(utc)).getNumericValue()) / 3600000;
@@ -136,7 +138,7 @@
     function opTree(rootId) {
         var root = new GlideRecord('sys_execution_tracker');
         if (!root.get(rootId)) { return null; }
-        var nodes = [{ id: rootId, state: str(root.getValue('state')), updated: str(root.getValue('sys_updated_on')) }];
+        var nodes = [{ id: rootId, state: str(root.getValue('state')), updated: str(root.getValue('sys_updated_on')), ours: ours(root) }];
         var seen = {}, frontier = [rootId], truncated = false;
         seen[rootId] = true;
         for (var d = 0; d < TREE_DEPTH && frontier.length && !truncated; d++) {
@@ -150,7 +152,7 @@
                 if (seen.hasOwnProperty(id)) { continue; }
                 if (nodes.length >= TREE_CAP) { truncated = true; break; }
                 seen[id] = true;
-                nodes.push({ id: id, state: str(g.getValue('state')), updated: str(g.getValue('sys_updated_on')) });
+                nodes.push({ id: id, state: str(g.getValue('state')), updated: str(g.getValue('sys_updated_on')), ours: ours(g) });
                 next.push(id);
             }
             frontier = next;
@@ -212,6 +214,9 @@
         if (rs !== st.running) { res.reasons.push('l\'operazione non e\' Running (state=' + rs + ')'); }
         if (tree.truncated) { res.reasons.push('albero troppo grande da verificare (oltre ' + TREE_CAP + ' tracker)'); }
         for (var i = 0; i < tree.nodes.length; i++) {
+            // v1.7.2 (S7) — un tracker gia' portato a Failed da un rilascio interrotto
+            // (di questo script o dell'app) non e' un segno di vita.
+            if (tree.nodes[i].ours && tree.nodes[i].state === st.failed) { continue; }
             var a = ageHours(tree.nodes[i].updated);
             if (STALE_HOURS > a) { res.reasons.push('tracker ' + tree.nodes[i].id + ' aggiornato ' + fmtH(a) + ' fa: l\'installazione potrebbe essere viva'); }
             if (tree.nodes[i].state === st.running || tree.nodes[i].state === st.pending) { res.toFail.push(tree.nodes[i].id); }
@@ -319,19 +324,25 @@
 
     // Dentro il ciclo si controlla solo lo stato: portare a Failed un tracker puo'
     // far aggiornare gli altri dalla piattaforma (effetto di questa scrittura).
-    var failed = 0, failErr = 0;
-    for (var f = 0; f < target.toFail.length && !failErr; f++) {
+    // v1.7.2 (S7) — prima le foglie, la radice per ultima (come lo Script Include):
+    // un'interruzione lascia la radice Running e il rilascio si puo' ripetere. Un
+    // figlio chiuso da solo (Successful/Cancelled) si salta.
+    var failed = 0, failErr = 0, settled = 0;
+    var order = target.toFail.slice().reverse();
+    for (var f = 0; f < order.length && !failErr; f++) {
         var u = new GlideRecord('sys_execution_tracker');
-        if (!u.get(target.toFail[f])) { failErr++; break; }
+        if (!u.get(order[f])) { failErr++; break; }
         var s = str(u.getValue('state'));
         if (s === st.failed) { failed++; continue; }
+        if (order[f] !== target.id && (s === st.successful || s === st.cancelled)) { settled++; continue; }
         if (s !== st.running && s !== st.pending) { failErr++; break; }
         u.setValue('state', st.failed);
         u.setValue('message', note);
         if (u.update()) { failed++; } else { failErr++; }
     }
     if (failErr) {
-        stop(failed + ' tracker a Failed, poi un tracker e\' cambiato o non si e\' potuto aggiornare: NESSUN padlock cancellato. Backup ' + fileName);
+        stop(failed + ' tracker a Failed, poi un tracker e\' cambiato o non si e\' potuto aggiornare: NESSUN padlock cancellato, ' +
+             'radice non toccata (va per ultima): si puo\' rieseguire. Backup ' + fileName);
         return;
     }
     // v1.7.1 (F10) — solo i padlock valutati, per sys_id, e solo se invariati.

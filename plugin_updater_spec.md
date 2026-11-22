@@ -5,14 +5,14 @@
 **Delivery model:** one **no-build UI Page** + one client-callable **Script Include** + one custom table + one Scheduled Job. No bundler, no Fluent SDK, no React, no UI Script, no external libraries.
 **Audience:** developers (and Claude Code) maintaining the app on a ServiceNow instance via MCP.
 
-> **Current state (2026-11-12).** Release **v1.7.1** (`NowPluginUpdater171.xml`, 486,614 bytes, 59 objects, SHA-256 `de99a912a88629362218f034e8e826514f3d896f63069def9bef89b3dd17056f`, remote set `8da025cd87a01f10188eeace8bbb35fd`, `remote_sys_id` `76702d8d87a01f10188eeace8bbb35b3`) is **built and certified on Brazil Patch 2** (`empgmarongiu1` and `gmbrazil`, build `glide-brazil-08-25-2026__patch2-10-22-2026`, §18.7). It is on branch `release/1.7.1`, **not merged, not pushed, not tagged yet**. The last published release is v1.7.0 (`NowPluginUpdater170.xml`, tag `v170`, §18.6). **Australia Patch 8 (`democrmfalectriae163723`) was tested afterwards** (§18.7, "Later tests"); Zurich is not tested (§19.10). v1.7.1 is composed of:
+> **Current state (2026-11-22).** Release **v1.7.2** (`NowPluginUpdater172.xml`, 503,181 bytes, 59 objects, SHA-256 `44bfd5e58308cab984cee4ab3adffe22f2b394ed074312b6e0f6c42110670d5f`, remote set `c81ed49483741f5076f69320ceaad36b`, `remote_sys_id` `38fd945483741f5076f69320ceaad38a`) is **built and certified on Brazil Patch 2** (`empgmarongiu1`, from scratch) and upgraded from 1.7.1 on `gmbrazil` (Brazil Patch 2w47) and `democrmfalectriae163723` (Australia Patch 8w47) with 0 preview problems (§18.8). It is on branch `release/1.7.2`, **not merged, not pushed, not tagged yet**. The last published release is v1.7.1 (`Old Releases/NowPluginUpdater171.xml`, §18.7). Zurich is not tested (§19.10). v1.7.2 is composed of:
 >
-> - **UI Page** `pgi_plugin_updater` — client **v1.7.1** (`S.version='1.7.1'`). Identical to `src/ui_page/pgi_plugin_updater.xhtml` (140,951 chars, SHA-256 prefix `b7b39390`).
-> - **Script Include** `PluginUpdaterAjax` — server **v1.7.1**. Identical to `src/script_include/PluginUpdaterAjax.js` (149,115 chars, SHA-256 prefix `dd71a0ff`).
+> - **UI Page** `pgi_plugin_updater` — client **v1.7.2** (`S.version='1.7.2'`). Identical to `src/ui_page/pgi_plugin_updater.xhtml` (145,011 chars, SHA-256 prefix `d2141153`).
+> - **Script Include** `PluginUpdaterAjax` — server **v1.7.2**. Identical to `src/script_include/PluginUpdaterAjax.js` (160,458 chars, SHA-256 prefix `2046a63f`).
 >
-> Both were verified byte for byte (length and SHA-256) against the records installed from the XML, built on the **published 1.7.0 lineage** (§12.2: 59/59 `update_guid` of `NowPluginUpdater170.xml` are in the new history; 57 payloads identical to 1.7.0, only the Script Include and UI Page changed). On the **from-scratch** import (after a reset of `empgmarongiu1`) the preview gave 59 / inserted 59 / updated 0 / collisions 0; on the **upgrade 1.7.0 → 1.7.1** (`gmbrazil`) 59 / updated 53 / inserted 6 / collisions 0, with 0 preview problems in both cases (the same counts as the 1.6.6 → 1.7.0 upgrade). §18.7 holds the decisions, the five defects found by the live tests, and the 12 functional tests. §19 lists the gaps that are still open. **Read §19 before changing anything.**
+> Both were verified byte for byte (length and SHA-256) against the records installed from the XML, built on the **published 1.7.1 lineage** (§12.2: 59/59 `update_guid` of `NowPluginUpdater171.xml` are in the new history; 57 payloads identical to 1.7.1, only the Script Include and UI Page changed). §18.8 holds the fixes, the tests and the packaging. §19 lists the gaps that are still open, including the review findings deferred to a later release (§19.15). **Read §19 before changing anything.**
 >
-> Where this document says "server", it describes the **v1.7.1 Script Include**. The update set and `src/` agree. v1.7.1 is a bug-fix release (`v171_spec.md`): it adds no feature.
+> Where this document says "server", it describes the **v1.7.2 Script Include**. The update set and `src/` agree. v1.7.2 is a bug-fix release: it adds no feature.
 
 ---
 
@@ -1064,6 +1064,59 @@ The selection is listed by name (`selectedListHtml`), separate from the impact u
 
 ---
 
+### 18.8 v1.7.2 — Bug-fix release from the v1.7.1 review (2026-11-22)
+
+**Origin.** On `buildagentitalia` (Brazil Patch 2, app ≤ 1.7.0), on 2026-11-20 an admin started the Store sync with the scoped application *Marketing Tender Portal* selected in the application picker. The errors "Not allowing update of property: x_npu.sync_state" / "…__npu_sync_job_id" appeared and the one-shot job was created in that application's scope and left behind. A `GlideRecord` insert of a metadata record takes the scope of the session's **current application**, not the script's. A full code review of 1.7.1 followed; its findings were listed in a working backlog (S = Script Include, U = UI Page, F = fix scripts, C = clean-up). The release takes the small, local items; the rest is in §19.15.
+
+**Changes**
+
+| Id | Where | Change |
+|---|---|---|
+| Scope | `_writeSyncState`, `syncStore`, `_currentAppName` | `sys_scope`/`sys_package` = `global` on the sync state property (insert, and repair of an existing record) and on the one-shot job; the job is re-read after the insert, and if its scope is not global it is deleted, the lock is released with `error` and the client gets "Could not start the sync job in the Global scope (current application: X). Switch the application picker to Global and try again." |
+| S1 | `createBatch`, `_boundedJson` | `u_dependency_snapshot` was cut with `substring(0, 4000)`, so large suites stored invalid JSON and the Monitor lost every current dependency version of the row. Entries are now added while the JSON fits (`gs.warn` when one is dropped). |
+| S2 | `syncStore` | If the lock write fails, no job is created: `{queued:false, error:'Could not record the sync state…'}`. |
+| S3 | `getInstanceInfo`, `_lastPlatformUpgrade` | `sys_upgrade_history` has `upgrade_started`/`upgrade_finished` (not `started`/`completed`) and also records app installs. One query, `to_version STARTSWITH glide-`, read finished → started → created, used for *Last upgraded* and for the fallback release label. |
+| S4 | `attachWorker` | A missing or invalid `progress_id` is refused (it used to erase a pid found by `findLaunch` and drop the claim); a pid different from the one recorded is refused; the write goes through `_casRow`. |
+| S5 | `_reverifyPass`, `_ownsInstall` | A `cancelled`/`failed` row **without** a pid becomes `complete` only if (a) a root `sys.applifecycle.operation` tracker for the app exists, created after `u_started_at` (−2 min), and (b) no newer row exists for the same app. Before, a relaunch in batch B also completed the never-launched row of batch A. |
+| S6 | `_liveInstallWorkers`, `_inFlightApps`, Home KPI, `monitorBatches` | A CICD worker still `pending`/`running` whose root tracker (same sys_id) is *Failed*/*Cancelled* no longer counts (the `_opState`/F24 rule). The `^NQ` branch of the `_inFlightApps` query had no state filter, so such a worker kept the app "in flight" for ever; it also kept *Installing* at 1 and `queueActive` true. Constant `CICD_WORKER`. |
+| S7 | `_releaseStuck`, `_releasePlan`, `_opTree`, `_isOurFail`; `release_orphan_install_lock.js` | Trackers go to *Failed* **leaves first, root last** (reverse BFS order). A child that reaches *Successful*/*Cancelled* during the loop is skipped (`trackersSettled`); the root is not. In the age check, a tracker already *Failed* by a previous release (message starting with `QH_FAIL_NOTE` "Marked Failed by Now Plugin Updater") is ignored, so an interrupted release can be retried at once instead of being refused for `stuck_op_hours`. |
+| C1 | comments, property description | `setWorkflow(false)` — not `is_private` — keeps the sync state out of update sets (§15.21); the description is corrected on existing records too. |
+| U1 | `ajax`, `startInstalls`, `recoverBatch` | 180 s timeout for `createBatch`, `releaseStuckOperation`, `cancelRemaining`, `failRows` (45 s for reads). The latest batch is read before `createBatch`; after a timeout, a new batch is detected and its `queued` rows are failed with `failRows` ("Not launched: the server took too long to create the batch. Launch the application again."). |
+| U2 | `loadHome`, `startInstalls` | A failed Home load keeps the previous `S.appData`; *Install* uses the applications captured by the confirm dialog. |
+| U3 | `setLaunching` | *Start Wizard* is enabled again when a launch ends. |
+| U4 | `selectMonBatch` | Filter and page reset on batch change (the selector already did; the launch path did not). |
+| U5 | `S.version` | `1.7.2`. |
+| U6 | `confirmModal` | Destructive dialogs focus the cancel button. |
+| F4 | `repair_install_log_140.js` | Oldest rows first (`orderBy`), warning when `LIMIT` is reached. |
+| F6 | `repair_install_log_140.js` | The reason reads `w.msg` (the worker message was never appended). |
+
+**Offline checks.** `node --check` on the Script Include, the three fix scripts and the UI Page's inline script; ES3 reserved-word check (acorn of the Now SDK) on the server files: 0 hits. The client's `fetch(...).catch` is the only hit in the UI script and runs in the browser.
+
+**Tests on `empgmarongiu1`** (Brazil Patch 2, deploy with `GlideRecord.setValue`, verified by SHA-256):
+
+| Test | Result |
+|---|---|
+| T1 Store sync, Global selected | `done`; property in global with the new description; job deleted itself; nothing in an update set. |
+| T2 `attachWorker` via GlideAjax | empty / invalid / different pid refused with no change; same pid and first pid on an empty row accepted. |
+| T3 re-verify (S5), synthetic rows | no tracker → stays `cancelled` (1.7.1 would complete it); tracker but a newer row → stays `cancelled`; tracker and no newer row → `complete`. |
+| T4 real batch of 2 apps | Appointment calendar component, Export entities: both `complete`, pid recorded; `_boundedJson` with 300 entries → valid JSON of 3,972 chars (127 entries). |
+| T5 `createBatch` response held 185 s by Playwright | after 180 s: `getMyLatestBatch` → `getBatchStatus` → `failRows`; the row is `failed` with the new message and no pid; nothing launched; *Start Wizard* enabled. |
+| T6 UI | launch path to a new batch clears a `failed` filter; *Cancel queued* focuses *Keep queued*, Esc closes; *Last upgraded* = platform upgrade (2026-11-13). |
+| T7 simulation | S6: root *Failed* + worker `running` → the 1.7.1 query still matches it, 1.7.2 counts 0 and the app is not in flight; root *Running* → 1 and `installing`. S7 (root *Running* + 3 children, 2 padlocks with harmless `resource_type`, back-dated 8 h): forced interruption at mid-loop → 1 child *Failed*, root still *Running*, 2 locks kept; retry → 2/2 *Failed*, 2 locks deleted; a child turned *Successful* mid-loop → skipped (`settled` 1), root *Failed*, locks deleted. |
+
+All test records were deleted afterwards. **Not tested:** the fallback branch of the scope fix (the platform honoured the explicit scope every time); `release_orphan_install_lock.js` was only checked offline.
+
+**Build** — `empgmarongiu1`, flow of §12.2: reset (§12.4, `dryrun` → `execute` → `verify` all zeros, session elevated to `security_admin`); import from scratch of the **published** `NowPluginUpdater171.xml` (59 / inserted 59 / collisions 0), committed; Script Include and UI Page written with `GlideRecord` over the exact 1.7.1 content (`dd71a0ff…`, `b7b39390…`), descriptions "Now Plugin Updater v1.7.2 — …"; the 2 entries moved from *Default* to "Now Plugin Updater v1.7.2 delta" and merged with the commit set into "Now Plugin Updater v1.7.2" (59 entries); native export with `UpdateSetExport` + in-page fetch + console chunks (§12.2).
+
+**The artefact** — `NowPluginUpdater172.xml`: 503,181 bytes, SHA-256 `44bfd5e5…0d5f`, 59 entries, all with `remote_update_set` and an empty `update_set`; no property. **Lineage:** 59/59 `update_guid` of `NowPluginUpdater171.xml` in the history of the same entry; only the Script Include and UI Page payloads differ, identical to `src/`.
+
+**Install tests**
+
+- **From scratch**, `empgmarongiu1` after a new reset: 59 / inserted 59 / updated 0 / collisions 0, 0 preview problems; records identical to `src/`, 9 ACL-role rows all `admin`, Monitor trigger present; Home, Wizard, Monitor and Guide with 0 JavaScript errors.
+- **Upgrade 1.7.1 → 1.7.2**, `gmbrazil` (Brazil Patch 2w47) and `democrmfalectriae163723` (Australia Patch 8w47): 59 / updated 53 / inserted 6 / collisions 0, 0 preview problems on both (the same counts as 1.7.0 → 1.7.1); records identical to `src/`; the four pages with 0 JavaScript errors. On both instances *Last upgraded* showed 2026-11-22, which is correct: both had a platform upgrade that day (`sys_upgrade_history`).
+
+**Observed, not changed:** after the U1 recovery the launch screen still shows "Launched 0 / 0" above the recovery message.
+
 ## 19. Known gaps and discrepancies (as of 2026-10-15)
 
 First found on 2026-09-29, while reconciling this spec against `src/`, the `NowPluginUpdater16x.xml` payloads and read-only queries on `democrmfalectriae152010`. Updated after the v1.6.6 certification on Brazil. Each item says whether it is closed or still open. They are listed so the next change starts from the facts.
@@ -1177,7 +1230,17 @@ When the CICD worker exists, it ends `state=complete` with the generic message "
 - **Caps:** at most 100 operation padlocks and 10 owners are evaluated (`ownersTruncated`), and a tree of more than 500 trackers or 8 levels is not releasable.
 - **Only operations of type `sys.applifecycle.operation`** are released.
 - **Compatibility:** verified on Brazil Patch 1 (facts) and Patch 2 (feature). On a release without the expected tables or fields the card is `unavailable` and nothing is released; Australia and Zurich were not checked.
-- **Packaging:** shipped in the update set of v1.7.0 (§18.6) and v1.7.1 (§18.7).
+- **Packaging:** shipped in the update set of v1.7.0 (§18.6), v1.7.1 (§18.7) and v1.7.2 (§18.8). Since v1.7.2 an interrupted release can be retried (S7).
+
+### 19.15 Review findings deferred from v1.7.2
+
+The v1.7.1 review (§18.8) found more than the release fixed. Still open, by area (ids of the working backlog):
+
+- **Script Include:** a root operation that stays *Pending* never closes its row (S8); the owner card offers *Release* above 100 locks although the release refuses it (S9); inactive `sys_store_app` rows count as installed in the impact walk (S10); a job inserted with another sys_id is left active (S11); a platform `apps_sync_progress` stuck above 0 blocks the sync for ever (S12); the sync lock is not atomic (S13); `createBatch` ignores installs started outside the app (S14); the F26 ordering with O1 can starve rows above 2,000 (S16); `findLaunch` ignores a failed CAS (S17); a tracker-only operation with an unknown state stays queued (S18); private `_*` methods have no guard of their own (S19, to verify); `cancelRemaining` counts a failed CAS as started (S20); `getBatchStatus` on an unknown batch says `running` (S21).
+- **Performance:** `sys_store_app` read three times for Home (P1), N+1 in `_suiteImpact` (P2), three property reads per sync poll (P3), silent 20,000-row cap in `_updateImpact` (P4), fixed work in `monitorBatches` with no active rows (P5), N+1 tree reads in F24 (P6), unchunked `IN` in `_dependencyTreeForBatch` (P7), three DB calls per row in `failRows` (P8).
+- **UI Page:** watchdog double count (U7), transient retry drops the offering id (U8), stale table on batch change (U9), last full poll failure leaves dependencies non-final (U10), sticky nav under `overflow:hidden` (U11), Home and Wizard ignore `{error:…}` (U12), `claimRow`/`findLaunch` errors misread (U13), confirm dialog can open after leaving Step 2 (U14), sync "waiting for the scheduler" never shown (U15), invisible `status` sort on Step 1 (U16), queue-health exception shows "error" (U17), lists inside `<p>` (U18), `onbeforeunload` overwritten (U19); accessibility A1 (no page-level live region), A2 (`aria-current`, `role="progressbar"`, stray `aria-checked`, `aria-hidden` on the Refresh icon).
+- **Fix scripts:** `reset_npu_instance.js` misses one-shot job history (F1), loses property history on a rerun (F2), `verify` checks too little (F3), answers "already reset" without checking (F8), has no table allow-list (F9) or size check in `purge` (F10), leaves `x_npu.stuck_op_hours` and the release backups (F11), header out of date (F12); `repair_install_log_140.js` has no date cut-off (F5) and does not check `update()` (F7); `release_orphan_install_lock.js` variable and output nits (F13).
+- **Clean-up:** duplicate literals (C2, partly done with `CICD_WORKER`), dead code (C3), hand-coded `stMap` (C4), header and `setLimit` (C5), unused CSS (C6), dead check (C7), function declaration in a block (C8).
 
 ---
 
@@ -1204,3 +1267,4 @@ When the CICD worker exists, it ends `state=complete` with the generic message "
 | 1.6.6 | Failures before a worker exists (tracker fallback), version rule on failed/cancelled, suite banner hidden, `cancelRemaining` checks first, `_reconcile` + Refresh now reconciles, `listBatches` newest first. **Certified on Brazil**; first native merge/export and from-scratch install after an instance reset (§12.4) |
 | 1.7.0 | **Platform install queue health:** `getQueueHealth` / `releaseStuckOperation`, Monitor card and release dialog with a mandatory *Active Transactions* confirmation, Home warning, `release_orphan_install_lock.js`. Contributed through PR #2. **Certified on Brazil Patch 2**: from-scratch install and 1.6.6 → 1.7.0 upgrade with 0 preview problems (§18.6) |
 | 1.7.1 | **Bug-fix release** from the v1.7.0 review and live tests (`v171_spec.md`): in-flight apps resolved to app ids, tri-state select header, paged confirm lists, one launch at a time with claim/lookup/session stop, guarded row writes and failed/cancelled re-verification, Monitor polling recovery (GlideAjax watchdog), sync outcome and private sync state written with `setWorkflow(false)` (D7), active one-shot job, platform sync properties read from the record, fail-closed release, impact BFS keeping the highest required version, numeric version sort, accessibility and P3 optimizations. Five defects found by live tests (ES3 `final`, dialog pager, launch summary, D7, stale `gs.getProperty`). **Certified on Brazil Patch 2**: from scratch and 1.7.0 → 1.7.1 with 0 preview problems; Australia and Zurich not tested (§18.7) |
+| 1.7.2 | **Bug-fix release** from the v1.7.1 review: Store sync job and state forced into the Global scope (buildagentitalia incident), no sync without its lock, valid dependency snapshot, *Last upgraded* from platform upgrades, guarded `attachWorker`, re-verify only for the row's own install, workers of released operations ignored, release root last and retryable, 180 s write timeout with batch recovery, smaller UI fixes. **Certified on Brazil Patch 2** from scratch; 1.7.1 → 1.7.2 upgrades on Brazil Patch 2w47 and Australia Patch 8w47 with 0 preview problems (§18.8) |

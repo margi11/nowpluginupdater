@@ -57,6 +57,10 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             if (hfMatch) { hotfix = hfMatch[1]; }
         }
 
+        // v1.7.2 (S3) — una sola lettura dell'ultimo upgrade della piattaforma,
+        // usata sia per la versione di riserva sia per "Last upgraded".
+        var lastUp = this._lastPlatformUpgrade();
+
         if (family) {
             var label = family;
             if (patch)  { label += ' · Patch ' + patch; }
@@ -65,11 +69,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         } else if (buildtag) {
             info.versionLabel = buildtag;
         } else {
-            var uh = new GlideRecord('sys_upgrade_history');
-            uh.orderByDesc('sys_created_on');
-            uh.setLimit(1);
-            uh.query();
-            info.versionLabel = uh.next() ? (uh.getValue('to_version') || 'Unknown') : 'Unknown';
+            info.versionLabel = lastUp.toVersion || 'Unknown';
         }
 
         // NOTE: the platform-plugin count (two COUNT aggregates over the v_plugin
@@ -77,12 +77,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         // load (cold view), and the value is no longer shown anywhere in the UI.
 
         // Installs actually running NOW (CICD worker state = running) — Home "In Progress" KPI.
-        var rw = new GlideAggregate('sys_progress_worker');
-        rw.addQuery('name', 'CICDAppRepoService$CICDInstallWorker');
-        rw.addQuery('state', 'running');
-        rw.addAggregate('COUNT');
-        rw.query();
-        info.installsRunning = rw.next() ? (parseInt(rw.getAggregate('COUNT'), 10) || 0) : 0;
+        // v1.7.2 (S6) — non contano i worker la cui operazione radice e' gia'
+        // Failed/Cancelled (per esempio dopo il rilascio di un'operazione bloccata).
+        info.installsRunning = this._liveInstallWorkers('running').length;
 
         // --- Header context (instance identity) ---
         info.instanceName = gs.getProperty('instance_name', '');
@@ -112,28 +109,45 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             info.dbType = '';
         }
 
-        // Last upgrade date (prefer completed, then started, then created).
+        // Last platform upgrade date (finished, then started, then created).
         info.lastUpgraded = '';
-        var lu = new GlideRecord('sys_upgrade_history');
-        lu.orderByDesc('sys_created_on');
-        lu.setLimit(1);
-        lu.query();
-        if (lu.next()) {
-            // v1.7.1 (O6) — getDisplayValue().split(' ')[0] si rompeva con i formati
-            // di data che contengono spazi. Si parte dal valore interno (UTC) e si
-            // prende la data locale dell'utente nel suo formato.
-            var whenRaw = '' + (lu.getValue('completed') || lu.getValue('started') || lu.getValue('sys_created_on') || '');
-            if (whenRaw) {
-                var whenGdt = new GlideDateTime();
-                whenGdt.setValue(whenRaw);
-                info.lastUpgraded = '' + whenGdt.getLocalDate().getDisplayValue();
-            }
+        // v1.7.1 (O6) — getDisplayValue().split(' ')[0] si rompeva con i formati
+        // di data che contengono spazi. Si parte dal valore interno (UTC) e si
+        // prende la data locale dell'utente nel suo formato.
+        if (lastUp.when) {
+            var whenGdt = new GlideDateTime();
+            whenGdt.setValue(lastUp.when);
+            info.lastUpgraded = '' + whenGdt.getLocalDate().getDisplayValue();
         }
 
         // Last successful sync with the ServiceNow Store (App Manager parity).
         info.lastStoreSync = this._platformProp('sn_appclient.apps_last_sync_time', '');
 
         return info;
+    },
+
+    // v1.7.2 (S3) — ultimo upgrade della PIATTAFORMA. Fino alla 1.7.1:
+    //  - si leggevano i campi 'completed'/'started', che su sys_upgrade_history
+    //    non esistono (si chiamano upgrade_finished/upgrade_started), quindi si
+    //    ricadeva sempre su sys_created_on;
+    //  - sys_upgrade_history registra anche le installazioni delle app
+    //    (from_version 'n/a', to_version = scope), e la riga piu' recente era
+    //    quasi sempre un'app. Solo gli upgrade della piattaforma hanno
+    //    to_version che inizia per 'glide-' (verificato su empgmarongiu1,
+    //    Brazil Patch 2, 2026-11-22).
+    _lastPlatformUpgrade: function() {
+        var res = { toVersion: '', when: '' };
+        var uh = new GlideRecord('sys_upgrade_history');
+        uh.addQuery('to_version', 'STARTSWITH', 'glide-');
+        uh.orderByDesc('sys_created_on');
+        uh.setLimit(1);
+        uh.query();
+        if (uh.next()) {
+            res.toVersion = '' + (uh.getValue('to_version') || '');
+            res.when = '' + (uh.getValue('upgrade_finished') || uh.getValue('upgrade_started') ||
+                             uh.getValue('sys_created_on') || '');
+        }
+        return res;
     },
 
     // -----------------------------------------------------------------------
@@ -224,13 +238,12 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             add(this._sysId(lg.getValue('u_store_app_id')), (st === 'queued') ? 'queued' : 'installing', 'log');
         }
 
-        var rootIds = [];
-        var wGr = new GlideRecord('sys_progress_worker');
-        wGr.addQuery('name', 'CICDAppRepoService$CICDInstallWorker');
-        wGr.addQuery('state', 'IN', 'pending,running');
-        wGr.setLimit(200);
-        wGr.query();
-        while (wGr.next()) { rootIds.push('' + wGr.getUniqueValue()); }
+        // v1.7.2 (S6) — solo i worker la cui operazione radice non e' Failed o
+        // Cancelled. Fino alla 1.7.1 il ramo "sys_id IN worker" della query sotto
+        // non aveva filtro di stato (^NQ = A OR (B AND C AND D)): un worker rimasto
+        // 'running' dopo il rilascio della sua operazione teneva l'app "in flight"
+        // per sempre e il Wizard non la lasciava selezionare.
+        var rootIds = this._liveInstallWorkers('pending,running');
 
         var tr = new GlideRecord('sys_execution_tracker');
         if (tr.isValid() && tr.isValidField('detail_message') && tr.isValidField('type')) {
@@ -616,21 +629,24 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // =======================================================================
 
     ROW_CAP:           500,   // O3: tetto alle righe restituite da getBatchStatus
+    CICD_WORKER:       'CICDAppRepoService$CICDInstallWorker',
     SYNC_JOB_NAME:     'Plugin Updater - Store Sync (once)',
     // v1.7.1 (F33, decisione D7 — spec §18.7). Fino alla v1.7.0 lo stato stava in
     // x_npu.sync_state, scritta con gs.setProperty, e il job leggeva il proprio
     // sys_id da __npu_sync_job_id: entrambe le property finivano nell'update set
     // corrente dell'admin (misurato su Brazil Patch 2, 2026-11-12), quindi un admin
     // al lavoro nel proprio update set le avrebbe spedite con le sue modifiche.
-    // Ora lo stato sta in una property NUOVA, creata con is_private=true ("exclude
-    // this property from being imported via update sets", documentazione
-    // ufficiale) e scritta/letta con GlideRecord. Evidenza sull'istanza: le
-    // property private sn_appclient.apps_last_sync_time e apps_sync_progress,
-    // riscritte dalla piattaforma a ogni sync, non hanno alcuna voce
-    // sys_update_xml per quelle scritture. ignore_cache=true: la scrittura non
-    // svuota la cache delle property del cluster (lo stato si legge sempre con
-    // GlideRecord). La vecchia x_npu.sync_state non viene piu' scritta ne' letta,
-    // e __npu_sync_job_id non serve piu' (F34: l'id del job e' nel suo script).
+    // Ora lo stato sta in una property NUOVA, scritta e letta con GlideRecord.
+    // v1.7.2 (C1) — ATTENZIONE: e' setWorkflow(false) in _writeSyncState che
+    // evita la cattura nell'update set, NON is_private. Misurato su Brazil Patch 2
+    // (2026-11-12, spec §15.21): con il solo is_private=true insert e update
+    // finivano comunque nell'update set corrente dell'admin. Non togliere
+    // setWorkflow(false). is_private=true resta per il suo significato
+    // documentato (la property non viene importata da un update set).
+    // ignore_cache=true: la scrittura non svuota la cache delle property del
+    // cluster (lo stato si legge sempre con GlideRecord). La vecchia
+    // x_npu.sync_state non viene piu' scritta ne' letta, e __npu_sync_job_id non
+    // serve piu' (F34: l'id del job e' nel suo script).
     SYNC_STATE_PROP:   'x_npu.sync_runtime_state',
     SYNC_LOCK_TTL_MS:  1800000, // 30 min: oltre, un 'running' e' considerato morto
 
@@ -650,8 +666,17 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 p.initialize();
                 p.setValue('name', this.SYNC_STATE_PROP);
                 p.setValue('type', 'string');
-                p.setValue('description', 'Now Plugin Updater - Store sync state (runtime, private: not captured in update sets)');
             }
+            // v1.7.2 (C1) — testo corretto anche sui record esistenti: non e'
+            // is_private a evitare la cattura, e' la scrittura senza workflow.
+            p.setValue('description', 'Now Plugin Updater - Store sync state (runtime data, written without workflow so it is not captured in update sets)');
+            // v1.7.2 — scope esplicito: un insert con GlideRecord prende lo scope
+            // dell'applicazione corrente dell'admin (application picker), non quello
+            // dello script. Osservato su buildagentitalia (Brazil Patch 2, 2026-11-20)
+            // con "Marketing Tender Portal" selezionata. Riportato a Global anche su
+            // un record esistente creato nello scope sbagliato.
+            p.setValue('sys_scope', 'global');
+            p.setValue('sys_package', 'global');
             p.setValue('is_private', true);
             p.setValue('ignore_cache', true);
             p.setValue('value', JSON.stringify(st));
@@ -733,10 +758,20 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
         // Prendo il lock PRIMA di creare il job: se due click arrivano insieme,
         // il secondo trova state='running'.
-        this._writeSyncState({
+        // v1.7.2 (S2) — senza lock niente job: fino alla 1.7.1 il job partiva lo
+        // stesso, si potevano avviare sync concorrenti e il job non registrava
+        // l'esito (il client mostrava "Still running after 5 minutes").
+        var lockOk = this._writeSyncState({
             state: 'running', startedAt: '' + startedAt,
             finishedAt: '', message: '', by: gs.getUserName()
         });
+        if (!lockOk) {
+            return JSON.stringify({
+                queued: false,
+                error: 'Could not record the sync state. Check the permissions on the System Properties table.',
+                startedAt: '' + startedAt, lastSync: prevSync
+            });
+        }
 
         this._cleanupSyncJobs();
 
@@ -760,12 +795,33 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         job.setValue('run_start', startedAt);
         job.setValue('run_as', gs.getUserID());
         job.setValue('conditional', false);
+        // v1.7.2 — il job deve girare in Global. Senza scope esplicito l'insert
+        // prende lo scope dell'applicazione corrente dell'admin: su buildagentitalia
+        // (2026-11-20, v1.7.0) il job e' nato in "Marketing Tender Portal", ha
+        // loggato con source x_snc_mar_ten_por e non ha scritto l'esito. In uno
+        // scope applicativo la scrittura di sys_properties puo' essere negata: il
+        // lock resterebbe 'running' fino al TTL (30 min).
+        job.setValue('sys_scope', 'global');
+        job.setValue('sys_package', 'global');
+        var scopeError = '';
         if (!jobId || this._sysId(job.insert()) !== jobId) {
             if (jobId) {
                 var stray = new GlideRecord('sysauto_script');
                 if (stray.get(jobId)) { stray.deleteRecord(); }
             }
             jobId = '';
+        } else {
+            // Verifica sul record: se la piattaforma ha ignorato lo scope esplicito,
+            // il job viene tolto subito, prima che lo scheduler lo prenda in carico.
+            var chk = new GlideRecord('sysauto_script');
+            if (chk.get(jobId) && chk.getValue('sys_scope') !== 'global') {
+                gs.error('[PluginUpdater] syncStore: job one-shot creato nello scope ' +
+                         chk.getValue('sys_scope') + ' invece di global: rimosso');
+                chk.deleteRecord();
+                jobId = '';
+                scopeError = 'Could not start the sync job in the Global scope (current application: ' +
+                             this._currentAppName() + '). Switch the application picker to Global and try again.';
+            }
         }
 
         if (!jobId) {
@@ -774,11 +830,11 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             this._writeSyncState({
                 state: 'error', startedAt: '' + startedAt,
                 finishedAt: '' + new GlideDateTime(),
-                message: 'Could not create the sync job', by: gs.getUserName()
+                message: scopeError || 'Could not create the sync job', by: gs.getUserName()
             });
             return JSON.stringify({
                 queued: false,
-                error: 'Could not start the sync job. Check the "Scheduled Script Execution" table permissions.',
+                error: scopeError || 'Could not start the sync job. Check the "Scheduled Script Execution" table permissions.',
                 startedAt: '' + startedAt, lastSync: prevSync
             });
         }
@@ -834,6 +890,18 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             + "        if (me.get(jobId)) { me.deleteRecord(); }\n"
             + "    } catch (e2) { gs.warn('[PluginUpdater] self-cleanup del job di sync fallito: ' + e2); }\n"
             + "})();\n";
+    },
+
+    // v1.7.2 — nome dell'applicazione corrente della sessione, per il messaggio
+    // d'errore di syncStore. gs.getCurrentApplicationId() restituisce il sys_id
+    // del record sys_scope selezionato nell'application picker.
+    _currentAppName: function() {
+        try {
+            var id = '' + (gs.getCurrentApplicationId() || '');
+            var sc = new GlideRecord('sys_scope');
+            if (id && sc.get(id)) { return '' + sc.getValue('name'); }
+            return id || 'unknown';
+        } catch (e) { return 'unknown'; }
     },
 
     // Una sync è in corso? apps_sync_progress è > 0 solo durante l'elaborazione
@@ -1019,8 +1087,12 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             // the version it started from, so this is the only place that data is
             // available (sys_store_app.version is already the target once the
             // install has run, so it cannot be reconstructed after the fact).
+            // v1.7.2 (S1) — fino alla 1.7.1 il JSON veniva tagliato a 4000 caratteri
+            // con substring: con le suite grandi il risultato non era piu' JSON
+            // valido e il Monitor perdeva TUTTE le versioni correnti della riga.
+            // Ora le voci si aggiungono una alla volta finche' il JSON resta nel campo.
             var depSnapJson = '';
-            try { depSnapJson = JSON.stringify(a.depVersions || {}).substring(0, 4000); } catch (e2) { depSnapJson = ''; }
+            try { depSnapJson = this._boundedJson(a.depVersions, 4000); } catch (e2) { depSnapJson = ''; }
             gr.setValue('u_dependency_snapshot', depSnapJson);
             gr.setValue('u_status',           'queued');
             gr.setValue('u_session_id',       batchKey);
@@ -1044,6 +1116,25 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             return JSON.stringify({ error: 'None of the selected applications could be queued.', batch: '', total: 0, rows: [], skipped: skipped });
         }
         return JSON.stringify({ batch: batchKey, total: rows.length, rows: rows, skipped: skipped });
+    },
+
+    // v1.7.2 (S1) — serializza un oggetto piatto {chiave: valore} aggiungendo
+    // voci finche' il JSON resta entro maxLen. Il risultato e' sempre JSON valido.
+    _boundedJson: function(obj, maxLen) {
+        var out = {}, json = '{}';
+        if (!obj || typeof obj !== 'object') { return json; }
+        for (var k in obj) {
+            if (!obj.hasOwnProperty(k)) { continue; }
+            out[k] = obj[k];
+            var next = JSON.stringify(out);
+            if (next.length > maxLen) {
+                delete out[k];
+                gs.warn('[PluginUpdater] dependency snapshot truncated at ' + maxLen + ' chars');
+                break;
+            }
+            json = next;
+        }
+        return json;
     },
 
     // getMyLatestBatch — most recent batch key for the current user
@@ -1631,20 +1722,35 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         var logSysId = this._sysId(this.getParameter('sysparm_log_sys_id') || this.getParameter('log_sys_id'));
         var pid      = this._sysId(this.getParameter('sysparm_progress_id') || this.getParameter('progress_id'));
         if (!logSysId) { return JSON.stringify({ ok: false, error: 'valid log_sys_id required' }); }
-        var gr = new GlideRecord(this.LOG_TABLE);
-        if (!gr.get(logSysId)) { return JSON.stringify({ ok: false, error: 'log row not found' }); }
+        // v1.7.2 (S4) — un pid vuoto o non valido non viene scritto: fino alla 1.7.1
+        // cancellava un pid gia' presente (per esempio trovato da findLaunch) e
+        // toglieva il claim, e dopo 60 minuti la riga falliva come "never launched".
+        if (!pid) { return JSON.stringify({ ok: false, error: 'valid progress_id required' }); }
+        var r = this._rowSnap(logSysId);
+        if (!r) { return JSON.stringify({ ok: false, error: 'log row not found' }); }
+        if (r.pid && r.pid !== pid) {
+            gs.warn('[PluginUpdater] attachWorker: riga ' + logSysId + ' ha gia\' il worker ' + r.pid +
+                    ', ' + pid + ' rifiutato');
+            return JSON.stringify({ ok: false, reason: 'different worker', status: r.status });
+        }
 
-        gr.setValue('u_progress_id', pid);
-        var cur = '' + (gr.getValue('u_status') || 'queued');
-        if (cur === 'queued' || cur === 'in_progress') {
-            gr.setValue('u_status', 'queued');
-            if (this._isClaim(gr.getValue('u_error_message'))) { gr.setValue('u_error_message', ''); }
+        // Scrittura condizionata (_casRow), come il resto del percorso di lancio.
+        var set = { u_progress_id: pid };
+        if (r.status === 'queued' || r.status === 'in_progress') {
+            set.u_status = 'queued';
+            if (this._isClaim(r.msg)) { set.u_error_message = ''; }
         } else {
             gs.info('[PluginUpdater] attachWorker: riga ' + logSysId + ' gia\' in stato "' +
-                    cur + '", stato preservato (worker registrato comunque)');
+                    r.status + '", stato preservato (worker registrato comunque)');
         }
-        gr.update();
-        return JSON.stringify({ ok: true, status: '' + gr.getValue('u_status') });
+        if (r.pid === pid && !set.hasOwnProperty('u_error_message') && set.u_status === r.status) {
+            return JSON.stringify({ ok: true, status: r.status });   // niente da cambiare
+        }
+        if (!this._casRow(r, set)) {
+            var now = this._rowSnap(logSysId);
+            return JSON.stringify({ ok: false, reason: 'status changed', status: now ? now.status : '' });
+        }
+        return JSON.stringify({ ok: true, status: '' + (set.u_status || r.status) });
     },
 
     // failRow — UPDATE ONLY: segna 'failed' una riga il cui lancio e' fallito.
@@ -1735,12 +1841,10 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         // Is the platform install queue still active? While any CICD install worker
         // is pending/running, the single-flight queue is draining — never time out
         // waiting rows (avoids false "did not start" on large/slow batches).
-        var qa = new GlideAggregate('sys_progress_worker');
-        qa.addQuery('name', 'CICDAppRepoService$CICDInstallWorker');
-        qa.addQuery('state', 'IN', 'pending,running');
-        qa.addAggregate('COUNT');
-        qa.query();
-        var queueActive = qa.next() ? ((parseInt(qa.getAggregate('COUNT'), 10) || 0) > 0) : false;
+        // v1.7.2 (S6) — un worker 'running' con l'operazione radice Failed/Cancelled
+        // non tiene la coda attiva: altrimenti le righe senza worker non andavano
+        // mai in timeout.
+        var queueActive = this._liveInstallWorkers('pending,running').length > 0;
 
         for (var i = 0; i < rows.length; i++) {
             var r = rows[i], set = null, isFinal = false;
@@ -1871,9 +1975,46 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         for (var j = 0; j < rows.length; j++) {
             var r = rows[j];
             var v = this._verify(r.appId, r.target, verifyCache);
-            if (r.target && v.matches && this._casRow(r, { u_status: 'complete', u_error_message: '' })) { n++; }
+            if (!r.target || !v.matches) { continue; }
+            // v1.7.2 (S5) — una riga senza pid diventa 'complete' solo se
+            // l'installazione e' sua (vedi _ownsInstall).
+            if (!r.pid && !this._ownsInstall(r)) { continue; }
+            if (this._casRow(r, { u_status: 'complete', u_error_message: '' })) { n++; }
         }
         return n;
+    },
+
+    // v1.7.2 (S5) — una riga senza progress id ha davvero lanciato l'install?
+    // Fino alla 1.7.1 bastava che la versione target risultasse installata: se la
+    // sessione scadeva durante il lancio (o dopo Cancel queued) e l'utente
+    // rilanciava l'app in un batch B, la riga del batch A, che non aveva mai fatto
+    // la POST, diventava 'complete' e il batch A dichiarava un successo non suo.
+    // Ora servono entrambe le condizioni:
+    //  (a) esiste un'operazione di install radice per l'app creata dopo l'avvio
+    //      della riga (stessa ricerca di findLaunch: il caso legittimo F08, con la
+    //      risposta della POST persa, la soddisfa);
+    //  (b) nessuna riga piu' recente della stessa app: se c'e', il rilancio
+    //      appartiene a quella riga.
+    _ownsInstall: function(r) {
+        if (!r.appId || !r.started) { return false; }
+        var newer = new GlideRecord(this.LOG_TABLE);
+        newer.addQuery('u_store_app_id', r.appId);
+        newer.addQuery('sys_id', '!=', r.id);
+        newer.addQuery('u_started_at', '>', r.started);
+        newer.setLimit(1);
+        newer.query();
+        if (newer.hasNext()) { return false; }
+        var tr = new GlideRecord('sys_execution_tracker');
+        if (!tr.isValid() || !tr.isValidField('detail_message') || !tr.isValidField('type')) { return false; }
+        var from = new GlideDateTime();
+        from.setNumericValue(new GlideDateTime(r.started).getNumericValue() - 120000);   // margine orologi
+        tr.addNullQuery('parent');
+        tr.addQuery('type', this.QH_SUBJECT);
+        tr.addQuery('detail_message', 'CONTAINS', 'app=' + r.appId);
+        tr.addQuery('sys_created_on', '>=', from);
+        tr.setLimit(1);
+        tr.query();
+        return tr.hasNext();
     },
 
     // Worker CICD e tracker radice per un insieme di progress id, in query
@@ -1913,6 +2054,33 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
             }
         }
         return res;
+    },
+
+    // v1.7.2 (S6) — sys_id dei worker CICD di install negli stati indicati, tolti
+    // quelli il cui tracker radice (stesso sys_id) e' Failed o Cancelled. Stessa
+    // regola di _opState (F24): con il tracker radice chiuso vale il tracker.
+    // Un worker senza tracker resta attivo.
+    _liveInstallWorkers: function(states) {
+        var ids = [];
+        var w = new GlideRecord('sys_progress_worker');
+        w.addQuery('name', this.CICD_WORKER);
+        w.addQuery('state', 'IN', states);
+        w.setLimit(200);
+        w.query();
+        while (w.next()) { ids.push('' + w.getUniqueValue()); }
+        if (!ids.length) { return ids; }
+        var dead = {}, ts = this._trackerStates();
+        var t = new GlideRecord('sys_execution_tracker');
+        if (t.isValid()) {
+            t.addQuery('sys_id', 'IN', ids.join(','));
+            t.addQuery('state', 'IN', ts.v.failed + ',' + ts.v.cancelled);
+            t.setLimit(ids.length);
+            t.query();
+            while (t.next()) { dead['' + t.getUniqueValue()] = true; }
+        }
+        var out = [];
+        for (var i = 0; i < ids.length; i++) { if (!dead.hasOwnProperty(ids[i])) { out.push(ids[i]); } }
+        return out;
     },
 
     // Stato combinato worker + tracker radice di un'operazione, o null se
@@ -2125,6 +2293,9 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     QH_LOCK_CAP:      100,
     QH_OWNER_CAP:     10,
     QH_BACKUP_PREFIX: 'npu_release_backup_',
+    // v1.7.2 (S7) — inizio del messaggio scritto sui tracker portati a Failed dal
+    // rilascio: serve a riconoscerli in un nuovo tentativo (_isOurFail).
+    QH_FAIL_NOTE:     'Marked Failed by Now Plugin Updater',
     QH_SCHEMA: {
         sys_padlock:           ['resource_type', 'resource_id', 'lock_key'],
         sys_execution_tracker: ['state', 'parent', 'node', 'type', 'message', 'detail_message', 'percent_complete'],
@@ -2309,10 +2480,15 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
     // Albero dei tracker sotto una radice, un livello per query (come
     // _dependencyTreeForBatch). truncated=true se supera QH_TREE_CAP o
     // QH_TREE_DEPTH: in quel caso l'albero non e' verificabile per intero.
+    _isOurFail: function(gr) {
+        return ('' + (gr.getValue('message') || '')).indexOf(this.QH_FAIL_NOTE) === 0;
+    },
+
     _opTree: function(rootId) {
         var root = new GlideRecord('sys_execution_tracker');
         if (!root.get(rootId)) { return null; }
-        var nodes = [{ sysId: rootId, state: '' + root.getValue('state'), updated: '' + root.getValue('sys_updated_on') }];
+        var nodes = [{ sysId: rootId, state: '' + root.getValue('state'), updated: '' + root.getValue('sys_updated_on'),
+                       ours: this._isOurFail(root) }];
         var seen = {}, frontier = [rootId], truncated = false;
         seen[rootId] = true;
         for (var depth = 0; depth < this.QH_TREE_DEPTH && frontier.length && !truncated; depth++) {
@@ -2326,7 +2502,8 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 if (seen[id]) { continue; }
                 if (nodes.length >= this.QH_TREE_CAP) { truncated = true; break; }
                 seen[id] = true;
-                nodes.push({ sysId: id, state: '' + gr.getValue('state'), updated: '' + gr.getValue('sys_updated_on') });
+                nodes.push({ sysId: id, state: '' + gr.getValue('state'), updated: '' + gr.getValue('sys_updated_on'),
+                             ours: this._isOurFail(gr) });
                 next.push(id);
             }
             frontier = next;
@@ -2545,6 +2722,10 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         if (tree.truncated) { return { ok: false, error: 'The operation is too large to verify (more than ' + this.QH_TREE_CAP + ' trackers).' + NOTHING }; }
         var toFail = [];
         for (var i = 0; i < tree.nodes.length; i++) {
+            // v1.7.2 (S7) — un tracker portato a Failed da un rilascio precedente
+            // interrotto non e' un segno di vita: senza questa eccezione il nuovo
+            // tentativo restava rifiutato per QH stuck hours.
+            if (tree.nodes[i].ours && tree.nodes[i].state === st.v.failed) { continue; }
             var age = this._ageHours(tree.nodes[i].updated);
             if (hours > age) {
                 return { ok: false, error: 'A tracker of this operation was updated ' + this._fmtHours(age) + ' ago (threshold ' +
@@ -2652,19 +2833,30 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         }
 
         // 2. Tracker Running/Pending dell'albero -> Failed, con un messaggio esplicativo.
-        var note = ('Marked Failed by Now Plugin Updater (' + user + ', ' + now + ' UTC): no progress since ' + plan.lastUpdated +
+        var note = (this.QH_FAIL_NOTE + ' (' + user + ', ' + now + ' UTC): no progress since ' + plan.lastUpdated +
                     ' UTC and its resource locks were blocking the install queue. Backup: ' + fileName + ' on this tracker.').substring(0, 4000);
-        var failed = 0, failErr = 0;
+        var failed = 0, failErr = 0, settled = 0;
         // Il confronto completo (stato + sys_updated_on) e' appena stato fatto su
         // tutto l'albero. Dentro il ciclo si controlla solo lo stato: portare a
         // Failed un tracker puo' far aggiornare gli altri dalla piattaforma, e quello
         // e' un effetto di questa scrittura, non un segno di vita. Un tracker gia'
         // Failed conta come fatto; uno in qualsiasi altro stato ferma tutto.
-        for (var k = 0; k < plan.toFail.length && !failErr; k++) {
+        // v1.7.2 (S7) — prima le foglie, la radice per ultima (toFail segue l'ordine
+        // in ampiezza di _opTree: invertito). Fino alla 1.7.1 la radice andava a
+        // Failed per prima: se il ciclo si interrompeva dopo, la radice era gia'
+        // Failed, i lock restavano e _releasePlan rifiutava il nuovo tentativo
+        // ("The operation is not running"). Ora un'interruzione lascia la radice
+        // Running e il rilascio si puo' ripetere.
+        // Un figlio arrivato da solo a Successful/Cancelled durante il ciclo non e'
+        // piu' running: si salta invece di interrompere. La radice no: se si chiude
+        // da sola, i lock non si toccano.
+        var order = plan.toFail.slice().reverse();
+        for (var k = 0; k < order.length && !failErr; k++) {
             var u = new GlideRecord('sys_execution_tracker');
-            if (!planned.hasOwnProperty(plan.toFail[k]) || !u.get(plan.toFail[k])) { failErr++; break; }
+            if (!planned.hasOwnProperty(order[k]) || !u.get(order[k])) { failErr++; break; }
             var s = '' + u.getValue('state');
             if (s === st.v.failed) { failed++; continue; }
+            if (order[k] !== id && (s === st.v.successful || s === st.v.cancelled)) { settled++; continue; }
             if (s !== st.v.running && s !== st.v.pending) { failErr++; break; }
             u.setValue('state', st.v.failed);
             u.setValue('message', note);
@@ -2672,7 +2864,8 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         }
         if (failErr) {
             gs.error('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ': ' + failErr +
-                     ' tracker(s) could not be marked Failed after ' + failed + '; locks NOT deleted. Backup: sys_attachment:' + attId);
+                     ' tracker(s) could not be marked Failed after ' + failed + '; root tracker not changed (it is marked last), ' +
+                     'locks NOT deleted, the release can be retried. Backup: sys_attachment:' + attId);
             return {
                 ok: false, released: false,
                 trackersFailed: failed, trackersExpected: plan.toFail.length, trackerErrors: failErr,
@@ -2680,7 +2873,8 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
                 backupId: attId, backupFile: fileName,
                 error: (failed ? (failed + ' tracker(s) were marked Failed, but another one changed or could not be updated, ')
                                : 'A tracker changed or could not be updated, ') +
-                       'so no lock was deleted. Check the system log for [PluginUpdater]; the backup ' + fileName + ' is on the tracker.'
+                       'so no lock was deleted and the operation is still marked running: you can retry the release. ' +
+                       'Check the system log for [PluginUpdater]; the backup ' + fileName + ' is on the tracker.'
             };
         }
 
@@ -2704,7 +2898,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
 
         gs.info('[PluginUpdater] releaseStuckOperation tracker=' + id + ' by=' + user + ' app=' + plan.detail.appId +
                 ' version=' + plan.detail.version + ' idleSince=' + plan.lastUpdated + 'Z trackersFailed=' + failed + '/' +
-                plan.toFail.length + ' locksDeleted=' + del + '/' + plan.locks.length + ' locksAlreadyGone=' + gone +
+                plan.toFail.length + ' settledOnTheirOwn=' + settled + ' locksDeleted=' + del + '/' + plan.locks.length + ' locksAlreadyGone=' + gone +
                 ' lockErrors=' + delErr + ' locksLeft=' + left + ' backup=sys_attachment:' + attId);
         var msg;
         if (left === 0 && delErr === 0) {
@@ -2716,7 +2910,7 @@ PluginUpdaterAjax.prototype = Object.extendsObject(AbstractAjaxProcessor, {
         }
         return {
             ok: left === 0 && delErr === 0, released: true,
-            trackersFailed: failed, trackersExpected: plan.toFail.length, trackerErrors: 0,
+            trackersFailed: failed, trackersSettled: settled, trackersExpected: plan.toFail.length, trackerErrors: 0,
             locksDeleted: del, locksAlreadyGone: gone, locksExpected: plan.locks.length, locksLeft: left, lockErrors: delErr,
             backupId: attId, backupFile: fileName,
             message: msg

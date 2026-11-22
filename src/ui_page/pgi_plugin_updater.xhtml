@@ -473,7 +473,7 @@ html,body{background:#f5f5f7;margin:0}
   var S = {
     info:{}, appData:{apps:[],inFlight:[],appsUpToDate:0},
     selected:{}, installRows:[], historyRows:[],
-    version:'1.7.1',
+    version:'1.7.2',
     sessionId:'sess_'+(new Date().getTime()),
     pollTimers:{}, pollDeadlines:{},
     POLL_INTERVAL:15000, POLL_TIMEOUT:1800000, BATCH:8,
@@ -584,7 +584,9 @@ html,body{background:#f5f5f7;margin:0}
       if(ck){ ck.onchange=function(){ yes.disabled=!ck.checked; }; ck.focus(); }
       else { no.focus(); }
     } else {
-      yes.focus();
+      // v1.7.2 (U6) — nei dialog distruttivi il focus va su "annulla": un Invio
+      // accidentale in Cancel queued annullava le installazioni.
+      if(danger){ no.focus(); } else { yes.focus(); }
     }
   }
 
@@ -595,16 +597,21 @@ html,body{background:#f5f5f7;margin:0}
   // di polling si fermava in silenzio: era la causa di F06 e F13. Dopo AJAX_TIMEOUT
   // il callback riceve 'timeout' una sola volta (once): una risposta tardiva viene
   // ignorata. I chiamanti la trattano come qualsiasi altro errore.
-  var AJAX_TIMEOUT=45000;
+  // v1.7.2 (U1) — le scritture lunghe (createBatch fino a 1000 insert, rilascio
+  // dei lock, Cancel queued, failRows) hanno un timeout proprio: con 45 s il
+  // client dava l'errore mentre il server completava il lavoro.
+  var AJAX_TIMEOUT=45000, AJAX_WRITE_TIMEOUT=180000;
+  var WRITE_METHODS={ createBatch:1, releaseStuckOperation:1, cancelRemaining:1, failRows:1 };
   function ajax(method, params, cb){
     var timer=null;
+    var limit=WRITE_METHODS.hasOwnProperty(method) ? AJAX_WRITE_TIMEOUT : AJAX_TIMEOUT;
     var done=once(function(err, data){ if(timer){ clearTimeout(timer); timer=null; } cb(err, data); });
     function finish(err, data){ return function(){ done(err, data); }; }
     try {
       var ga=new GlideAjax('PluginUpdaterAjax');
       ga.addParam('sysparm_name',method);
       if(params){ for(var k in params){ if(params.hasOwnProperty(k)){ ga.addParam('sysparm_'+k, params[k]); } } }
-      timer=setTimeout(finish('timeout', null), AJAX_TIMEOUT);
+      timer=setTimeout(finish('timeout', null), limit);
       ga.getXMLAnswer(function(ans){
         if(ans==null||ans===''){ done('Empty response from server', null); return; }
         var parsed;
@@ -632,7 +639,9 @@ html,body{background:#f5f5f7;margin:0}
   function loadHome(){
     $('home-body').innerHTML='<div class="loading"><div class="spinner"></div> Loading instance data&#8230;</div>';
     ajax('getHomeData',{},function(e,d){
-      if(e || !d){ S.info={}; S.appData=normalizeApps(null); S.queueHome=null; renderHome(e||'No data returned'); return; }
+      // v1.7.2 (U2) — in caso di errore S.appData resta quello precedente: se il
+      // Refresh fallisce durante lo Step 2, la lista del wizard non si svuota.
+      if(e || !d){ S.info={}; S.appData=normalizeApps(S.appData); S.queueHome=null; renderHome(e||'No data returned'); return; }
       S.info=d.info||{};
       S.appData=normalizeApps(d.appData);
       S.queueHome=d.queueHealth||null;   // v1.7.0: { status, waiting }
@@ -1415,9 +1424,9 @@ html,body{background:#f5f5f7;margin:0}
     var ids=selectedIds();
     if(!ids.length) return;
     var byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
-    var selApps=[], scopes=[], scopeSet={}, snapIds=[];
+    var selApps=[], scopes=[], scopeSet={}, snapIds=[], snapApps=[];
     for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(!a) continue;
-      snapIds.push(a.sysId);
+      snapIds.push(a.sysId); snapApps.push(a);
       selApps.push({ sysId:a.sysId, name:a.name, scope:a.scope, current:a.current, target:a.latest });
       if(a.scope){ scopes.push(a.scope); scopeSet[a.scope]=true; }
     }
@@ -1455,7 +1464,7 @@ html,body{background:#f5f5f7;margin:0}
         confirmLabel: 'Install '+n,
         cancelLabel: 'Review selection',
         opener: $('sel-install'),
-        onConfirm: function(){ startInstalls(snapIds); }
+        onConfirm: function(){ startInstalls(snapIds, snapApps); }
       });
       confirmToggle('confirm-selected-toggle', 'confirm-selected-list');
       confirmToggle('confirm-union-toggle', 'confirm-union-list');
@@ -1487,14 +1496,19 @@ html,body{background:#f5f5f7;margin:0}
     window.onbeforeunload = on ? function(e){ if(e){ e.preventDefault(); e.returnValue=''; } return ''; } : null;
     var tw=$('tab-wizard');
     if(tw){ tw.disabled=!!on; tw.title=on?'A launch is in progress':''; }
-    var hs=$('home-start'); if(hs && on){ hs.disabled=true; }
+    // v1.7.2 (U3) — a lancio finito il pulsante torna attivo: dopo un lancio con
+    // errori restava disabilitato fino al reload.
+    var hs=$('home-start'); if(hs){ hs.disabled = on ? true : !(S.appData.apps||[]).length; }
     if($('sel-install')){ updateSelCount(); }
   }
 
-  function startInstalls(ids){
+  // v1.7.2 (U2) — snapApps: le app viste nel dialog di conferma. Un Refresh della
+  // Home fallito durante lo Step 2 svuotava S.appData.apps e Install non faceva
+  // nulla senza dirlo.
+  function startInstalls(ids, snapApps){
     if(S.launching) return;   // F04
     ids = ids || selectedIds();
-    var byId={}; (S.appData.apps||[]).forEach(function(a){ byId[a.sysId]=a; });
+    var byId={}; (snapApps || S.appData.apps || []).forEach(function(a){ byId[a.sysId]=a; });
     var apps=[];
     for(var i=0;i<ids.length;i++){ var a=byId[ids[i]]; if(a){
       // Snapshot delle versioni "current" delle dipendenze previste da
@@ -1513,8 +1527,57 @@ html,body{background:#f5f5f7;margin:0}
     setLaunching(true);
     showView('wizard3'); $('launch-actions').style.display='none';
     renderLaunch('Creating batch…');
+    // v1.7.2 (U1) — l'ultimo batch dell'utente PRIMA di createBatch: dopo un
+    // timeout serve a capire se il server ha creato il batch comunque.
+    ajax('getMyLatestBatch',{},function(pe,pd){
+      if(S.launch!==L) return;
+      var prev={ known: !pe && !!pd && !pd.error, batch: (pd&&pd.batch)||'' };
+      createBatchFor(L, apps, prev);
+    });
+  }
+
+  // v1.7.2 (U1) — createBatch e' finito in timeout. Se il server ha creato il
+  // batch, le sue righe non sono mai state lanciate: vengono segnate 'failed'
+  // con failRows (che tocca solo righe queued senza progress id), invece di
+  // restare 'queued' fino al timeout di 60 minuti e bloccare un nuovo lancio
+  // ("already queued").
+  function recoverBatch(L, prev){
+    renderLaunch('The server is slow to respond. Checking whether the batch was created…');
+    ajax('getMyLatestBatch',{},function(e,d){
+      if(S.launch!==L) return;
+      var b=(!e && d && !d.error && d.batch) || '';
+      L.total=0; L.stopped='timeout';
+      if(!prev.known || e || (d && d.error)){
+        finishLaunch(L, 'Error creating batch: timeout. Open the Monitor to check whether the batch was created before launching again.');
+        return;
+      }
+      if(!b || b===prev.batch){
+        finishLaunch(L, 'Error creating batch: timeout. No batch was created; you can launch again.');
+        return;
+      }
+      L.batch=b; selectMonBatch(b);
+      ajax('getBatchStatus',{ batch:b },function(e2,d2){
+        if(S.launch!==L) return;
+        var ids=((d2&&d2.rows)||[]).filter(function(r){ return r && r.logSysId && (r.status||'queued')==='queued'; })
+                                     .map(function(r){ return r.logSysId; });
+        if(e2 || (d2&&d2.error) || !ids.length){
+          finishLaunch(L, 'The server created the batch after the browser stopped waiting, so nothing was launched. Check the batch in the Monitor before launching again.');
+          return;
+        }
+        ajax('failRows',{ log_sys_ids:ids.join(','), message:'Not launched: the server took too long to create the batch. Launch the application again.' },function(e3,d3){
+          if(S.launch!==L) return;
+          finishLaunch(L, (e3 || !d3 || d3.error)
+            ? 'The server created the batch after the browser stopped waiting, so nothing was launched. Check the batch in the Monitor before launching again.'
+            : 'The server created the batch after the browser stopped waiting, so nothing was launched. Its applications are marked failed: launch them again from the Wizard.');
+        });
+      });
+    });
+  }
+
+  function createBatchFor(L, apps, prev){
     ajax('createBatch',{ apps: JSON.stringify(apps) }, function(e,d){
       if(S.launch!==L) return;
+      if(e==='timeout'){ recoverBatch(L, prev); return; }
       // F15 — righe non accodate dal server (tetto, app non piu' aggiornabile,
       // gia' in installazione, insert fallita): non vengono lanciate.
       var sk=(d&&d.skipped)||[];
@@ -1782,7 +1845,10 @@ html,body{background:#f5f5f7;margin:0}
   // Cambio di batch: la cache delle dipendenze, l'avviso di Cancel queued e la
   // chiave di rendering appartengono al batch precedente (O2, O4).
   function selectMonBatch(batch){
-    if(batch!==S.currentBatch){ S.monNotice=null; S.monKey=''; S.monDepsBatch=''; S.monDepCache={}; S.monDepFinal={}; S.monData=null; }
+    if(batch!==S.currentBatch){ S.monNotice=null; S.monKey=''; S.monDepsBatch=''; S.monDepCache={}; S.monDepFinal={}; S.monData=null;
+      // v1.7.2 (U4) — il filtro e la pagina appartengono al batch precedente:
+      // il nuovo batch si apriva filtrato (per esempio su 'failed') e sembrava vuoto.
+      S.monFilter=''; resetPage('mon'); }
     S.currentBatch=batch;
   }
   function renderMonitorEmpty(){ $('mon-body').innerHTML='<div class="empty">No install batches yet. Launch updates from the Wizard.</div>'; S.monKey=''; var s=$('mon-batch'); if(s){ s.innerHTML='<option value="">(no batches)</option>'; } }
